@@ -1,8 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
-import { auth, db } from "../firebase";
-import { onAuthStateChanged, signInWithEmailAndPassword } from "firebase/auth";
-import { collection, addDoc, onSnapshot, updateDoc, doc } from "firebase/firestore"; // Removed serverTimestamp
+import { auth, db, checkOrCreateUser, createUser } from "../firebase";
+import { onAuthStateChanged, signInWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
+import { collection, addDoc, onSnapshot, updateDoc, doc } from "firebase/firestore";
 
 // Simple types for your data
 interface Totem {
@@ -28,67 +28,107 @@ interface Post {
 
 export default function Home() {
   const [user, setUser] = useState<any>(null);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [userData, setUserData] = useState<any>(null); // User data from Firestore
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [signupEmail, setSignupEmail] = useState("");
+  const [signupPassword, setSignupPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [totems, setTotems] = useState<string[]>([]);
   const [customTotem, setCustomTotem] = useState("");
   const [posts, setPosts] = useState<Post[]>([]);
-  const [selectedQuestion, setSelectedQuestion] = useState<Post | null>(null); // Fixed: useState, not state
+  const [selectedQuestion, setSelectedQuestion] = useState<Post | null>(null);
   const [refreshCount, setRefreshCount] = useState(5); // Simple counter for refreshes
 
   useEffect(() => {
-    onAuthStateChanged(auth, (user) => setUser(user));
-    const unsubscribe = onSnapshot(collection(db, "posts"), (snapshot) => {
-      const postsList = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Post[];
-      // Ensure post.answers is always an array
-      const updatedPosts = postsList.map((post) => {
-        const answers = Array.isArray(post.answers) ? post.answers : [];
-        post.answers = answers.map((answer) => {
-          // Ensure answer.totems is always an array
-          const totems = Array.isArray(answer.totems) ? answer.totems : [];
-          answer.totems = totems.map((totem) => {
-            if (!totem.lastLike) {
-              totem.lastLike = null; // Default if no last like for this totem
-            }
-            if (!totem.likedBy) {
-              totem.likedBy = []; // Default if no users have liked this totem
-            }
-            // Calculate crispness: 0% if never liked, 100% if recently liked, decays to 0% over 7 days
-            if (totem.lastLike) {
-              const now = new Date();
-              const lastLikeDate = new Date(totem.lastLike); // Parse ISO string to Date
-              const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
-              const timeSinceLike = now.getTime() - lastLikeDate.getTime();
-              if (timeSinceLike <= ONE_WEEK_MS) {
-                const decayFactor = 1 - timeSinceLike / ONE_WEEK_MS;
-                totem.crispness = Math.max(0, Math.min(100, 100 * decayFactor)); // 100% to 0% over 7 days
-              } else {
-                totem.crispness = 0; // Older than 7 days
-              }
-            } else {
-              totem.crispness = 0; // No likes yet
-            }
-            return totem;
-          });
-          return answer;
-        });
-        return post;
-      });
-      setPosts(updatedPosts);
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+      setUser(user);
+      if (user) {
+        const data = await checkOrCreateUser(user);
+        setUserData(data);
+      } else {
+        setUserData(null);
+        setPosts([]); // Clear posts if not authenticated to avoid permission errors
+      }
     });
-    return () => unsubscribe();
-  }, []);
+
+    let unsubscribePosts: () => void;
+    if (user) {
+      unsubscribePosts = onSnapshot(collection(db, "posts"), (snapshot) => {
+        const postsList = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Post[];
+        // Ensure post.answers is always an array
+        const updatedPosts = postsList.map((post) => {
+          const answers = Array.isArray(post.answers) ? post.answers : [];
+          post.answers = answers.map((answer) => {
+            // Ensure answer.totems is always an array
+            const totems = Array.isArray(answer.totems) ? answer.totems : [];
+            answer.totems = totems.map((totem) => {
+              if (!totem.lastLike) {
+                totem.lastLike = null; // Default if no last like for this totem
+              }
+              if (!totem.likedBy) {
+                totem.likedBy = []; // Default if no users have liked this totem
+              }
+              // Calculate crispness: 0% if never liked, 100% if recently liked, decays to 0% over 7 days
+              if (totem.lastLike) {
+                const now = new Date();
+                const lastLikeDate = new Date(totem.lastLike); // Parse ISO string to Date
+                const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+                const timeSinceLike = now.getTime() - lastLikeDate.getTime();
+                if (timeSinceLike <= ONE_WEEK_MS) {
+                  const decayFactor = 1 - timeSinceLike / ONE_WEEK_MS;
+                  totem.crispness = Math.max(0, Math.min(100, 100 * decayFactor)); // 100% to 0% over 7 days
+                } else {
+                  totem.crispness = 0; // Older than 7 days
+                }
+              } else {
+                totem.crispness = 0; // No likes yet
+              }
+              return totem;
+            });
+            return answer;
+          });
+          return post;
+        });
+        setPosts(updatedPosts);
+      }, (error) => {
+        console.error("Error in snapshot listener:", error);
+        if (error.code === "permission-denied") {
+          setPosts([]); // Clear posts if permission is denied (e.g., unauthenticated)
+        }
+      });
+    } else {
+      setPosts([]); // Clear posts if no user is authenticated
+    }
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribePosts) unsubscribePosts();
+    };
+  }, [user]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
+      const user = userCredential.user;
+      await checkOrCreateUser(user); // Ensure user data is created/updated
+      setError(null);
+    } catch (error: any) {
+      setError(error.message);
+    }
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const user = await createUser(signupEmail, signupPassword); // Use separate signup states
+      await checkOrCreateUser(user); // Create or update user data in Firestore
       setError(null);
     } catch (error: any) {
       setError(error.message);
@@ -101,7 +141,10 @@ export default function Home() {
 
   const handlePostQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!question || !user) return;
+    if (!question || !user || !userData?.verified) {
+      alert("Please verify your email before posting questions!");
+      return;
+    }
     await addDoc(collection(db, "posts"), {
       question,
       answers: [],
@@ -112,7 +155,10 @@ export default function Home() {
 
   const handlePostAnswer = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!answer || !selectedQuestion) return;
+    if (!answer || !selectedQuestion || !user || !userData?.verified) {
+      alert("Please verify your email before posting answers!");
+      return;
+    }
     const newAnswer: Answer = {
       text: answer,
       totems: totems.map((t) => ({
@@ -169,6 +215,7 @@ export default function Home() {
   };
 
   const handleRefreshCrispness = async (postId: string, answerIdx: number, totemName: string) => {
+    if (!user) return;
     if (refreshCount <= 0) {
       alert("No refreshes left today. Upgrade to Premium for more!");
       return;
@@ -193,6 +240,19 @@ export default function Home() {
     setRefreshCount((prev) => prev - 1);
   };
 
+  const handleVerifyEmail = async () => {
+    if (user && !userData?.verified) {
+      try {
+        await sendEmailVerification(user);
+        alert("Verification email sent! Please check your inbox.");
+      } catch (error: any) {
+        setError(error.message);
+      }
+    } else {
+      alert("Your email is already verified or you’re not logged in!");
+    }
+  };
+
   if (!user) {
     return (
       <div className="max-w-4xl mx-auto p-4">
@@ -200,15 +260,15 @@ export default function Home() {
         <form onSubmit={handleLogin} className="space-y-4">
           <input
             type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            value={loginEmail}
+            onChange={(e) => setLoginEmail(e.target.value)}
             placeholder="Email"
             className="w-full p-2 border rounded text-gray-900"
           />
           <input
             type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            value={loginPassword}
+            onChange={(e) => setLoginPassword(e.target.value)}
             placeholder="Password"
             className="w-full p-2 border rounded text-gray-900"
           />
@@ -217,7 +277,27 @@ export default function Home() {
             Login
           </button>
         </form>
-        <p className="mt-4 text-gray-600">No account? Use test@example.com / test1234 for testing.</p>
+        <form onSubmit={handleSignup} className="space-y-4 mt-4">
+          <input
+            type="email"
+            value={signupEmail}
+            onChange={(e) => setSignupEmail(e.target.value)}
+            placeholder="Email"
+            className="w-full p-2 border rounded text-gray-900"
+          />
+          <input
+            type="password"
+            value={signupPassword}
+            onChange={(e) => setSignupPassword(e.target.value)}
+            placeholder="Password"
+            className="w-full p-2 border rounded text-gray-900"
+          />
+          {error && <p className="text-red-500">{error}</p>}
+          <button type="submit" className="bg-green-500 text-white p-2 rounded hover:bg-green-600">
+            Create Account
+          </button>
+        </form>
+        <p className="mt-4 text-gray-600">No account? Use test@example.com / test1234 for testing, or create a new account.</p>
       </div>
     );
   }
@@ -227,6 +307,17 @@ export default function Home() {
       <h1 className="text-3xl font-bold mb-4 text-gray-900">Shrug</h1>
       <div className="mb-6">
         <p className="text-gray-600 mb-2">Refreshes Left: {refreshCount}</p>
+        <p>
+          Verification Status: {userData?.verified ? "Verified" : "Not Verified"}
+          {!userData?.verified && (
+            <button
+              onClick={handleVerifyEmail}
+              className="bg-blue-500 text-white p-2 rounded ml-2 hover:bg-blue-600"
+            >
+              Verify Email
+            </button>
+          )}
+        </p>
         <form onSubmit={handlePostQuestion} className="space-y-4 mb-4">
           <input
             type="text"
