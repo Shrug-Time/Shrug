@@ -2,27 +2,28 @@
 import { useState, useEffect } from "react";
 import { auth, db } from "../firebase";
 import { onAuthStateChanged, signInWithEmailAndPassword } from "firebase/auth";
-import { collection, addDoc, onSnapshot, updateDoc, doc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, onSnapshot, updateDoc, doc } from "firebase/firestore"; // Removed serverTimestamp
 
-// Define types for Firestore data
+// Simple types for your data
 interface Totem {
   name: string;
-  likes: number;
+  likes: number; // Total number of unique user likes
+  lastLike?: string | null; // When it was last liked (client time as ISO string, optional)
+  likedBy?: string[]; // Array of user IDs who liked this totem, to prevent duplicate likes
+  crispness?: number; // Crispness percentage (0–100), optional
 }
 
 interface Answer {
-  text: string;
-  totems: Totem[];
-  timestamp: any; // Use Date or Firebase Timestamp type if needed
-  userId: string;
+  text: string; // The answer text
+  totems: Totem[]; // List of totems for this answer
+  userId: string; // Who added it
 }
 
 interface Post {
   id: string;
-  question: string;
-  answers: Answer[];
-  timestamp: any; // Use Date or Firebase Timestamp type if needed
-  userId: string;
+  question: string; // The question asked
+  answers: Answer[]; // All answers to this question
+  userId: string; // Who posted it
 }
 
 export default function Home() {
@@ -35,16 +36,51 @@ export default function Home() {
   const [totems, setTotems] = useState<string[]>([]);
   const [customTotem, setCustomTotem] = useState("");
   const [posts, setPosts] = useState<Post[]>([]);
-  const [selectedQuestion, setSelectedQuestion] = useState<Post | null>(null);
+  const [selectedQuestion, setSelectedQuestion] = useState<Post | null>(null); // Fixed: useState, not state
+  const [refreshCount, setRefreshCount] = useState(5); // Simple counter for refreshes
 
   useEffect(() => {
     onAuthStateChanged(auth, (user) => setUser(user));
     const unsubscribe = onSnapshot(collection(db, "posts"), (snapshot) => {
-      const fetchedPosts = snapshot.docs.map((doc) => ({
+      const postsList = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       })) as Post[];
-      setPosts(fetchedPosts.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+      // Ensure post.answers is always an array
+      const updatedPosts = postsList.map((post) => {
+        const answers = Array.isArray(post.answers) ? post.answers : [];
+        post.answers = answers.map((answer) => {
+          // Ensure answer.totems is always an array
+          const totems = Array.isArray(answer.totems) ? answer.totems : [];
+          answer.totems = totems.map((totem) => {
+            if (!totem.lastLike) {
+              totem.lastLike = null; // Default if no last like for this totem
+            }
+            if (!totem.likedBy) {
+              totem.likedBy = []; // Default if no users have liked this totem
+            }
+            // Calculate crispness: 0% if never liked, 100% if recently liked, decays to 0% over 7 days
+            if (totem.lastLike) {
+              const now = new Date();
+              const lastLikeDate = new Date(totem.lastLike); // Parse ISO string to Date
+              const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+              const timeSinceLike = now.getTime() - lastLikeDate.getTime();
+              if (timeSinceLike <= ONE_WEEK_MS) {
+                const decayFactor = 1 - timeSinceLike / ONE_WEEK_MS;
+                totem.crispness = Math.max(0, Math.min(100, 100 * decayFactor)); // 100% to 0% over 7 days
+              } else {
+                totem.crispness = 0; // Older than 7 days
+              }
+            } else {
+              totem.crispness = 0; // No likes yet
+            }
+            return totem;
+          });
+          return answer;
+        });
+        return post;
+      });
+      setPosts(updatedPosts);
     });
     return () => unsubscribe();
   }, []);
@@ -69,7 +105,6 @@ export default function Home() {
     await addDoc(collection(db, "posts"), {
       question,
       answers: [],
-      timestamp: serverTimestamp(),
       userId: user.uid,
     });
     setQuestion("");
@@ -80,8 +115,12 @@ export default function Home() {
     if (!answer || !selectedQuestion) return;
     const newAnswer: Answer = {
       text: answer,
-      totems: totems.map((t) => ({ name: t, likes: 0 })),
-      timestamp: serverTimestamp(),
+      totems: totems.map((t) => ({
+        name: t,
+        likes: 0,
+        lastLike: null, // Start with no likes, crispness will be 0% until liked
+        likedBy: [], // No users have liked yet
+      })),
       userId: user.uid,
     };
     const updatedAnswers = [newAnswer, ...selectedQuestion.answers];
@@ -93,13 +132,26 @@ export default function Home() {
   };
 
   const handleTotemLike = async (postId: string, answerIdx: number, totemName: string) => {
+    if (!user) return; // Ensure user is logged in
     const post = posts.find((p) => p.id === postId) as Post;
+    const answer = post.answers[answerIdx];
+    const totem = answer.totems.find((t) => t.name === totemName);
+
+    if (!totem || totem.likedBy?.includes(user.uid)) return; // Prevent duplicate likes
+
     const updatedAnswers = post.answers.map((ans: Answer, idx: number) =>
       idx === answerIdx
         ? {
             ...ans,
             totems: ans.totems.map((t: Totem) =>
-              t.name === totemName ? { ...t, likes: t.likes + 1 } : t
+              t.name === totemName
+                ? {
+                    ...t,
+                    likes: t.likes + 1, // Increment unique likes
+                    lastLike: new Date().toISOString(), // Update last like time
+                    likedBy: t.likedBy ? [...t.likedBy, user.uid] : [user.uid], // Track user who liked
+                  }
+                : t
             ),
           }
         : ans
@@ -108,11 +160,37 @@ export default function Home() {
   };
 
   const handleTotemSelect = (totem: string) => {
+    console.log("Adding/Removing totem:", totem, "Current totems:", totems); // Debug log
     setTotems((prev) => (prev.includes(totem) ? prev.filter((t) => t !== totem) : [...prev, totem]));
   };
 
   const handleCustomTotem = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCustomTotem(e.target.value);
+  };
+
+  const handleRefreshCrispness = async (postId: string, answerIdx: number, totemName: string) => {
+    if (refreshCount <= 0) {
+      alert("No refreshes left today. Upgrade to Premium for more!");
+      return;
+    }
+    const post = posts.find((p) => p.id === postId) as Post;
+    const updatedAnswers = post.answers.map((ans: Answer, idx: number) =>
+      idx === answerIdx
+        ? {
+            ...ans,
+            totems: ans.totems.map((t: Totem) =>
+              t.name === totemName
+                ? {
+                    ...t,
+                    lastLike: new Date().toISOString(), // Reset last like time on refresh
+                  }
+                : t
+            ),
+          }
+        : ans
+    );
+    await updateDoc(doc(db, "posts", postId), { answers: updatedAnswers });
+    setRefreshCount((prev) => prev - 1);
   };
 
   if (!user) {
@@ -139,9 +217,7 @@ export default function Home() {
             Login
           </button>
         </form>
-        <p className="mt-4 text-gray-600">
-          No account? Create one in Firebase Console and use test@example.com / test1234 for testing.
-        </p>
+        <p className="mt-4 text-gray-600">No account? Use test@example.com / test1234 for testing.</p>
       </div>
     );
   }
@@ -150,6 +226,7 @@ export default function Home() {
     <div className="max-w-4xl mx-auto p-4 bg-white rounded shadow">
       <h1 className="text-3xl font-bold mb-4 text-gray-900">Shrug</h1>
       <div className="mb-6">
+        <p className="text-gray-600 mb-2">Refreshes Left: {refreshCount}</p>
         <form onSubmit={handlePostQuestion} className="space-y-4 mb-4">
           <input
             type="text"
@@ -165,28 +242,36 @@ export default function Home() {
         {posts.map((post) => (
           <div key={post.id} className="mb-6 p-4 bg-gray-50 rounded shadow">
             <h2 className="text-xl font-bold mb-2 text-gray-900">{post.question}</h2>
-            <button
-              onClick={() => setSelectedQuestion(post)}
-              className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600 mb-2"
-            >
-              Write Answer
-            </button>
             {post.answers.map((ans: Answer, aIdx: number) => (
               <div key={aIdx} className="mt-2">
                 <p className="text-gray-900">{ans.text}</p>
                 <div className="mt-2 flex flex-wrap">
                   {ans.totems.map((t: Totem) => (
-                    <button
-                      key={t.name}
-                      onClick={() => handleTotemLike(post.id, aIdx, t.name)}
-                      className="mr-2 mb-2 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-gray-900"
-                    >
-                      {t.name} ({t.likes})
-                    </button>
+                    <div key={t.name} className="mr-2 mb-2">
+                      <button
+                        onClick={() => handleTotemLike(post.id, aIdx, t.name)}
+                        className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 text-gray-900"
+                      >
+                        {t.name} ({t.likes}) - Crispness: {Math.round(t.crispness || 0)}%
+                      </button>
+                      <button
+                        onClick={() => handleRefreshCrispness(post.id, aIdx, t.name)}
+                        className="bg-yellow-500 text-white p-1 rounded hover:bg-yellow-600 text-xs"
+                        disabled={refreshCount <= 0}
+                      >
+                        Refresh
+                      </button>
+                    </div>
                   ))}
                 </div>
               </div>
             ))}
+            <button
+              onClick={() => setSelectedQuestion(post)}
+              className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600 mb-2"
+            >
+              Answer
+            </button>
             {selectedQuestion?.id === post.id && (
               <div className="mt-4">
                 <input
@@ -200,7 +285,7 @@ export default function Home() {
                   type="text"
                   value={customTotem}
                   onChange={handleCustomTotem}
-                  placeholder="Totem"
+                  placeholder="Totem (e.g., Cool, Funny)"
                   className="w-full p-2 border rounded mb-2 text-gray-900"
                 />
                 <button
@@ -209,6 +294,8 @@ export default function Home() {
                 >
                   Add Totem
                 </button>
+                {/* Show selected totems */}
+                <p className="text-gray-600">Selected Totems: {totems.join(", ") || "None"}</p>
                 <button
                   onClick={handlePostAnswer}
                   className="bg-green-500 text-white p-2 rounded hover:bg-green-600"
