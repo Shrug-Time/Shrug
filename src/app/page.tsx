@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { auth, db, checkOrCreateUser } from "../firebase";
 import { onAuthStateChanged, sendEmailVerification } from "firebase/auth";
 import { useRouter } from "next/navigation";
-import { collection, addDoc, onSnapshot, updateDoc, doc } from "firebase/firestore";
+import { collection, addDoc, onSnapshot, updateDoc, doc, serverTimestamp, FieldValue } from "firebase/firestore";
+import { formatDistanceToNow } from "date-fns";
 
 interface Totem {
   name: string;
@@ -18,6 +19,7 @@ interface Answer {
   text: string;
   totems: Totem[];
   userId: string;
+  createdAt?: any; // Firestore Timestamp
 }
 
 interface Post {
@@ -25,6 +27,7 @@ interface Post {
   question: string;
   answers: Answer[];
   userId: string;
+  createdAt?: any; // Firestore Timestamp
 }
 
 export default function Home() {
@@ -106,6 +109,7 @@ export default function Home() {
       question,
       answers: [],
       userId: user.uid,
+      createdAt: serverTimestamp(), // Works for top-level fields
     });
     setQuestion("");
   };
@@ -127,7 +131,11 @@ export default function Home() {
       userId: user.uid,
     };
     const updatedAnswers = [newAnswer, ...selectedQuestion.answers];
-    await updateDoc(doc(db, "posts", selectedQuestion.id), { answers: updatedAnswers });
+    await updateDoc(doc(db, "posts", selectedQuestion.id), {
+      answers: updatedAnswers,
+      // Add or update post's createdAt if not present (for new posts)
+      ...(selectedQuestion.createdAt ? {} : { createdAt: serverTimestamp() }),
+    });
     setAnswer("");
     setTotems([]);
     setCustomTotem("");
@@ -179,7 +187,13 @@ export default function Home() {
         ? {
             ...ans,
             totems: ans.totems.map((t) =>
-              t.name === totemName ? { ...t, lastLike: new Date().toISOString() } : t
+              t.name === totemName
+                ? {
+                    ...t,
+                    lastLike: new Date().toISOString(), // Reset for all likes
+                    likedBy: t.likedBy, // Keep all users
+                  }
+                : t
             ),
           }
         : ans
@@ -206,7 +220,6 @@ export default function Home() {
 
   if (!user) return null;
 
-  // Helper to get top totem (highest likes) for a post
   const getTopTotem = (totems: Totem[]): Totem | null => {
     if (!totems.length) return null;
     return totems.reduce((top, current) => (current.likes > top.likes ? current : top));
@@ -247,7 +260,7 @@ export default function Home() {
             />
             <button
               type="submit"
-              className="w-full p-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600"
+              className="w-full p-3 bg-blue-500 text-white rounded-full hover:bg-blue-600"
             >
               Ask
             </button>
@@ -261,7 +274,7 @@ export default function Home() {
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <p className="text-gray-700">
-                      {ans.userId} • {new Date().toLocaleString()} ago {/* Mock timestamp */}
+                      {ans.userId} • {ans.createdAt ? formatDistanceToNow(new Date(ans.createdAt.toDate()), { addSuffix: true }) : "Just now"}
                       <br />
                       {ans.text} <a href="#" className="text-blue-500 hover:underline">Show More</a>
                     </p>
@@ -271,11 +284,13 @@ export default function Home() {
                       <button
                         key={getTopTotem(ans.totems)!.name}
                         onClick={() => handleTotemLike(post.id, aIdx, getTopTotem(ans.totems)!.name)}
-                        className={`mb-2 px-3 py-2 rounded-full text-white hover:opacity-90 ${
-                          getTopTotem(ans.totems)!.name === "All-Natural" ? "bg-green-500" :
-                          getTopTotem(ans.totems)!.name === "Name Brand" ? "bg-purple-500" :
-                          getTopTotem(ans.totems)!.name === "Chicken-Based" ? "bg-yellow-500" : "bg-gray-500"
-                        }`}
+                        className="mb-2 px-4 py-2 w-[120px] h-[40px] rounded-full text-white hover:opacity-90 text-sm font-medium shadow-md"
+                        style={{
+                          backgroundColor:
+                            getTopTotem(ans.totems)!.name === "All-Natural" ? "#4CAF50" :
+                            getTopTotem(ans.totems)!.name === "Name Brand" ? "#9C27B0" :
+                            getTopTotem(ans.totems)!.name === "Chicken-Based" ? "#FFCA28" : "#808080",
+                        }}
                       >
                         {getTopTotem(ans.totems)!.name} ({getTopTotem(ans.totems)!.likes})
                       </button>
@@ -286,7 +301,7 @@ export default function Home() {
             ))}
             <button
               onClick={() => setSelectedQuestion(post)}
-              className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600"
+              className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600"
             >
               Write Answer
             </button>
@@ -308,14 +323,14 @@ export default function Home() {
                 />
                 <button
                   onClick={() => handleTotemSelect(customTotem)}
-                  className="w-full p-3 border border-gray-300 text-gray-900 rounded-xl hover:bg-gray-200"
+                  className="w-full p-3 border border-gray-300 text-gray-900 rounded-full hover:bg-gray-200"
                 >
                   Add Totem
                 </button>
                 <p className="text-gray-500">Selected Totems: {totems.join(", ") || "None"}</p>
                 <button
                   onClick={handlePostAnswer}
-                  className="w-full p-3 bg-green-500 text-white rounded-xl hover:bg-green-600"
+                  className="w-full p-3 bg-green-500 text-white rounded-full hover:bg-green-600"
                 >
                   Post Answer
                 </button>
