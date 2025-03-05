@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { auth, db, checkOrCreateUser } from "../firebase";
 import { onAuthStateChanged, sendEmailVerification } from "firebase/auth";
 import { useRouter } from "next/navigation";
-import { collection, addDoc, onSnapshot, updateDoc, doc, serverTimestamp, FieldValue } from "firebase/firestore";
+import { collection, addDoc, onSnapshot, updateDoc, doc, Timestamp, getDocs, QuerySnapshot, DocumentData } from "firebase/firestore"; // Updated imports
 import { formatDistanceToNow } from "date-fns";
 
 interface Totem {
@@ -19,7 +19,7 @@ interface Answer {
   text: string;
   totems: Totem[];
   userId: string;
-  createdAt?: any; // Firestore Timestamp
+  createdAt?: number | Timestamp; // Client-side timestamp (ms) or Firestore Timestamp
 }
 
 interface Post {
@@ -27,8 +27,14 @@ interface Post {
   question: string;
   answers: Answer[];
   userId: string;
-  createdAt?: any; // Firestore Timestamp
+  createdAt?: number | Timestamp; // Client-side timestamp (ms) or Firestore Timestamp
 }
+
+// Helper to convert client-side timestamp to Firestore Timestamp (if needed)
+const toFirestoreTimestamp = (time: number | Timestamp): Timestamp => {
+  if (time instanceof Timestamp) return time;
+  return Timestamp.fromMillis(time);
+};
 
 export default function Home() {
   const [user, setUser] = useState<any>(null);
@@ -55,6 +61,44 @@ export default function Home() {
 
     let unsubscribePosts: () => void;
     if (user) {
+      // Migration script - run once, then remove
+      const migrateTimestamps = async () => {
+        try {
+          const querySnapshot = await getDocs(collection(db, "posts")) as QuerySnapshot<DocumentData>;
+          querySnapshot.forEach(async (docSnapshot) => {
+            const postData = docSnapshot.data() as Post;
+            const postRef = doc(db, "posts", docSnapshot.id);
+
+            // Update post createdAt if missing (use client-side timestamp, convert to Firestore Timestamp)
+            if (!postData.createdAt) {
+              await updateDoc(postRef, { createdAt: toFirestoreTimestamp(Date.now()) });
+            }
+
+            // Handle answers - use client-side timestamp for array
+            const answers = postData.answers || [];
+            const updatedAnswers = answers.map((answer) => ({
+              ...answer,
+              createdAt: answer.createdAt || Date.now(), // Use client-side timestamp if missing
+            }));
+
+            // Update the entire answers array with client-side timestamps
+            await updateDoc(postRef, { answers: updatedAnswers });
+
+            // Convert client-side timestamps to Firestore Timestamps for consistency
+            const finalAnswers = updatedAnswers.map((answer) => ({
+              ...answer,
+              createdAt: toFirestoreTimestamp(answer.createdAt),
+            }));
+            await updateDoc(postRef, { answers: finalAnswers });
+          });
+        } catch (error) {
+          console.error("Migration error:", error);
+        }
+      };
+
+      // Uncomment to run migration once, then comment out or remove
+      // migrateTimestamps();
+
       unsubscribePosts = onSnapshot(collection(db, "posts"), (snapshot) => {
         const postsList = snapshot.docs.map((doc) => ({
           id: doc.id,
@@ -109,7 +153,7 @@ export default function Home() {
       question,
       answers: [],
       userId: user.uid,
-      createdAt: serverTimestamp(), // Works for top-level fields
+      createdAt: Date.now(), // Use client-side timestamp
     });
     setQuestion("");
   };
@@ -129,12 +173,12 @@ export default function Home() {
         likedBy: [],
       })),
       userId: user.uid,
+      createdAt: Date.now(), // Use client-side timestamp
     };
     const updatedAnswers = [newAnswer, ...selectedQuestion.answers];
     await updateDoc(doc(db, "posts", selectedQuestion.id), {
       answers: updatedAnswers,
-      // Add or update post's createdAt if not present (for new posts)
-      ...(selectedQuestion.createdAt ? {} : { createdAt: serverTimestamp() }),
+      ...(selectedQuestion.createdAt ? {} : { createdAt: Date.now() }), // Use client-side timestamp
     });
     setAnswer("");
     setTotems([]);
@@ -190,8 +234,8 @@ export default function Home() {
               t.name === totemName
                 ? {
                     ...t,
-                    lastLike: new Date().toISOString(), // Reset for all likes
-                    likedBy: t.likedBy, // Keep all users
+                    lastLike: new Date().toISOString(),
+                    likedBy: t.likedBy,
                   }
                 : t
             ),
@@ -274,7 +318,7 @@ export default function Home() {
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <p className="text-gray-700">
-                      {ans.userId} • {ans.createdAt ? formatDistanceToNow(new Date(ans.createdAt.toDate()), { addSuffix: true }) : "Just now"}
+                      {ans.userId} • {ans.createdAt ? formatDistanceToNow(typeof ans.createdAt === 'number' ? new Date(ans.createdAt) : ans.createdAt.toDate(), { addSuffix: true }) : "Just now"}
                       <br />
                       {ans.text} <a href="#" className="text-blue-500 hover:underline">Show More</a>
                     </p>
