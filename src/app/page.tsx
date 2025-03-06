@@ -1,10 +1,11 @@
+// src/app/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
-import { auth, db, checkOrCreateUser } from "../firebase";
+import { auth, db, checkOrCreateUser } from "@/firebase";
 import { onAuthStateChanged, sendEmailVerification } from "firebase/auth";
 import { useRouter } from "next/navigation";
-import { collection, addDoc, onSnapshot, updateDoc, doc, Timestamp, getDocs, QuerySnapshot, DocumentData } from "firebase/firestore"; // Updated imports
+import { collection, addDoc, onSnapshot, updateDoc, doc, Timestamp, getDocs, QuerySnapshot, DocumentData, setDoc, getDoc, arrayUnion, increment } from "firebase/firestore";
 import { formatDistanceToNow } from "date-fns";
 
 interface Totem {
@@ -19,7 +20,7 @@ interface Answer {
   text: string;
   totems: Totem[];
   userId: string;
-  createdAt?: number | Timestamp; // Client-side timestamp (ms) or Firestore Timestamp
+  createdAt?: number | Timestamp;
 }
 
 interface Post {
@@ -27,10 +28,9 @@ interface Post {
   question: string;
   answers: Answer[];
   userId: string;
-  createdAt?: number | Timestamp; // Client-side timestamp (ms) or Firestore Timestamp
+  createdAt?: number | Timestamp;
 }
 
-// Helper to convert client-side timestamp to Firestore Timestamp (if needed)
 const toFirestoreTimestamp = (time: number | Timestamp): Timestamp => {
   if (time instanceof Timestamp) return time;
   return Timestamp.fromMillis(time);
@@ -60,45 +60,8 @@ export default function Home() {
     });
 
     let unsubscribePosts: () => void;
+
     if (user) {
-      // Migration script - run once, then remove
-      const migrateTimestamps = async () => {
-        try {
-          const querySnapshot = await getDocs(collection(db, "posts")) as QuerySnapshot<DocumentData>;
-          querySnapshot.forEach(async (docSnapshot) => {
-            const postData = docSnapshot.data() as Post;
-            const postRef = doc(db, "posts", docSnapshot.id);
-
-            // Update post createdAt if missing (use client-side timestamp, convert to Firestore Timestamp)
-            if (!postData.createdAt) {
-              await updateDoc(postRef, { createdAt: toFirestoreTimestamp(Date.now()) });
-            }
-
-            // Handle answers - use client-side timestamp for array
-            const answers = postData.answers || [];
-            const updatedAnswers = answers.map((answer) => ({
-              ...answer,
-              createdAt: answer.createdAt || Date.now(), // Use client-side timestamp if missing
-            }));
-
-            // Update the entire answers array with client-side timestamps
-            await updateDoc(postRef, { answers: updatedAnswers });
-
-            // Convert client-side timestamps to Firestore Timestamps for consistency
-            const finalAnswers = updatedAnswers.map((answer) => ({
-              ...answer,
-              createdAt: toFirestoreTimestamp(answer.createdAt),
-            }));
-            await updateDoc(postRef, { answers: finalAnswers });
-          });
-        } catch (error) {
-          console.error("Migration error:", error);
-        }
-      };
-
-      // Uncomment to run migration once, then comment out or remove
-      // migrateTimestamps();
-
       unsubscribePosts = onSnapshot(collection(db, "posts"), (snapshot) => {
         const postsList = snapshot.docs.map((doc) => ({
           id: doc.id,
@@ -153,7 +116,7 @@ export default function Home() {
       question,
       answers: [],
       userId: user.uid,
-      createdAt: Date.now(), // Use client-side timestamp
+      createdAt: Timestamp.now(),
     });
     setQuestion("");
   };
@@ -164,6 +127,11 @@ export default function Home() {
       alert("Please verify your email before posting answers!");
       return;
     }
+
+    console.log("Starting to post answer...");
+    console.log("User:", user.uid);
+    console.log("Selected Question:", selectedQuestion.id);
+
     const newAnswer: Answer = {
       text: answer,
       totems: totems.map((t) => ({
@@ -173,13 +141,57 @@ export default function Home() {
         likedBy: [],
       })),
       userId: user.uid,
-      createdAt: Date.now(), // Use client-side timestamp
+      createdAt: Timestamp.now(),
     };
     const updatedAnswers = [newAnswer, ...selectedQuestion.answers];
-    await updateDoc(doc(db, "posts", selectedQuestion.id), {
+    const postRef = doc(db, "posts", selectedQuestion.id);
+    await updateDoc(postRef, {
       answers: updatedAnswers,
-      ...(selectedQuestion.createdAt ? {} : { createdAt: Date.now() }), // Use client-side timestamp
+      ...(selectedQuestion.createdAt ? {} : { createdAt: Timestamp.now() }),
     });
+    console.log("Updated post with new answer.");
+
+    const answerId = `${selectedQuestion.id}-${updatedAnswers.length - 1}`;
+    console.log("Generated answerId:", answerId);
+
+    const userAnswer = {
+      postId: selectedQuestion.id,
+      answerIdx: 0,
+      text: answer,
+      totems,
+      createdAt: Timestamp.now(),
+    };
+    try {
+      await setDoc(doc(db, "users", user.uid, "answers", answerId), userAnswer);
+      console.log(`Successfully wrote answer ${answerId} to users/${user.uid}/answers.`);
+    } catch (error) {
+      console.error("Error writing to users/{uid}/answers:", error);
+    }
+
+    for (const totemName of totems) {
+      const totemRef = doc(db, "totems", totemName);
+      const totemSnap = await getDoc(totemRef);
+      if (totemSnap.exists()) {
+        await updateDoc(totemRef, {
+          answerRefs: arrayUnion({
+            userId: user.uid,
+            postId: selectedQuestion.id,
+            answerId,
+          }),
+          usageCount: increment(1),
+          lastUsed: Timestamp.now(),
+        });
+      } else {
+        await setDoc(totemRef, {
+          name: totemName,
+          answerRefs: [{ userId: user.uid, postId: selectedQuestion.id, answerId }],
+          usageCount: 1,
+          lastUsed: Timestamp.now(),
+        });
+      }
+      console.log(`Processed totem: ${totemName}`);
+    }
+
     setAnswer("");
     setTotems([]);
     setCustomTotem("");
