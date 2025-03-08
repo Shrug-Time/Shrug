@@ -1,48 +1,19 @@
+// src/app/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
-import { auth, db, checkOrCreateUser } from "../firebase";
+import { auth, db, checkOrCreateUser } from "@/firebase";
 import { onAuthStateChanged, sendEmailVerification } from "firebase/auth";
 import { useRouter } from "next/navigation";
-import { collection, addDoc, onSnapshot, updateDoc, doc, Timestamp, getDocs, QuerySnapshot, DocumentData } from "firebase/firestore"; // Updated imports
-import { formatDistanceToNow } from "date-fns";
-
-interface Totem {
-  name: string;
-  likes: number;
-  lastLike?: string | null;
-  likedBy?: string[];
-  crispness?: number;
-}
-
-interface Answer {
-  text: string;
-  totems: Totem[];
-  userId: string;
-  createdAt?: number | Timestamp; // Client-side timestamp (ms) or Firestore Timestamp
-}
-
-interface Post {
-  id: string;
-  question: string;
-  answers: Answer[];
-  userId: string;
-  createdAt?: number | Timestamp; // Client-side timestamp (ms) or Firestore Timestamp
-}
-
-// Helper to convert client-side timestamp to Firestore Timestamp (if needed)
-const toFirestoreTimestamp = (time: number | Timestamp): Timestamp => {
-  if (time instanceof Timestamp) return time;
-  return Timestamp.fromMillis(time);
-};
+import { collection, addDoc, onSnapshot, updateDoc, doc, Timestamp, getDocs, QuerySnapshot, DocumentData, setDoc, getDoc, arrayUnion, increment } from "firebase/firestore";
+import { QuestionList } from '@/components/questions/QuestionList';
+import { Header } from '@/components/common/Header';
+import { AnswerForm } from '@/components/answers/AnswerForm';
+import type { Post } from '@/types/models';
 
 export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [userData, setUserData] = useState<any>(null);
-  const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState("");
-  const [totems, setTotems] = useState<string[]>([]);
-  const [customTotem, setCustomTotem] = useState("");
   const [posts, setPosts] = useState<Post[]>([]);
   const [selectedQuestion, setSelectedQuestion] = useState<Post | null>(null);
   const [refreshCount, setRefreshCount] = useState(5);
@@ -60,45 +31,8 @@ export default function Home() {
     });
 
     let unsubscribePosts: () => void;
+
     if (user) {
-      // Migration script - run once, then remove
-      const migrateTimestamps = async () => {
-        try {
-          const querySnapshot = await getDocs(collection(db, "posts")) as QuerySnapshot<DocumentData>;
-          querySnapshot.forEach(async (docSnapshot) => {
-            const postData = docSnapshot.data() as Post;
-            const postRef = doc(db, "posts", docSnapshot.id);
-
-            // Update post createdAt if missing (use client-side timestamp, convert to Firestore Timestamp)
-            if (!postData.createdAt) {
-              await updateDoc(postRef, { createdAt: toFirestoreTimestamp(Date.now()) });
-            }
-
-            // Handle answers - use client-side timestamp for array
-            const answers = postData.answers || [];
-            const updatedAnswers = answers.map((answer) => ({
-              ...answer,
-              createdAt: answer.createdAt || Date.now(), // Use client-side timestamp if missing
-            }));
-
-            // Update the entire answers array with client-side timestamps
-            await updateDoc(postRef, { answers: updatedAnswers });
-
-            // Convert client-side timestamps to Firestore Timestamps for consistency
-            const finalAnswers = updatedAnswers.map((answer) => ({
-              ...answer,
-              createdAt: toFirestoreTimestamp(answer.createdAt),
-            }));
-            await updateDoc(postRef, { answers: finalAnswers });
-          });
-        } catch (error) {
-          console.error("Migration error:", error);
-        }
-      };
-
-      // Uncomment to run migration once, then comment out or remove
-      // migrateTimestamps();
-
       unsubscribePosts = onSnapshot(collection(db, "posts"), (snapshot) => {
         const postsList = snapshot.docs.map((doc) => ({
           id: doc.id,
@@ -143,52 +77,11 @@ export default function Home() {
     };
   }, [user, router]);
 
-  const handlePostQuestion = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!question || !user || !userData?.verified) {
-      alert("Please verify your email before posting questions!");
-      return;
-    }
-    await addDoc(collection(db, "posts"), {
-      question,
-      answers: [],
-      userId: user.uid,
-      createdAt: Date.now(), // Use client-side timestamp
-    });
-    setQuestion("");
-  };
-
-  const handlePostAnswer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!answer || !selectedQuestion || !user || !userData?.verified) {
-      alert("Please verify your email before posting answers!");
-      return;
-    }
-    const newAnswer: Answer = {
-      text: answer,
-      totems: totems.map((t) => ({
-        name: t,
-        likes: 0,
-        lastLike: null,
-        likedBy: [],
-      })),
-      userId: user.uid,
-      createdAt: Date.now(), // Use client-side timestamp
-    };
-    const updatedAnswers = [newAnswer, ...selectedQuestion.answers];
-    await updateDoc(doc(db, "posts", selectedQuestion.id), {
-      answers: updatedAnswers,
-      ...(selectedQuestion.createdAt ? {} : { createdAt: Date.now() }), // Use client-side timestamp
-    });
-    setAnswer("");
-    setTotems([]);
-    setCustomTotem("");
-    setSelectedQuestion(null);
-  };
-
   const handleTotemLike = async (postId: string, answerIdx: number, totemName: string) => {
     if (!user) return;
-    const post = posts.find((p) => p.id === postId) as Post;
+    const post = posts.find((p) => p.id === postId);
+    if (!post) return;
+
     const totem = post.answers[answerIdx].totems.find((t) => t.name === totemName);
     if (!totem || totem.likedBy?.includes(user.uid)) return;
 
@@ -212,20 +105,14 @@ export default function Home() {
     await updateDoc(doc(db, "posts", postId), { answers: updatedAnswers });
   };
 
-  const handleTotemSelect = (totem: string) => {
-    setTotems((prev) => (prev.includes(totem) ? prev.filter((t) => t !== totem) : [...prev, totem]));
-  };
-
-  const handleCustomTotem = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCustomTotem(e.target.value);
-  };
-
-  const handleRefreshCrispness = async (postId: string, answerIdx: number, totemName: string) => {
+  const handleRefreshTotem = async (postId: string, answerIdx: number, totemName: string) => {
     if (!user || refreshCount <= 0) {
       alert("No refreshes left today. Upgrade to Premium for more!");
       return;
     }
-    const post = posts.find((p) => p.id === postId) as Post;
+    const post = posts.find((p) => p.id === postId);
+    if (!post) return;
+
     const updatedAnswers = post.answers.map((ans, idx) =>
       idx === answerIdx
         ? {
@@ -235,7 +122,6 @@ export default function Home() {
                 ? {
                     ...t,
                     lastLike: new Date().toISOString(),
-                    likedBy: t.likedBy,
                   }
                 : t
             ),
@@ -246,17 +132,6 @@ export default function Home() {
     setRefreshCount((prev) => prev - 1);
   };
 
-  const handleVerifyEmail = async () => {
-    if (user && !userData?.verified) {
-      try {
-        await sendEmailVerification(user);
-        alert("Verification email sent! Please check your inbox.");
-      } catch (error: any) {
-        alert("Error sending verification: " + error.message);
-      }
-    }
-  };
-
   const handleLogout = () => {
     auth.signOut();
     router.push("/login");
@@ -264,127 +139,30 @@ export default function Home() {
 
   if (!user) return null;
 
-  const getTopTotem = (totems: Totem[]): Totem | null => {
-    if (!totems.length) return null;
-    return totems.reduce((top, current) => (current.likes > top.likes ? current : top));
-  };
-
   return (
-    <div className="min-h-screen bg-gray-100 text-gray-900">
-      <header className="flex justify-between items-center p-6 max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold text-blue-500">Shrug</h1>
-        <button
-          onClick={handleLogout}
-          className="px-4 py-2 border border-red-500 text-red-500 rounded-full hover:bg-red-500 hover:text-white"
-        >
-          Log Out
-        </button>
-      </header>
+    <div className="min-h-screen bg-gray-50">
+      <Header
+        refreshCount={refreshCount}
+        isVerified={userData?.verified ?? false}
+        onLogout={handleLogout}
+      />
+
       <main className="max-w-4xl mx-auto p-6">
-        <div className="mb-6">
-          <p className="text-gray-500 mb-2">Refreshes Left: {refreshCount}</p>
-          <p>
-            Verification Status: {userData?.verified ? "Verified" : "Not Verified"}
-            {!userData?.verified && (
-              <button
-                onClick={handleVerifyEmail}
-                className="ml-2 px-4 py-2 border border-blue-500 text-blue-500 rounded-full hover:bg-blue-500 hover:text-white"
-              >
-                Verify Email
-              </button>
-            )}
-          </p>
-          <form onSubmit={handlePostQuestion} className="mt-4 space-y-4">
-            <input
-              type="text"
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              placeholder="Ask a question..."
-              className="w-full p-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-500"
-            />
-            <button
-              type="submit"
-              className="w-full p-3 bg-blue-500 text-white rounded-full hover:bg-blue-600"
-            >
-              Ask
-            </button>
-          </form>
-        </div>
-        {posts.map((post) => (
-          <div key={post.id} className="mb-6 p-4 bg-white rounded-xl shadow">
-            <h2 className="text-xl font-bold mb-2">{post.question}</h2>
-            {post.answers.map((ans: Answer, aIdx: number) => (
-              <div key={aIdx} className="mt-2 flex flex-col">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <p className="text-gray-700">
-                      {ans.userId} • {ans.createdAt ? formatDistanceToNow(typeof ans.createdAt === 'number' ? new Date(ans.createdAt) : ans.createdAt.toDate(), { addSuffix: true }) : "Just now"}
-                      <br />
-                      {ans.text} <a href="#" className="text-blue-500 hover:underline">Show More</a>
-                    </p>
-                  </div>
-                  <div className="ml-4 flex flex-col items-end">
-                    {getTopTotem(ans.totems) && (
-                      <button
-                        key={getTopTotem(ans.totems)!.name}
-                        onClick={() => handleTotemLike(post.id, aIdx, getTopTotem(ans.totems)!.name)}
-                        className="mb-2 px-4 py-2 w-[120px] h-[40px] rounded-full text-white hover:opacity-90 text-sm font-medium shadow-md"
-                        style={{
-                          backgroundColor:
-                            getTopTotem(ans.totems)!.name === "All-Natural" ? "#4CAF50" :
-                            getTopTotem(ans.totems)!.name === "Name Brand" ? "#9C27B0" :
-                            getTopTotem(ans.totems)!.name === "Chicken-Based" ? "#FFCA28" : "#808080",
-                        }}
-                      >
-                        {getTopTotem(ans.totems)!.name} ({getTopTotem(ans.totems)!.likes})
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-            <button
-              onClick={() => setSelectedQuestion(post)}
-              className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600"
-            >
-              Write Answer
-            </button>
-            {selectedQuestion?.id === post.id && (
-              <div className="mt-4 space-y-4">
-                <input
-                  type="text"
-                  value={answer}
-                  onChange={(e) => setAnswer(e.target.value)}
-                  placeholder="Your answer..."
-                  className="w-full p-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-500"
-                />
-                <input
-                  type="text"
-                  value={customTotem}
-                  onChange={handleCustomTotem}
-                  placeholder="Totem (e.g., All-Natural, Name Brand)"
-                  className="w-full p-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-500"
-                />
-                <button
-                  onClick={() => handleTotemSelect(customTotem)}
-                  className="w-full p-3 border border-gray-300 text-gray-900 rounded-full hover:bg-gray-200"
-                >
-                  Add Totem
-                </button>
-                <p className="text-gray-500">Selected Totems: {totems.join(", ") || "None"}</p>
-                <button
-                  onClick={handlePostAnswer}
-                  className="w-full p-3 bg-green-500 text-white rounded-full hover:bg-green-600"
-                >
-                  Post Answer
-                </button>
-              </div>
-            )}
-            {post.answers.length > 3 && (
-              <p className="mt-2 text-blue-500 hover:underline cursor-pointer">See More Answers</p>
-            )}
-          </div>
-        ))}
+        {selectedQuestion ? (
+          <AnswerForm
+            selectedQuestion={selectedQuestion}
+            userId={user.uid}
+            isVerified={userData?.verified ?? false}
+            onAnswerSubmitted={() => setSelectedQuestion(null)}
+          />
+        ) : (
+          <QuestionList
+            posts={posts}
+            onSelectQuestion={setSelectedQuestion}
+            onLikeTotem={handleTotemLike}
+            onRefreshTotem={handleRefreshTotem}
+          />
+        )}
       </main>
     </div>
   );
