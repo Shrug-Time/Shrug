@@ -20,6 +20,8 @@ interface GroupedAnswer {
     answerIdx: number;
     likes: number;
     crispness?: number;
+    userName: string;
+    userID: string;
   }>;
 }
 
@@ -107,39 +109,6 @@ export default function PostPage({ params }: { params: Promise<{ id: string }> }
     );
   }
 
-  // Group answers by totem and sort by likes
-  const groupedAnswers: GroupedAnswer[] = post.answers.reduce((acc, answer, answerIdx) => {
-    answer.totems.forEach(totem => {
-      const existingGroup = acc.find(g => g.totemName === totem.name);
-      const answerData = {
-        text: answer.text,
-        userId: answer.userId,
-        createdAt: answer.createdAt,
-        answerIdx,
-        likes: totem.likes,
-        crispness: totem.crispness
-      };
-      
-      if (existingGroup) {
-        existingGroup.answers.push(answerData);
-        existingGroup.answers.sort((a, b) => b.likes - a.likes);
-      } else {
-        acc.push({
-          totemName: totem.name,
-          answers: [answerData]
-        });
-      }
-    });
-    return acc;
-  }, [] as GroupedAnswer[]);
-
-  // Sort groups by their highest liked answer
-  groupedAnswers.sort((a, b) => {
-    const aMaxLikes = Math.max(...a.answers.map(ans => ans.likes));
-    const bMaxLikes = Math.max(...b.answers.map(ans => ans.likes));
-    return bMaxLikes - aMaxLikes;
-  });
-
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white shadow">
@@ -158,37 +127,37 @@ export default function PostPage({ params }: { params: Promise<{ id: string }> }
 
       <main className="max-w-4xl mx-auto p-6">
         <div className="space-y-8">
-          {groupedAnswers.map((group) => (
-            <div key={group.totemName} className="space-y-4">
-              <h2 className="text-lg font-semibold text-gray-700">{group.totemName} Totems</h2>
-              {group.answers.map((answer) => (
-                <div key={answer.answerIdx} className="bg-white rounded-xl shadow p-4">
-                  <div className="mt-2 flex flex-col">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <p className="text-gray-700">
-                          {answer.userId} • {answer.createdAt ? 
-                            formatDistanceToNow(
-                              typeof answer.createdAt === 'number' 
-                                ? new Date(answer.createdAt) 
-                                : (answer.createdAt as Timestamp).toDate(), 
-                              { addSuffix: true }
-                            ) : "Just now"}
-                          <br />
-                          {answer.text}
-                        </p>
-                      </div>
+          {post.answers.map((answer, answerIdx) => (
+            <div key={answerIdx} className="bg-white rounded-xl shadow p-4">
+              <div className="mt-2 flex flex-col">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <p className="text-gray-700">
+                      {answer.userName} ({answer.userID}) • {answer.createdAt ? 
+                        formatDistanceToNow(
+                          typeof answer.createdAt === 'number' 
+                            ? new Date(answer.createdAt) 
+                            : (answer.createdAt as Timestamp).toDate(), 
+                          { addSuffix: true }
+                        ) : "Just now"}
+                      <br />
+                      {answer.text}
+                    </p>
+                  </div>
+                  <div className="ml-4 space-y-2">
+                    {answer.totems.map((totem) => (
                       <TotemButton
-                        name={group.totemName}
-                        likes={answer.likes}
-                        crispness={answer.crispness}
-                        onLike={() => onLikeTotem(answer.answerIdx, group.totemName)}
-                        onRefresh={() => onRefreshTotem(answer.answerIdx, group.totemName)}
+                        key={totem.name}
+                        name={totem.name}
+                        likes={totem.likes}
+                        crispness={totem.crispness}
+                        onLike={() => onLikeTotem(answerIdx, totem.name)}
+                        onRefresh={() => onRefreshTotem(answerIdx, totem.name)}
                       />
-                    </div>
+                    ))}
                   </div>
                 </div>
-              ))}
+              </div>
             </div>
           ))}
         </div>

@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { TotemButton } from '@/components/common/TotemButton';
 import { auth } from '@/firebase';
+import Link from 'next/link';
 
 interface QuestionListProps {
   posts: Post[];
@@ -76,7 +77,6 @@ export function QuestionList({
         const topAnswer = post.answers[0];
         if (!topAnswer) return null;
 
-        const topTotem = getTopTotem(topAnswer.totems);
         const isExpanded = expandedPosts[post.id];
         const displayText = isExpanded ? topAnswer.text : truncateText(topAnswer.text);
 
@@ -87,33 +87,51 @@ export function QuestionList({
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <p className="text-gray-700">
-                    {topAnswer.userId} • {topAnswer.createdAt ? 
-                      formatDistanceToNow(
-                        typeof topAnswer.createdAt === 'number' 
-                          ? new Date(topAnswer.createdAt) 
-                          : (topAnswer.createdAt as Timestamp).toDate(), 
-                        { addSuffix: true }
-                      ) : "Just now"}
+                    <Link 
+                      href={`/profile/${topAnswer.userID}`}
+                      className="text-blue-600 hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {topAnswer.userName} ({topAnswer.userID})
+                    </Link>
+                    <span className="text-gray-500">
+                      {' • '}
+                      {topAnswer.createdAt ? 
+                        formatDistanceToNow(
+                          typeof topAnswer.createdAt === 'number' 
+                            ? new Date(topAnswer.createdAt) 
+                            : (topAnswer.createdAt as Timestamp).toDate(), 
+                          { addSuffix: true }
+                        ) : "Just now"}
+                    </span>
                     <br />
-                    {displayText}
-                    {topAnswer.text.length > displayText.length && (
-                      <button 
-                        onClick={() => togglePostExpansion(post.id)}
-                        className="ml-2 text-blue-500 hover:underline"
-                      >
-                        {isExpanded ? 'Show Less' : 'Show More'}
-                      </button>
-                    )}
+                    <span 
+                      className="cursor-pointer hover:text-gray-900"
+                      onClick={() => navigateToPost(post.id)}
+                    >
+                      {displayText}
+                      {topAnswer.text.length > displayText.length && (
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            togglePostExpansion(post.id);
+                          }}
+                          className="ml-2 text-blue-500 hover:underline"
+                        >
+                          {isExpanded ? 'Show Less' : 'Show More'}
+                        </button>
+                      )}
+                    </span>
                   </p>
                 </div>
-                {topTotem && (
-                  <div className="ml-4" onClick={() => navigateToPost(post.id)}>
+                {topAnswer.totems.length > 0 && (
+                  <div className="ml-4">
                     <TotemButton
-                      name={topTotem.name}
-                      likes={topTotem.likes}
-                      crispness={topTotem.crispness}
-                      onLike={(e) => handleTotemLike(e, post.id, 0, topTotem.name)}
-                      onRefresh={(e) => handleTotemRefresh(e, post.id, 0, topTotem.name)}
+                      name={topAnswer.totems[0].name}
+                      likes={topAnswer.totems[0].likes}
+                      crispness={topAnswer.totems[0].crispness}
+                      onLike={(e) => handleTotemLike(e, post.id, 0, topAnswer.totems[0].name)}
+                      onRefresh={(e) => handleTotemRefresh(e, post.id, 0, topAnswer.totems[0].name)}
                     />
                   </div>
                 )}

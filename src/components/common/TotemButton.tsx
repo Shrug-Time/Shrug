@@ -47,14 +47,6 @@ export function TotemButton({ name, likes, crispness, onLike, onRefresh }: Totem
             </div>
           )}
         </div>
-        {onRefresh && (
-          <button
-            onClick={onRefresh}
-            className="text-sm text-blue-500 hover:underline"
-          >
-            Refresh Crispness
-          </button>
-        )}
       </div>
     </div>
   );
