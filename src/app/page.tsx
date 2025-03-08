@@ -10,6 +10,7 @@ import { QuestionList } from '@/components/questions/QuestionList';
 import { Header } from '@/components/common/Header';
 import { AnswerForm } from '@/components/answers/AnswerForm';
 import type { Post } from '@/types/models';
+import { handleTotemLike, handleTotemRefresh } from '@/utils/totem';
 
 export default function Home() {
   const [user, setUser] = useState<any>(null);
@@ -77,59 +78,37 @@ export default function Home() {
     };
   }, [user, router]);
 
-  const handleTotemLike = async (postId: string, answerIdx: number, totemName: string) => {
+  const handleTotemLikeClick = async (postId: string, answerIdx: number, totemName: string) => {
     if (!user) return;
-    const post = posts.find((p) => p.id === postId);
+
+    const post = posts.find(p => p.id === postId);
     if (!post) return;
 
-    const totem = post.answers[answerIdx].totems.find((t) => t.name === totemName);
-    if (!totem || totem.likedBy?.includes(user.uid)) return;
-
-    const updatedAnswers = post.answers.map((ans, idx) =>
-      idx === answerIdx
-        ? {
-            ...ans,
-            totems: ans.totems.map((t) =>
-              t.name === totemName
-                ? {
-                    ...t,
-                    likes: t.likes + 1,
-                    lastLike: new Date().toISOString(),
-                    likedBy: t.likedBy ? [...t.likedBy, user.uid] : [user.uid],
-                  }
-                : t
-            ),
-          }
-        : ans
-    );
-    await updateDoc(doc(db, "posts", postId), { answers: updatedAnswers });
+    try {
+      await handleTotemLike(post, answerIdx, totemName, user.uid);
+    } catch (error) {
+      if (error instanceof Error) {
+        alert(error.message);
+      }
+    }
   };
 
-  const handleRefreshTotem = async (postId: string, answerIdx: number, totemName: string) => {
-    if (!user || refreshCount <= 0) {
-      alert("No refreshes left today. Upgrade to Premium for more!");
-      return;
-    }
-    const post = posts.find((p) => p.id === postId);
+  const handleTotemRefreshClick = async (postId: string, answerIdx: number, totemName: string) => {
+    if (!user) return;
+
+    const post = posts.find(p => p.id === postId);
     if (!post) return;
 
-    const updatedAnswers = post.answers.map((ans, idx) =>
-      idx === answerIdx
-        ? {
-            ...ans,
-            totems: ans.totems.map((t) =>
-              t.name === totemName
-                ? {
-                    ...t,
-                    lastLike: new Date().toISOString(),
-                  }
-                : t
-            ),
-          }
-        : ans
-    );
-    await updateDoc(doc(db, "posts", postId), { answers: updatedAnswers });
-    setRefreshCount((prev) => prev - 1);
+    try {
+      const updatedAnswers = await handleTotemRefresh(post, answerIdx, totemName, refreshCount);
+      if (updatedAnswers) {
+        setRefreshCount(prev => prev - 1);
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        alert(error.message);
+      }
+    }
   };
 
   const handleLogout = () => {
@@ -159,8 +138,8 @@ export default function Home() {
           <QuestionList
             posts={posts}
             onSelectQuestion={setSelectedQuestion}
-            onLikeTotem={handleTotemLike}
-            onRefreshTotem={handleRefreshTotem}
+            onLikeTotem={handleTotemLikeClick}
+            onRefreshTotem={handleTotemRefreshClick}
           />
         )}
       </main>
