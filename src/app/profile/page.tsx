@@ -44,9 +44,8 @@ export default function ProfilePage() {
         // Filter posts to only include those where the user has provided answers
         const userPosts = allPosts.filter(post => {
           return post.answers?.some(answer => {
-            // Check both userID and userId fields
-            const answerUserId = answer.userID || answer.userId;
-            return answerUserId === profile.userID;
+            // Check userId field
+            return answer.userId === profile.userID;
           });
         });
         
@@ -75,38 +74,38 @@ export default function ProfilePage() {
         setEditForm({
           name: userData.name,
           userID: userData.userID,
-          bio: userData.bio
+          bio: userData.bio || ''
         });
       } else {
         // Get user's display name or email name
-        const displayName = user.displayName || user.email?.split('@')[0] || '';
-        const emailPrefix = user.email?.split('@')[0] || '';
+        const displayName = user.displayName || user.email?.split('@')[0] || 'Anonymous';
+        const emailPrefix = user.email?.split('@')[0] || 'user';
         
         // Initialize default profile
         const defaultProfile: UserProfile = {
           name: displayName,
-          userID: emailPrefix.toLowerCase().replace(/[^a-z0-9_-]/g, ''),
+          userID: emailPrefix.toLowerCase().replace(/[^a-z0-9_-]/g, '') || 'user',
+          email: user.email || 'anonymous@example.com',
           bio: '',
           verificationStatus: user.emailVerified ? 'email_verified' : 'unverified',
           membershipTier: 'free',
-          refreshCount: 5,
+          refreshesRemaining: 5,
+          refreshResetTime: new Date().toISOString(),
           following: [],
           followers: [],
-          notificationPreferences: {
-            email: true,
-            push: true,
-            contentUpdates: true,
+          createdAt: new Date().toISOString(),
+          totems: {
+            created: [],
+            frequently_used: [],
+            recent: []
           },
-          monetizationSettings: {
-            premiumContentEnabled: false,
-            pricePerAnswer: 0,
-          },
+          expertise: []
         };
         setProfile(defaultProfile);
         setEditForm({
           name: defaultProfile.name,
           userID: defaultProfile.userID,
-          bio: defaultProfile.bio
+          bio: defaultProfile.bio || ''
         });
         await setDoc(doc(db, 'users', user.uid), defaultProfile);
       }
@@ -179,7 +178,7 @@ export default function ProfilePage() {
       setEditForm({
         name: profile.name,
         userID: profile.userID,
-        bio: profile.bio
+        bio: profile.bio || ''
       });
     }
   };
@@ -229,9 +228,6 @@ export default function ProfilePage() {
               <Link href="/" className="text-2xl font-bold text-gray-900">
                 Shrug
               </Link>
-              <div className="text-sm text-gray-600">
-                {profile.refreshCount} refreshes left today
-              </div>
             </div>
             <div className="flex items-center space-x-4">
               <Link
@@ -370,7 +366,35 @@ export default function ProfilePage() {
                     placeholder="Tell us about yourself..."
                   />
                 ) : (
-                  <p className="text-gray-600">{profile.bio || 'No bio yet'}</p>
+                  <>
+                    <p className="text-gray-600">{profile.bio || 'No bio yet'}</p>
+                    <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-2">Refresh Status</h4>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm text-gray-600">Daily Refreshes:</span>
+                          <span className="text-sm font-medium">
+                            {profile.refreshesRemaining}/{profile.membershipTier === 'premium' ? 10 : 5}
+                          </span>
+                        </div>
+                        <div className="flex space-x-1">
+                          {[...Array(profile.membershipTier === 'premium' ? 10 : 5)].map((_, i) => (
+                            <div
+                              key={i}
+                              className={`w-2 h-6 rounded ${
+                                i < profile.refreshesRemaining
+                                  ? 'bg-purple-500'
+                                  : 'bg-gray-200'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Next refresh reset: {new Date(profile.refreshResetTime).toLocaleString()}
+                      </p>
+                    </div>
+                  </>
                 )}
               </div>
             </div>
@@ -381,9 +405,9 @@ export default function ProfilePage() {
               {userPosts.length > 0 ? (
                 <QuestionList
                   posts={userPosts}
-                  onSelectQuestion={() => {}}
-                  onLikeTotem={() => {}}
-                  onRefreshTotem={() => {}}
+                  onSelectQuestion={async () => {}}
+                  onLikeTotem={async () => {}}
+                  onRefreshTotem={async () => {}}
                 />
               ) : (
                 <p className="text-gray-600">No answers yet</p>
@@ -392,9 +416,17 @@ export default function ProfilePage() {
 
             {profile.membershipTier === 'premium' && (
               <div className="bg-white rounded-xl shadow p-6">
-                <h3 className="text-lg font-semibold mb-4">Premium Content</h3>
-                {/* TODO: Add premium content section */}
-                <p className="text-gray-600">No premium content available</p>
+                <h3 className="text-lg font-semibold mb-4">Premium Features</h3>
+                <div className="space-y-4">
+                  <p className="text-gray-600">
+                    As a premium member, you have access to:
+                  </p>
+                  <ul className="list-disc list-inside text-gray-600">
+                    <li>10 daily refreshes</li>
+                    <li>Priority answer placement</li>
+                    <li>Advanced totem analytics</li>
+                  </ul>
+                </div>
               </div>
             )}
           </div>
@@ -402,70 +434,7 @@ export default function ProfilePage() {
           <div className="space-y-6">
             {/* Account Management Section */}
             <div className="bg-white rounded-xl shadow p-6">
-              <h3 className="text-lg font-semibold mb-4">Notification Preferences</h3>
-              <div className="space-y-4">
-                <label className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    checked={profile.notificationPreferences ? profile.notificationPreferences.email : false}
-                    onChange={(e) => {/* TODO: Implement notification preferences update */}}
-                    className="rounded text-blue-500"
-                  />
-                  <span>Email notifications</span>
-                </label>
-                <label className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    checked={profile.notificationPreferences ? profile.notificationPreferences.push : false}
-                    onChange={(e) => {/* TODO: Implement notification preferences update */}}
-                    className="rounded text-blue-500"
-                  />
-                  <span>Push notifications</span>
-                </label>
-                <label className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    checked={profile.notificationPreferences ? profile.notificationPreferences.contentUpdates : false}
-                    onChange={(e) => {/* TODO: Implement notification preferences update */}}
-                    className="rounded text-blue-500"
-                  />
-                  <span>Content update notifications</span>
-                </label>
-              </div>
-            </div>
-
-            {profile.membershipTier === 'premium' && (
-              <div className="bg-white rounded-xl shadow p-6">
-                <h3 className="text-lg font-semibold mb-4">Monetization Settings</h3>
-                <div className="space-y-4">
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={profile.monetizationSettings.premiumContentEnabled}
-                      onChange={(e) => {/* TODO: Implement monetization settings update */}}
-                      className="rounded text-blue-500"
-                    />
-                    <span>Enable premium content</span>
-                  </label>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Price per answer ($)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={profile.monetizationSettings.pricePerAnswer}
-                      onChange={(e) => {/* TODO: Implement monetization settings update */}}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="bg-white rounded-xl shadow p-6">
-              <h3 className="text-lg font-semibold mb-4">Account Security</h3>
+              <h3 className="text-lg font-semibold mb-4">Account Settings</h3>
               <div className="space-y-4">
                 <button
                   onClick={() => {/* TODO: Implement password change */}}

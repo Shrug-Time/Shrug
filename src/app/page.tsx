@@ -11,144 +11,137 @@ import { Header } from '@/components/common/Header';
 import { AnswerForm } from '@/components/answers/AnswerForm';
 import type { Post, UserProfile } from '@/types/models';
 import { handleTotemLike, handleTotemRefresh } from '@/utils/totem';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 type FeedType = 'for-you' | 'popular' | 'latest';
 
+// Utility functions
+const calculatePostScore = (post: Post) => {
+  const now = new Date().getTime();
+  const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+  let score = 0;
+
+  post.answers.forEach(answer => {
+    answer.totems.forEach(totem => {
+      const lastLikeTime = totem.lastLike ? new Date(totem.lastLike).getTime() : 0;
+      const timeSinceLike = now - lastLikeTime;
+      const recencyScore = Math.max(0, 1 - (timeSinceLike / ONE_WEEK_MS));
+      score += (totem.likes * 0.6 + (totem.crispness || 0) * 0.4) * recencyScore;
+    });
+  });
+
+  return score;
+};
+
+const getPersonalizedFeed = async (posts: Post[], userData: UserProfile | null) => {
+  if (!userData) return posts;
+
+  const followedUsers = userData.following || [];
+  const followedPosts = posts.filter(post => 
+    post.answers.some(answer => followedUsers.includes(answer.userId))
+  );
+
+  const rankedPosts = posts.map(post => ({
+    post,
+    score: calculatePostScore(post)
+  }));
+
+  const allPosts = [
+    ...followedPosts,
+    ...rankedPosts.filter(({ post }) => !followedPosts.includes(post))
+      .map(({ post }) => post)
+  ];
+
+  return Array.from(new Set(allPosts));
+};
+
 export default function Home() {
   const [user, setUser] = useState<any>(null);
-  const [userData, setUserData] = useState<UserProfile | null>(null);
-  const [posts, setPosts] = useState<Post[]>([]);
   const [selectedQuestion, setSelectedQuestion] = useState<Post | null>(null);
   const [refreshCount, setRefreshCount] = useState(5);
   const [activeTab, setActiveTab] = useState<FeedType>('latest');
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
+  const queryClient = useQueryClient();
 
-  // Function to calculate post score for ranking
-  const calculatePostScore = (post: Post) => {
-    const now = new Date().getTime();
-    const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-    let score = 0;
-
-    post.answers.forEach(answer => {
-      answer.totems.forEach(totem => {
-        // Calculate recency score (decay over time)
-        const lastLikeTime = totem.lastLike ? new Date(totem.lastLike).getTime() : 0;
-        const timeSinceLike = now - lastLikeTime;
-        const recencyScore = Math.max(0, 1 - (timeSinceLike / ONE_WEEK_MS)); // 7-day decay
-
-        // Combine likes and crispness with recency
-        score += (totem.likes * 0.6 + (totem.crispness || 0) * 0.4) * recencyScore;
-      });
-    });
-
-    return score;
-  };
-
-  // Function to get personalized feed
-  const getPersonalizedFeed = async (posts: Post[]) => {
-    if (!userData) return posts;
-
-    // Get posts from followed users
-    const followedUsers = userData.following || [];
-    const followedPosts = posts.filter(post => 
-      post.answers.some(answer => followedUsers.includes(answer.userID))
-    );
-
-    // Get posts with high engagement
-    const rankedPosts = posts.map(post => ({
-      post,
-      score: calculatePostScore(post)
-    }));
-
-    // Combine and sort posts
-    const allPosts = [
-      ...followedPosts,
-      ...rankedPosts.filter(({ post }) => !followedPosts.includes(post))
-        .map(({ post }) => post)
-    ];
-
-    // Remove duplicates
-    return Array.from(new Set(allPosts));
-  };
-
+  // Auth state
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setUser(user);
-        const data = await checkOrCreateUser(user);
-        setUserData(data as UserProfile);
+        queryClient.invalidateQueries({ queryKey: ['userData'] });
       } else {
         router.push("/login");
       }
     });
+    return () => unsubscribe();
+  }, [router, queryClient]);
 
-    let unsubscribePosts: () => void;
+  // User data query
+  const { data: userData } = useQuery<UserProfile | null>({
+    queryKey: ['userData', user?.uid],
+    queryFn: async () => {
+      if (!user) return null;
+      const data = await checkOrCreateUser(user);
+      return data as UserProfile;
+    },
+    enabled: !!user,
+    staleTime: 30000, // Consider data fresh for 30 seconds
+  });
 
-    if (user) {
-      // Posts subscription based on active tab
+  // Posts query
+  const { data: posts = [] } = useQuery<Post[]>({
+    queryKey: ['posts', activeTab, searchQuery],
+    queryFn: async () => {
       const postsRef = collection(db, "posts");
       let postsQuery;
 
       switch (activeTab) {
         case 'popular':
-          // Order by total engagement (likes + refreshes)
           postsQuery = query(postsRef, orderBy("totalEngagement", "desc"), limit(50));
           break;
         case 'for-you':
-          // Base query - we'll filter in memory for personalization
           postsQuery = query(postsRef, orderBy("createdAt", "desc"), limit(100));
           break;
         default:
-          // Latest posts
           postsQuery = query(postsRef, orderBy("createdAt", "desc"), limit(50));
       }
 
-      unsubscribePosts = onSnapshot(postsQuery, async (snapshot) => {
-        let postsList = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Post[];
+      const snapshot = await getDocs(postsQuery);
+      let postsList = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Post[];
 
-        // Apply additional filtering/sorting based on tab
-        if (activeTab === 'for-you') {
-          postsList = await getPersonalizedFeed(postsList);
-        } else if (activeTab === 'popular') {
-          postsList.sort((a, b) => calculatePostScore(b) - calculatePostScore(a));
-        }
+      if (activeTab === 'for-you' && userData) {
+        postsList = await getPersonalizedFeed(postsList, userData);
+      } else if (activeTab === 'popular') {
+        postsList.sort((a, b) => calculatePostScore(b) - calculatePostScore(a));
+      }
 
-        // Apply search filter if query exists
-        if (searchQuery) {
-          const query = searchQuery.toLowerCase();
-          postsList = postsList.filter(post => 
-            post.question.toLowerCase().includes(query) ||
-            post.answers.some(answer => 
-              answer.text.toLowerCase().includes(query) ||
-              answer.userName.toLowerCase().includes(query)
-            )
-          );
-        }
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        postsList = postsList.filter(post => 
+          post.question.toLowerCase().includes(query) ||
+          post.answers.some(answer => 
+            answer.text.toLowerCase().includes(query) ||
+            answer.userName.toLowerCase().includes(query)
+          )
+        );
+      }
 
-        setPosts(postsList);
-      });
-    } else {
-      setPosts([]);
-    }
+      return postsList;
+    },
+    enabled: !!user,
+    staleTime: 10000, // Consider data fresh for 10 seconds
+  });
 
-    return () => {
-      unsubscribeAuth();
-      if (unsubscribePosts) unsubscribePosts();
-    };
-  }, [user, router, activeTab, searchQuery]);
-
-  const handleTotemLikeClick = async (postId: string, answerIdx: number, totemName: string) => {
+  const handleTotemLikeClick = async (post: Post, answerIdx: number, totemName: string) => {
     if (!user) return;
-
-    const post = posts.find(p => p.id === postId);
-    if (!post) return;
 
     try {
       await handleTotemLike(post, answerIdx, totemName, user.uid);
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
     } catch (error) {
       if (error instanceof Error) {
         alert(error.message);
@@ -156,16 +149,14 @@ export default function Home() {
     }
   };
 
-  const handleTotemRefreshClick = async (postId: string, answerIdx: number, totemName: string) => {
+  const handleTotemRefreshClick = async (post: Post, answerIdx: number, totemName: string) => {
     if (!user) return;
 
-    const post = posts.find(p => p.id === postId);
-    if (!post) return;
-
     try {
-      const updatedAnswers = await handleTotemRefresh(post, answerIdx, totemName, refreshCount);
-      if (updatedAnswers) {
+      const success = await handleTotemRefresh(post, answerIdx, totemName, refreshCount);
+      if (success) {
         setRefreshCount(prev => prev - 1);
+        queryClient.invalidateQueries({ queryKey: ['posts'] });
       }
     } catch (error) {
       if (error instanceof Error) {
@@ -188,7 +179,6 @@ export default function Home() {
       />
 
       <main className="max-w-4xl mx-auto p-6">
-        {/* Tab Navigation */}
         <div className="mb-6">
           <div className="flex space-x-1 bg-white rounded-xl shadow p-1">
             <button
@@ -224,7 +214,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Search Bar */}
         <div className="mb-6">
           <input
             type="text"
@@ -240,7 +229,10 @@ export default function Home() {
             selectedQuestion={selectedQuestion}
             userId={user.uid}
             isVerified={userData?.verificationStatus === 'email_verified' || userData?.verificationStatus === 'identity_verified'}
-            onAnswerSubmitted={() => setSelectedQuestion(null)}
+            onAnswerSubmitted={() => {
+              setSelectedQuestion(null);
+              queryClient.invalidateQueries({ queryKey: ['posts'] });
+            }}
           />
         ) : (
           <QuestionList
