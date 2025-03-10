@@ -12,10 +12,15 @@ const firebaseConfig = {
   appId: "1:642784282734:web:f0009191b880335c7f3e7f"
 };
 
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+const db = getFirestore(app);
+const auth = getAuth(app);
 
+// Export initialized instances
+export { app, db, auth };
+
+// Helper functions
 export const checkOrCreateUser = async (user: any) => {
   if (!user) return null;
   const userRef = doc(db, "users", user.uid);
@@ -34,24 +39,17 @@ export const checkOrCreateUser = async (user: any) => {
   return userDoc.data() || { verified: user.emailVerified || false };
 };
 
-export const createUser = async (email: string, password: string) => {
-  try {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
-    await checkOrCreateUser(user);
-    return user;
-  } catch (error: any) {
-    throw new Error(error.message);
-  }
+// Auth functions
+export const signIn = async (email: string, password: string) => {
+  return signInWithEmailAndPassword(auth, email, password);
 };
 
-export const setupAuthListener = (callback: (userData: any) => void) => {
-  return onAuthStateChanged(auth, async (user) => {
-    if (user) {
-      const data = await checkOrCreateUser(user);
-      callback(data);
-    } else {
-      callback(null);
-    }
-  });
+export const signUp = async (email: string, password: string) => {
+  const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+  await sendEmailVerification(userCredential.user);
+  return userCredential;
+};
+
+export const onAuthChange = (callback: (user: any) => void) => {
+  return onAuthStateChanged(auth, callback);
 };

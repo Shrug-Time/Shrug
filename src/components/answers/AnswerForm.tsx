@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { doc, updateDoc, setDoc, getDoc, arrayUnion, increment, Timestamp } from 'firebase/firestore';
 import { db } from '@/firebase';
-import type { Post, Answer } from '@/types/models';
+import type { Post, Answer, UserProfile } from '@/types/models';
 
 interface AnswerFormProps {
   selectedQuestion: Post;
@@ -19,10 +19,21 @@ export function AnswerForm({
   const [answer, setAnswer] = useState("");
   const [totems, setTotems] = useState<string[]>([]);
   const [customTotem, setCustomTotem] = useState("");
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      if (userDoc.exists()) {
+        setUserProfile(userDoc.data() as UserProfile);
+      }
+    };
+    fetchUserProfile();
+  }, [userId]);
 
   const handlePostAnswer = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!answer || !isVerified) {
+    if (!answer || !isVerified || !userProfile) {
       alert("Please verify your email before posting answers!");
       return;
     }
@@ -34,8 +45,12 @@ export function AnswerForm({
         likes: 0,
         lastLike: null,
         likedBy: [],
+        likeTimes: [],
+        likeValues: []
       })),
       userId,
+      userName: userProfile.name,
+      userID: userProfile.userID,
       createdAt: Timestamp.now(),
     };
 
