@@ -10,6 +10,7 @@ import type { Post } from '@/types/models';
 import { TotemButton } from '@/components/common/TotemButton';
 import { auth } from '@/firebase';
 import { handleTotemLike, handleTotemRefresh } from '@/utils/totem';
+import { QuestionList } from '@/components/questions/QuestionList';
 
 interface GroupedAnswer {
   totemName: string;
@@ -127,39 +128,13 @@ export default function PostPage({ params }: { params: Promise<{ id: string }> }
 
       <main className="max-w-4xl mx-auto p-6">
         <div className="space-y-8">
-          {post.answers.map((answer, answerIdx) => (
-            <div key={answerIdx} className="bg-white rounded-xl shadow p-4">
-              <div className="mt-2 flex flex-col">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <p className="text-gray-700">
-                      {answer.userName} ({answer.userID}) • {answer.createdAt ? 
-                        formatDistanceToNow(
-                          typeof answer.createdAt === 'number' 
-                            ? new Date(answer.createdAt) 
-                            : (answer.createdAt as Timestamp).toDate(), 
-                          { addSuffix: true }
-                        ) : "Just now"}
-                      <br />
-                      {answer.text}
-                    </p>
-                  </div>
-                  <div className="ml-4 space-y-2">
-                    {answer.totems.map((totem) => (
-                      <TotemButton
-                        key={totem.name}
-                        name={totem.name}
-                        likes={totem.likes}
-                        crispness={totem.crispness}
-                        onLike={() => onLikeTotem(answerIdx, totem.name)}
-                        onRefresh={() => onRefreshTotem(answerIdx, totem.name)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
+          <QuestionList
+            posts={[post]}
+            onSelectQuestion={() => {}}
+            onLikeTotem={(post, answerIdx, totemName, userId) => onLikeTotem(answerIdx, totemName)}
+            onRefreshTotem={(post, answerIdx, totemName, refreshCount) => onRefreshTotem(answerIdx, totemName)}
+            showAllTotems={true}
+          />
         </div>
       </main>
     </div>

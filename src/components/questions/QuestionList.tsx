@@ -1,18 +1,23 @@
 import { formatDistanceToNow } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
-import type { Post, TotemSuggestion } from '@/types/models';
-import { useState, useCallback, useEffect } from 'react';
+import type { Post, TotemSuggestion, Answer, Totem } from '@/types/models';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { TotemButton } from '@/components/common/TotemButton';
 import { auth } from '@/firebase';
 import Link from 'next/link';
 import { SimilarityService } from '@/services/similarity';
+import { InfiniteScroll } from '@/components/common/InfiniteScroll';
 
 export interface QuestionListProps {
   posts: Post[];
   onSelectQuestion: (post: Post) => void;
-  onLikeTotem: (post: Post, answerIdx: number, totemName: string, userId: string) => Promise<void>;
-  onRefreshTotem: (post: Post, answerIdx: number, totemName: string, refreshCount: number) => Promise<any>;
+  onLikeTotem: (postId: string, totemName: string) => Promise<void>;
+  onRefreshTotem: (postId: string, totemName: string) => Promise<void>;
+  showAllTotems?: boolean;
+  hasNextPage?: boolean;
+  isLoading?: boolean;
+  onLoadMore?: () => void;
 }
 
 interface AnswerGroup {
@@ -25,11 +30,19 @@ export function QuestionList({
   posts, 
   onSelectQuestion, 
   onLikeTotem,
-  onRefreshTotem 
+  onRefreshTotem,
+  showAllTotems = false,
+  hasNextPage = false,
+  isLoading = false,
+  onLoadMore = () => {},
 }: QuestionListProps) {
   const [expandedPosts, setExpandedPosts] = useState<Record<string, boolean>>({});
   const [answerGroups, setAnswerGroups] = useState<Map<string, AnswerGroup[]>>();
   const router = useRouter();
+
+  const getTopTotem = useCallback((totems: any[]) => {
+    return [...totems].sort((a, b) => b.likes - a.likes)[0];
+  }, []);
 
   useEffect(() => {
     // Process answer groups for each post
@@ -76,19 +89,69 @@ export function QuestionList({
     router.push(`/post/${postId}`);
   }, [router]);
 
-  const handleTotemLike = useCallback((e: React.MouseEvent, post: Post, answerIdx: number, totemName: string) => {
+  const handleTotemLikeForTotem = useCallback((post: Post, answerIndex: number, totemName: string) => (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!auth.currentUser) return;
-    onLikeTotem(post, answerIdx, totemName, auth.currentUser.uid);
+    onLikeTotem(post.id, totemName);
   }, [onLikeTotem]);
 
-  const handleTotemRefresh = useCallback((e: React.MouseEvent, post: Post, answerIdx: number, totemName: string) => {
+  const handleTotemRefreshForTotem = useCallback((post: Post, answerIndex: number, totemName: string) => (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!auth.currentUser) return;
-    onRefreshTotem(post, answerIdx, totemName, 0);
+    onRefreshTotem(post.id, totemName);
   }, [onRefreshTotem]);
 
-  const renderAnswer = (post: Post, answerIndex: number, isSimilar = false) => {
+  const renderTotems = useCallback((post: Post, answerIndex: number) => {
+    if (!post.answers?.[answerIndex]?.totems?.length) {
+      return null;
+    }
+
+    const totems = post.answers[answerIndex].totems;
+    const sortedTotems = [...totems].sort((a, b) => b.likes - a.likes);
+    
+    if (!showAllTotems) {
+      // Only show the top totem in the main view
+      const topTotem = sortedTotems[0];
+      return (
+        <div key={`${post.id}-${answerIndex}-${topTotem.name}`} className="mb-2">
+          <TotemButton
+            name={topTotem.name}
+            likes={topTotem.likes}
+            crispness={topTotem.crispness}
+            onLike={() => onLikeTotem(post.id, topTotem.name)}
+            onRefresh={() => onRefreshTotem(post.id, topTotem.name)}
+          />
+          {totems.length > 1 && (
+            <Link
+              href={`/question/${post.id}`}
+              className="ml-2 text-sm text-blue-500 hover:text-blue-600"
+            >
+              See {totems.length - 1} more totems
+            </Link>
+          )}
+        </div>
+      );
+    }
+
+    // Show all totems in detail view
+    return (
+      <div key={`${post.id}-${answerIndex}`} className="space-y-2">
+        {sortedTotems.map((totem) => (
+          <div key={`${post.id}-${answerIndex}-${totem.name}`} className="flex items-center">
+            <TotemButton
+              name={totem.name}
+              likes={totem.likes}
+              crispness={totem.crispness}
+              onLike={() => onLikeTotem(post.id, totem.name)}
+              onRefresh={() => onRefreshTotem(post.id, totem.name)}
+            />
+          </div>
+        ))}
+      </div>
+    );
+  }, [showAllTotems, onLikeTotem, onRefreshTotem]);
+
+  const renderAnswer = useCallback((post: Post, answerIndex: number) => {
     const answer = post.answers[answerIndex];
     if (!answer) return null;
 
@@ -105,64 +168,15 @@ export function QuestionList({
     return (
       <div 
         key={`${post.id}-${answerIndex}`}
-        className={`p-4 ${isSimilar ? 'ml-8 border-l-4 border-blue-200' : ''}`}
+        className="bg-white rounded-lg p-4 shadow-sm"
       >
-        <div className="flex justify-between items-start">
-          <div className="flex-1">
-            <p className="text-gray-700">
-              <Link 
-                href={`/profile/${answer.userId}`}
-                className="text-blue-600 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
-                onClick={(e) => e.stopPropagation()}
-                aria-label={`View ${answer.userName}'s profile`}
-              >
-                {answer.userName} ({answer.userId})
-              </Link>
-              <span className="text-gray-500" role="time" aria-label={`Posted ${formattedDate}`}>
-                {' • '}
-                {formattedDate}
-              </span>
-              <br />
-              <button 
-                className="cursor-pointer hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded p-1 -ml-1"
-                onClick={() => navigateToPost(post.id)}
-                aria-label="View full post"
-              >
-                {displayText}
-              </button>
-              {answer.text.length > displayText.length && (
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    togglePostExpansion(post.id);
-                  }}
-                  className="ml-2 text-blue-500 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-2"
-                  aria-expanded={isExpanded}
-                  aria-controls={`answer-${post.id}-${answerIndex}`}
-                >
-                  {isExpanded ? 'Show Less' : 'Show More'}
-                </button>
-              )}
-            </p>
-          </div>
-          {answer.totems.length > 0 && (
-            <div className="ml-4 flex flex-wrap gap-2">
-              {answer.totems.map((totem, idx) => (
-                <TotemButton
-                  key={`${totem.name}-${idx}`}
-                  name={totem.name}
-                  likes={totem.likes}
-                  crispness={totem.crispness}
-                  onLike={(e) => handleTotemLike(e, post, answerIndex, totem.name)}
-                  onRefresh={(e) => handleTotemRefresh(e, post, answerIndex, totem.name)}
-                />
-              ))}
-            </div>
-          )}
+        <div className="mb-2">
+          <span className="text-gray-600">{displayText}</span>
         </div>
+        {renderTotems(post, answerIndex)}
       </div>
     );
-  };
+  }, [expandedPosts, truncateText, renderTotems]);
 
   const renderSuggestedTotems = (suggestions: TotemSuggestion[]) => {
     if (!suggestions.length) return null;
@@ -185,7 +199,7 @@ export function QuestionList({
     );
   };
 
-  if (!posts.length) {
+  if (!posts.length && !isLoading) {
     return (
       <p className="text-gray-600 text-center py-8" role="status">
         No posts available
@@ -194,7 +208,12 @@ export function QuestionList({
   }
 
   return (
-    <div className="space-y-6" role="feed" aria-label="Posts list">
+    <InfiniteScroll
+      hasNextPage={hasNextPage}
+      isLoading={isLoading}
+      onLoadMore={onLoadMore}
+      className="space-y-6"
+    >
       {posts.map((post) => {
         const postGroups = answerGroups?.get(post.id) || [];
         const hasGroups = postGroups.length > 0;
@@ -222,7 +241,7 @@ export function QuestionList({
                     {renderAnswer(post, group.mainIndex)}
                     
                     {/* Similar answers */}
-                    {group.similarIndices.map(idx => renderAnswer(post, idx, true))}
+                    {group.similarIndices.map(idx => renderAnswer(post, idx))}
                     
                     {/* Totem suggestions */}
                     {renderSuggestedTotems(group.suggestions)}
@@ -264,6 +283,6 @@ export function QuestionList({
           </article>
         );
       })}
-    </div>
+    </InfiniteScroll>
   );
 } 

@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { doc, updateDoc, arrayUnion, arrayRemove, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import type { UserProfile } from '@/types/models';
+import { useUser } from '@/hooks/useUser';
+import { UserService } from '@/services/userService';
 
 export interface FollowButtonProps {
   /** The current user's ID */
@@ -13,14 +15,16 @@ export interface FollowButtonProps {
   /** Optional className for styling */
   className?: string;
   onError?: (message: string) => void;
+  onFollowChange?: () => void;
 }
 
-export function FollowButton({ currentUserId, targetUserId, className = '', onError }: FollowButtonProps) {
+export function FollowButton({ currentUserId, targetUserId, className = '', onError, onFollowChange }: FollowButtonProps) {
+  const { profile } = useUser();
   const [isFollowing, setIsFollowing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Prevent self-following
-  if (currentUserId === targetUserId) {
+  // Hide button if viewing own profile
+  if (!profile || profile.userID === targetUserId) {
     return null;
   }
 
@@ -78,25 +82,20 @@ export function FollowButton({ currentUserId, targetUserId, className = '', onEr
       const currentUserRef = doc(db, 'users', currentUserId);
       const targetUserRef = doc(db, 'users', targetUserId);
 
-      if (isFollowing) {
-        // Unfollow
-        await updateDoc(currentUserRef, {
-          following: arrayRemove(targetUserId)
-        });
-        await updateDoc(targetUserRef, {
-          followers: arrayRemove(currentUserId)
-        });
-        setIsFollowing(false);
-      } else {
-        // Follow
-        await updateDoc(currentUserRef, {
-          following: arrayUnion(targetUserId)
-        });
-        await updateDoc(targetUserRef, {
-          followers: arrayUnion(currentUserId)
-        });
-        setIsFollowing(true);
-      }
+      const updates = {
+        following: isFollowing 
+          ? currentUserData?.following?.filter(id => id !== targetUserId)
+          : [...(currentUserData?.following || []), targetUserId]
+      };
+      
+      await updateDoc(currentUserRef, updates);
+      await updateDoc(targetUserRef, {
+        followers: isFollowing 
+          ? arrayRemove(currentUserId)
+          : arrayUnion(currentUserId)
+      });
+      setIsFollowing(!isFollowing);
+      onFollowChange?.();
     } catch (error) {
       console.error('Error updating follow status:', error);
       onError?.('Failed to update follow status');

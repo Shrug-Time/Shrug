@@ -1,6 +1,5 @@
 import './globals.css';
-import { QueryClientProvider } from '@/providers/QueryClientProvider';
-import { ErrorBoundary } from '@/components/common/ErrorBoundary';
+import ClientLayout from './ClientLayout';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 
@@ -19,11 +18,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <ErrorBoundary>
-          <QueryClientProvider>
-            {children}
-          </QueryClientProvider>
-        </ErrorBoundary>
+        <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
   );

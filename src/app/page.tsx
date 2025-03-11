@@ -240,6 +240,7 @@ export default function Home() {
             onSelectQuestion={setSelectedQuestion}
             onLikeTotem={handleTotemLikeClick}
             onRefreshTotem={handleTotemRefreshClick}
+            showAllTotems={false}
           />
         )}
       </main>

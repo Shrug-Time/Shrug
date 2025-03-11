@@ -1,7 +1,7 @@
 // src/firebase.ts
 import { initializeApp, getApps } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification, onAuthStateChanged } from "firebase/auth";
-import { getFirestore, doc, setDoc, getDoc, updateDoc, Timestamp, initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, getDoc, updateDoc, Timestamp } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyC4fPp7Z9qXw-wSckSUe_B4mJ3vhfxgzdk",
@@ -15,18 +15,14 @@ const firebaseConfig = {
 // Initialize Firebase only if it hasn't been initialized
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
 
-// Initialize Firestore with modern settings
+// Initialize Firestore with persistent cache
 const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true,
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager()
   })
 });
 
 const auth = getAuth(app);
-
-// Export initialized instances
-export { app, db, auth };
 
 // Helper functions
 export const checkOrCreateUser = async (user: any) => {
@@ -61,3 +57,6 @@ export const signUp = async (email: string, password: string) => {
 export const onAuthChange = (callback: (user: any) => void) => {
   return onAuthStateChanged(auth, callback);
 };
+
+// Export everything needed
+export { app, db, auth, doc, setDoc, getDoc, updateDoc, Timestamp };
