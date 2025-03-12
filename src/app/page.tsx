@@ -71,11 +71,11 @@ export default function Home() {
         setUser(user);
         queryClient.invalidateQueries({ queryKey: ['userData'] });
       } else {
-        router.push("/login");
+        setUser(null);
       }
     });
     return () => unsubscribe();
-  }, [router, queryClient]);
+  }, [queryClient]);
 
   // User data query
   const { data: userData } = useQuery<UserProfile | null>({
@@ -132,7 +132,6 @@ export default function Home() {
 
       return postsList;
     },
-    enabled: !!user,
     staleTime: 10000, // Consider data fresh for 10 seconds
   });
 
@@ -165,8 +164,6 @@ export default function Home() {
     }
   };
 
-  if (!user) return null;
-
   return (
     <div className="min-h-screen bg-gray-50">
       <Header
@@ -174,8 +171,8 @@ export default function Home() {
         isVerified={userData?.verificationStatus === 'email_verified' || userData?.verificationStatus === 'identity_verified'}
         onLogout={() => {
           auth.signOut();
-          router.push("/login");
         }}
+        isAuthenticated={!!user}
       />
 
       <main className="max-w-4xl mx-auto p-6">
@@ -225,15 +222,27 @@ export default function Home() {
         </div>
 
         {selectedQuestion ? (
-          <AnswerForm
-            selectedQuestion={selectedQuestion}
-            userId={user.uid}
-            isVerified={userData?.verificationStatus === 'email_verified' || userData?.verificationStatus === 'identity_verified'}
-            onAnswerSubmitted={() => {
-              setSelectedQuestion(null);
-              queryClient.invalidateQueries({ queryKey: ['posts'] });
-            }}
-          />
+          user ? (
+            <AnswerForm
+              selectedQuestion={selectedQuestion}
+              userId={user.uid}
+              isVerified={userData?.verificationStatus === 'email_verified' || userData?.verificationStatus === 'identity_verified'}
+              onAnswerSubmitted={() => {
+                setSelectedQuestion(null);
+                queryClient.invalidateQueries({ queryKey: ['posts'] });
+              }}
+            />
+          ) : (
+            <div className="bg-white rounded-xl shadow p-6 text-center">
+              <p className="text-gray-600 mb-4">Please log in to answer questions</p>
+              <button
+                onClick={() => setSelectedQuestion(null)}
+                className="px-4 py-2 text-blue-600 hover:text-blue-700"
+              >
+                Back to Questions
+              </button>
+            </div>
+          )
         ) : (
           <QuestionList
             posts={posts}

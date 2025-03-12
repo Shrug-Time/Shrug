@@ -1,4 +1,5 @@
 import { MouseEvent, memo, useCallback, useMemo } from 'react';
+import { auth } from '@/firebase';
 
 interface TotemButtonProps {
   name: string;
@@ -26,12 +27,14 @@ function TotemButtonBase({ name, likes, crispness, onLike, onRefresh }: TotemBut
   }, []);
 
   const backgroundColor = useMemo(() => getTotemColor(name), [getTotemColor, name]);
+  const isAuthenticated = auth.currentUser !== null;
 
   return (
-    <div className="inline-flex items-center bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
+    <div className={`inline-flex items-center bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow ${!isAuthenticated ? 'opacity-75' : ''}`}>
       <button
         className="px-4 py-2 rounded-l-lg text-white hover:opacity-90 text-sm font-medium flex items-center justify-center min-w-[100px]"
         style={{ backgroundColor }}
+        disabled={!isAuthenticated}
       >
         {name}
       </button>
@@ -39,6 +42,8 @@ function TotemButtonBase({ name, likes, crispness, onLike, onRefresh }: TotemBut
         onClick={onLike}
         className="px-3 py-2 rounded-r-lg text-white hover:opacity-90 text-sm font-medium flex items-center justify-center min-w-[40px]"
         style={{ backgroundColor }}
+        disabled={!isAuthenticated}
+        title={!isAuthenticated ? "Log in to interact" : undefined}
       >
         {likes}
       </button>

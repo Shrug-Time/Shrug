@@ -15,7 +15,7 @@ export function useUser() {
       try {
         if (!user) {
           setProfile(null);
-          router.push('/login');
+          setIsLoading(false);
           return;
         }
 

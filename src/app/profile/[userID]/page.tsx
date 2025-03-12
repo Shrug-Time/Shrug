@@ -9,10 +9,16 @@ import { useQuery } from '@tanstack/react-query';
 import { UserService, PostService } from '@/services/firebase';
 import { handleTotemLike as utilHandleTotemLike, handleTotemRefresh as utilHandleTotemRefresh } from '@/utils/totem';
 import { useRouter } from 'next/navigation';
-import type { Post } from '@/types/models';
+import type { Post, UserProfile } from '@/types/models';
 import { auth } from '@/firebase';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '@/firebase';
 
-export default function UserProfilePage({ params }: { params: { userID: string } }) {
+interface PageProps {
+  params: { userID: string };
+}
+
+export default function UserProfilePage({ params }: PageProps) {
   const router = useRouter();
   const { userID } = params;
 
@@ -39,23 +45,13 @@ export default function UserProfilePage({ params }: { params: { userID: string }
     router.push(`/post/${post.id}`);
   };
 
-  const handleTotemLike = async (postId: string, totemName: string) => {
-    const post = userPosts?.find(p => p.id === postId);
-    if (!post || !auth.currentUser) return;
-    
-    const answerIdx = post.answers.findIndex(a => a.totems.some(t => t.name === totemName));
-    if (answerIdx === -1) return;
-
-    await utilHandleTotemLike(post, answerIdx, totemName, auth.currentUser.uid);
+  const handleTotemLike = async (post: Post, answerIdx: number, totemName: string) => {
+    if (!userData) return;
+    await utilHandleTotemLike(post, answerIdx, totemName, userData.userID);
   };
 
-  const handleTotemRefresh = async (postId: string, totemName: string) => {
-    const post = userPosts?.find(p => p.id === postId);
-    if (!post || !userData) return;
-    
-    const answerIdx = post.answers.findIndex(a => a.totems.some(t => t.name === totemName));
-    if (answerIdx === -1) return;
-
+  const handleTotemRefresh = async (post: Post, answerIdx: number, totemName: string) => {
+    if (!userData) return;
     await utilHandleTotemRefresh(post, answerIdx, totemName, userData.refreshesRemaining || 0);
   };
 

@@ -37,6 +37,7 @@ export interface UserProfile {
   name: string;
   email: string;
   bio?: string;
+  photoURL?: string;
   verificationStatus: 'unverified' | 'email_verified' | 'identity_verified';
   membershipTier: 'free' | 'basic' | 'premium';
   refreshesRemaining: number;

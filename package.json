@@ -10,6 +10,7 @@
     "migrate:answers": "NODE_ENV=production ts-node -r tsconfig-paths/register -P tsconfig.scripts.json src/scripts/migrateAnswers.ts"
   },
   "dependencies": {
+    "@headlessui/react": "^2.2.0",
     "@sentry/nextjs": "^9.5.0",
     "@tanstack/react-query": "^5.67.2",
     "@tanstack/react-query-devtools": "^5.67.2",
@@ -24,7 +25,11 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@typescript-eslint/eslint-plugin": "^8.26.1",
+    "@typescript-eslint/parser": "^8.26.1",
     "autoprefixer": "^10.4.20",
+    "eslint": "^9.22.0",
+    "eslint-config-next": "^15.2.2",
     "postcss": "^8.5.3",
     "tailwindcss": "^3.4.17",
     "ts-node": "^10.9.2",

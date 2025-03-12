@@ -20,7 +20,6 @@ export function AnswerForm({
   const [totems, setTotems] = useState<string[]>([]);
   const [customTotem, setCustomTotem] = useState("");
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [isDev] = useState(process.env.NODE_ENV === 'development');
 
   // Debug log for props
   useEffect(() => {
@@ -120,7 +119,7 @@ export function AnswerForm({
         userId,
         userName: userProfile.name || 'Anonymous',
         createdAt: Timestamp.now(),
-        isVerified: isDev || isVerified,
+        isVerified: isVerified,
         isPremium: userProfile.membershipTier === 'premium'
       };
 
@@ -212,11 +211,6 @@ export function AnswerForm({
 
   return (
     <div className="bg-white rounded-xl shadow p-6">
-      {isDev && (
-        <div className="mb-4 p-2 bg-yellow-100 text-yellow-800 rounded-lg text-sm">
-          Development Mode: Email verification bypassed
-        </div>
-      )}
       <h2 className="text-xl font-bold mb-4">{selectedQuestion.question}</h2>
       <form onSubmit={handlePostAnswer} className="space-y-4">
         <textarea
@@ -225,7 +219,7 @@ export function AnswerForm({
           placeholder="Your answer..."
           className="w-full p-4 border rounded-xl resize-none"
           rows={4}
-          disabled={!isDev && !isVerified}
+          disabled={!isVerified}
         />
         <div className="space-y-2">
           <input
@@ -234,7 +228,7 @@ export function AnswerForm({
             onChange={(e) => setCustomTotem(e.target.value)}
             placeholder="Add a totem (e.g., All-Natural, Name Brand)"
             className="w-full p-3 border rounded-xl"
-            disabled={!isDev && !isVerified}
+            disabled={!isVerified}
           />
           <button
             type="button"
@@ -246,7 +240,7 @@ export function AnswerForm({
               }
             }}
             className="w-full p-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200"
-            disabled={!isDev && !isVerified}
+            disabled={!isVerified}
           >
             Add Totem
           </button>
@@ -277,7 +271,7 @@ export function AnswerForm({
           <button
             type="submit"
             className="flex-1 p-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 disabled:opacity-50"
-            disabled={(!isDev && !isVerified) || !answer.trim()}
+            disabled={!isVerified || !answer.trim()}
           >
             Post Answer
           </button>

@@ -41,6 +41,7 @@ export function QuestionList({
   onLoadMore = () => {},
 }: QuestionListProps) {
   const router = useRouter();
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
   const emptyPost: Post = {
     id: '',
@@ -86,6 +87,15 @@ export function QuestionList({
     );
   }, [posts]);
 
+  const handleInteraction = useCallback((action: () => void) => {
+    if (!auth.currentUser) {
+      setShowLoginPrompt(true);
+      setTimeout(() => setShowLoginPrompt(false), 3000);
+      return;
+    }
+    action();
+  }, []);
+
   const renderTopAnswer = useCallback((group: TotemGroup) => {
     const { post, answerIndex } = group.topAnswer;
     const answer = post.answers[answerIndex];
@@ -107,7 +117,7 @@ export function QuestionList({
             </div>
           </Link>
           <button
-            onClick={() => {
+            onClick={() => handleInteraction(() => {
               const validPost = {
                 ...post,
                 question: post.question || '',
@@ -118,7 +128,7 @@ export function QuestionList({
                 categories: post.categories || []
               };
               onSelectQuestion(validPost);
-            }}
+            })}
             className="ml-4 w-8 h-8 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-md transition-colors"
             aria-label="Add answer"
           >
@@ -135,8 +145,8 @@ export function QuestionList({
               name={totem.name}
               likes={totem.likes}
               crispness={totem.crispness}
-              onLike={() => onLikeTotem(post, answerIndex, totem.name)}
-              onRefresh={() => onRefreshTotem(post, answerIndex, totem.name)}
+              onLike={() => handleInteraction(() => onLikeTotem(post, answerIndex, totem.name))}
+              onRefresh={() => handleInteraction(() => onRefreshTotem(post, answerIndex, totem.name))}
             />
             <span className="text-sm text-gray-500">
               {group.totalAnswers} answers
@@ -155,7 +165,7 @@ export function QuestionList({
         </div>
       </div>
     );
-  }, [onLikeTotem, onRefreshTotem, onSelectQuestion]);
+  }, [onLikeTotem, onRefreshTotem, onSelectQuestion, handleInteraction]);
 
   if (!posts.length && !isLoading) {
     return (
@@ -169,6 +179,11 @@ export function QuestionList({
 
   return (
     <div className="relative">
+      {showLoginPrompt && (
+        <div className="fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg animate-fade-in">
+          Please log in to interact with posts
+        </div>
+      )}
       <InfiniteScroll
         hasNextPage={hasNextPage}
         isLoading={isLoading}

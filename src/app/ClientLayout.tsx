@@ -2,12 +2,16 @@
 
 import { QueryProvider } from '@/providers/QueryProvider';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
+import { Navbar } from '@/components/layout/Navbar';
 import { ReactNode } from 'react';
 
 export default function ClientLayout({ children }: { children: ReactNode }) {
   return (
     <ErrorBoundary>
-      <QueryProvider>{children}</QueryProvider>
+      <QueryProvider>
+        <Navbar />
+        {children}
+      </QueryProvider>
     </ErrorBoundary>
   );
 } 
