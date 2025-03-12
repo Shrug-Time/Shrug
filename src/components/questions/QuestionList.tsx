@@ -20,16 +20,6 @@ export interface QuestionListProps {
   onLoadMore?: () => void;
 }
 
-interface TotemGroup {
-  totemName: string;
-  topAnswer: {
-    post: Post;
-    answerIndex: number;
-    likes: number;
-  };
-  totalAnswers: number;
-}
-
 export function QuestionList({ 
   posts, 
   onSelectQuestion, 
@@ -43,50 +33,6 @@ export function QuestionList({
   const router = useRouter();
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
-  const emptyPost: Post = {
-    id: '',
-    question: '',
-    answers: [],
-    createdAt: new Date().toISOString(),
-    lastEngagement: new Date().toISOString(),
-    score: 0,
-    categories: []
-  };
-
-  // Group answers by totem and find top answer for each totem
-  const totemGroups = useMemo(() => {
-    const groups = new Map<string, TotemGroup>();
-
-    posts.forEach(post => {
-      post.answers.forEach((answer, answerIndex) => {
-        answer.totems?.forEach(totem => {
-          const existing = groups.get(totem.name);
-          if (!existing || totem.likes > existing.topAnswer.likes) {
-            groups.set(totem.name, {
-              totemName: totem.name,
-              topAnswer: {
-                post,
-                answerIndex,
-                likes: totem.likes
-              },
-              totalAnswers: existing ? existing.totalAnswers + 1 : 1
-            });
-          } else if (existing) {
-            groups.set(totem.name, {
-              ...existing,
-              totalAnswers: existing.totalAnswers + 1
-            });
-          }
-        });
-      });
-    });
-
-    // Convert to array and sort by likes
-    return Array.from(groups.values()).sort((a, b) => 
-      b.topAnswer.likes - a.topAnswer.likes
-    );
-  }, [posts]);
-
   const handleInteraction = useCallback((action: () => void) => {
     if (!auth.currentUser) {
       setShowLoginPrompt(true);
@@ -96,12 +42,7 @@ export function QuestionList({
     action();
   }, []);
 
-  const renderTopAnswer = useCallback((group: TotemGroup) => {
-    const { post, answerIndex } = group.topAnswer;
-    const answer = post.answers[answerIndex];
-    const totem = answer.totems?.find(t => t.name === group.totemName);
-    if (!answer || !totem) return null;
-
+  const renderQuestion = useCallback((post: Post) => {
     return (
       <div className="bg-white rounded-xl shadow p-4 hover:shadow-md transition-shadow">
         <div className="flex justify-between items-start mb-4">
@@ -112,23 +53,14 @@ export function QuestionList({
             <h2 className="text-xl font-bold mb-2">
               {post.question}
             </h2>
-            <div className="text-gray-600">
-              {answer.text.split('\n')[0]}
-            </div>
+            {post.answers.length > 0 && (
+              <div className="text-gray-600">
+                {post.answers[0].text.split('\n')[0]}
+              </div>
+            )}
           </Link>
           <button
-            onClick={() => handleInteraction(() => {
-              const validPost = {
-                ...post,
-                question: post.question || '',
-                answers: post.answers || [],
-                createdAt: post.createdAt || new Date().toISOString(),
-                lastEngagement: post.lastEngagement || new Date().toISOString(),
-                score: post.score || 0,
-                categories: post.categories || []
-              };
-              onSelectQuestion(validPost);
-            })}
+            onClick={() => handleInteraction(() => onSelectQuestion(post))}
             className="ml-4 w-8 h-8 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-md transition-colors"
             aria-label="Add answer"
           >
@@ -137,30 +69,32 @@ export function QuestionList({
         </div>
 
         <div className="flex items-center justify-between">
-          <Link
-            href={`/totem/${group.totemName}`}
-            className="flex items-center space-x-2"
-          >
-            <TotemButton
-              name={totem.name}
-              likes={totem.likes}
-              crispness={totem.crispness}
-              onLike={() => handleInteraction(() => onLikeTotem(post, answerIndex, totem.name))}
-              onRefresh={() => handleInteraction(() => onRefreshTotem(post, answerIndex, totem.name))}
-            />
-            <span className="text-sm text-gray-500">
-              {group.totalAnswers} answers
-            </span>
-          </Link>
+          <div className="flex items-center space-x-2">
+            {post.answers.length > 0 ? (
+              <>
+                {post.answers[0].totems.map((totem) => (
+                  <TotemButton
+                    key={totem.name}
+                    name={totem.name}
+                    likes={totem.likes}
+                    crispness={totem.crispness}
+                    onLike={() => handleInteraction(() => onLikeTotem(post, 0, totem.name))}
+                    onRefresh={() => handleInteraction(() => onRefreshTotem(post, 0, totem.name))}
+                  />
+                ))}
+                <span className="text-sm text-gray-500">
+                  {post.answers.length} answers
+                </span>
+              </>
+            ) : (
+              <span className="text-sm text-gray-500">
+                No answers yet
+              </span>
+            )}
+          </div>
           
           <div className="text-sm text-gray-500">
-            {answer.createdAt ? 
-              formatDistanceToNow(
-                typeof answer.createdAt === 'number' 
-                  ? new Date(answer.createdAt) 
-                  : (answer.createdAt as Timestamp).toDate(), 
-                { addSuffix: true }
-              ) : "Just now"} by {answer.userName || 'Anonymous'}
+            {formatDistanceToNow(post.createdAt, { addSuffix: true })} by {post.userName || 'Anonymous'}
           </div>
         </div>
       </div>
@@ -190,12 +124,12 @@ export function QuestionList({
         onLoadMore={onLoadMore}
         className="space-y-6"
       >
-        {totemGroups.map(group => (
+        {posts.map(post => (
           <article 
-            key={group.totemName}
+            key={post.id}
             className="relative"
           >
-            {renderTopAnswer(group)}
+            {renderQuestion(post)}
           </article>
         ))}
       </InfiniteScroll>

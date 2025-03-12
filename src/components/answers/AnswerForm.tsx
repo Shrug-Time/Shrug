@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { doc, updateDoc, setDoc, getDoc, arrayUnion, increment, Timestamp } from 'firebase/firestore';
-import { db } from '@/firebase';
+import { db, sendVerificationEmail, auth } from '@/firebase';
 import type { Post, Answer, UserProfile } from '@/types/models';
 
 interface AnswerFormProps {
@@ -20,6 +20,7 @@ export function AnswerForm({
   const [totems, setTotems] = useState<string[]>([]);
   const [customTotem, setCustomTotem] = useState("");
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [showVerificationPrompt, setShowVerificationPrompt] = useState(false);
 
   // Debug log for props
   useEffect(() => {
@@ -59,6 +60,12 @@ export function AnswerForm({
 
   const handlePostAnswer = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!isVerified) {
+      setShowVerificationPrompt(true);
+      return;
+    }
+
     console.log('Submitting answer with data:', {
       answer,
       totems,
@@ -118,7 +125,7 @@ export function AnswerForm({
         })),
         userId,
         userName: userProfile.name || 'Anonymous',
-        createdAt: Timestamp.now(),
+        createdAt: Timestamp.now().toDate(),
         isVerified: isVerified,
         isPremium: userProfile.membershipTier === 'premium'
       };
@@ -131,12 +138,12 @@ export function AnswerForm({
       // Create update data with proper type
       const updateData: Partial<Post> = {
         answers: updatedAnswers,
-        lastEngagement: Timestamp.now().toDate().toISOString(),
+        lastEngagement: Timestamp.now().toDate(),
       };
 
       // Add createdAt only if it doesn't exist
       if (!selectedQuestion.createdAt) {
-        updateData.createdAt = Timestamp.now().toDate().toISOString();
+        updateData.createdAt = Timestamp.now().toDate();
       }
 
       console.log('Update data to be sent:', updateData);
@@ -209,6 +216,56 @@ export function AnswerForm({
     });
   };
 
+  const handleVerification = async () => {
+    try {
+      // First, reload the user to get the latest verification status
+      if (auth.currentUser) {
+        await auth.currentUser.reload();
+        if (auth.currentUser.emailVerified) {
+          // User is already verified, update their profile
+          const userRef = doc(db, "users", userId);
+          await updateDoc(userRef, { verificationStatus: 'email_verified' });
+          alert("Your account is already verified! You can now post answers.");
+          setShowVerificationPrompt(false);
+          return;
+        }
+      }
+
+      await sendVerificationEmail();
+      alert("Verification email sent! Please check your inbox and click the verification link. After verifying, come back and try posting again.");
+      onAnswerSubmitted(); // Close the answer form
+    } catch (error) {
+      console.error("Error handling verification:", error);
+      alert("Failed to handle verification. Please try again later.");
+    }
+  };
+
+  if (showVerificationPrompt) {
+    return (
+      <div className="bg-white rounded-xl shadow p-6 text-center">
+        <h3 className="text-lg font-semibold mb-4">Verification Required</h3>
+        <p className="text-gray-600 mb-6">
+          You need to verify your email address to post answers. This helps maintain quality and prevent spam.
+          We'll send you a verification link to your email address.
+        </p>
+        <div className="flex justify-center gap-4">
+          <button
+            onClick={() => setShowVerificationPrompt(false)}
+            className="px-6 py-3 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300"
+          >
+            Back to Answer
+          </button>
+          <button
+            onClick={handleVerification}
+            className="px-6 py-3 bg-blue-500 text-white rounded-full hover:bg-blue-600"
+          >
+            Send Verification Email
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white rounded-xl shadow p-6">
       <h2 className="text-xl font-bold mb-4">{selectedQuestion.question}</h2>
@@ -219,7 +276,6 @@ export function AnswerForm({
           placeholder="Your answer..."
           className="w-full p-4 border rounded-xl resize-none"
           rows={4}
-          disabled={!isVerified}
         />
         <div className="space-y-2">
           <input
@@ -228,7 +284,6 @@ export function AnswerForm({
             onChange={(e) => setCustomTotem(e.target.value)}
             placeholder="Add a totem (e.g., All-Natural, Name Brand)"
             className="w-full p-3 border rounded-xl"
-            disabled={!isVerified}
           />
           <button
             type="button"
@@ -240,7 +295,6 @@ export function AnswerForm({
               }
             }}
             className="w-full p-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200"
-            disabled={!isVerified}
           >
             Add Totem
           </button>
@@ -271,9 +325,9 @@ export function AnswerForm({
           <button
             type="submit"
             className="flex-1 p-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 disabled:opacity-50"
-            disabled={!isVerified || !answer.trim()}
+            disabled={!answer.trim()}
           >
-            Post Answer
+            {isVerified ? 'Post Answer' : 'Continue to Post'}
           </button>
           <button
             type="button"

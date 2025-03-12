@@ -34,13 +34,24 @@ export const checkOrCreateUser = async (user: any) => {
       email: user.email,
       name: "Default User",
       handle: `user${user.uid.slice(0, 8)}`,
-      verified: user.emailVerified || false,
+      verificationStatus: user.emailVerified ? 'email_verified' : 'unverified',
+      membershipTier: 'free',
+      refreshesRemaining: 5,
+      refreshResetTime: new Date().toISOString(),
+      followers: [],
+      following: [],
       createdAt: new Date().toISOString(),
+      totems: {
+        created: [],
+        frequently_used: [],
+        recent: []
+      },
+      expertise: []
     });
-  } else if (!userDoc.data().verified && user.emailVerified) {
-    await updateDoc(userRef, { verified: true });
+  } else if (!userDoc.data().verificationStatus.includes('verified') && user.emailVerified) {
+    await updateDoc(userRef, { verificationStatus: 'email_verified' });
   }
-  return userDoc.data() || { verified: user.emailVerified || false };
+  return userDoc.data();
 };
 
 // Auth functions
@@ -56,6 +67,12 @@ export const signUp = async (email: string, password: string) => {
 
 export const onAuthChange = (callback: (user: any) => void) => {
   return onAuthStateChanged(auth, callback);
+};
+
+export const sendVerificationEmail = async () => {
+  const user = auth.currentUser;
+  if (!user) throw new Error("No user logged in");
+  await sendEmailVerification(user);
 };
 
 // Export everything needed

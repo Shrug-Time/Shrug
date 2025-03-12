@@ -60,7 +60,7 @@ export interface Answer {
   text: string;
   userId: string;
   userName: string;
-  createdAt: Timestamp;
+  createdAt: Date;
   totems: Totem[];
   isVerified: boolean;
   isPremium: boolean;
@@ -70,8 +70,10 @@ export interface Post {
   id: string;
   question: string;
   answers: Answer[];
-  createdAt: string;
-  lastEngagement: string;
+  createdAt: Date;
+  lastEngagement: Date;
   score: number;
   categories: string[];
+  userId: string;
+  userName: string;
 } 
