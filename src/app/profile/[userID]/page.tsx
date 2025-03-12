@@ -7,9 +7,10 @@ import { Toast } from '@/components/common/Toast';
 import { QuestionList } from '@/components/questions/QuestionList';
 import { useQuery } from '@tanstack/react-query';
 import { UserService, PostService } from '@/services/firebase';
-import { handleTotemLike, handleTotemRefresh } from '@/utils/totem';
+import { handleTotemLike as utilHandleTotemLike, handleTotemRefresh as utilHandleTotemRefresh } from '@/utils/totem';
 import { useRouter } from 'next/navigation';
 import type { Post } from '@/types/models';
+import { auth } from '@/firebase';
 
 export default function UserProfilePage({ params }: { params: { userID: string } }) {
   const router = useRouter();
@@ -34,6 +35,30 @@ export default function UserProfilePage({ params }: { params: { userID: string }
     enabled: !!userData
   });
 
+  const handleSelectQuestion = (post: Post) => {
+    router.push(`/post/${post.id}`);
+  };
+
+  const handleTotemLike = async (postId: string, totemName: string) => {
+    const post = userPosts?.find(p => p.id === postId);
+    if (!post || !auth.currentUser) return;
+    
+    const answerIdx = post.answers.findIndex(a => a.totems.some(t => t.name === totemName));
+    if (answerIdx === -1) return;
+
+    await utilHandleTotemLike(post, answerIdx, totemName, auth.currentUser.uid);
+  };
+
+  const handleTotemRefresh = async (postId: string, totemName: string) => {
+    const post = userPosts?.find(p => p.id === postId);
+    if (!post || !userData) return;
+    
+    const answerIdx = post.answers.findIndex(a => a.totems.some(t => t.name === totemName));
+    if (answerIdx === -1) return;
+
+    await utilHandleTotemRefresh(post, answerIdx, totemName, userData.refreshesRemaining || 0);
+  };
+
   if (userLoading || postsLoading) {
     return <LoadingSpinner size="lg" className="mx-auto mt-8" />;
   }
@@ -57,10 +82,6 @@ export default function UserProfilePage({ params }: { params: { userID: string }
     );
   }
 
-  const handleSelectQuestion = (post: Post) => {
-    router.push(`/post/${post.id}`);
-  };
-
   return (
     <ErrorBoundary>
       <div className="max-w-4xl mx-auto p-4">
@@ -77,6 +98,7 @@ export default function UserProfilePage({ params }: { params: { userID: string }
               onSelectQuestion={handleSelectQuestion}
               onLikeTotem={handleTotemLike}
               onRefreshTotem={handleTotemRefresh}
+              showAllTotems={false}
             />
           </div>
         ) : (
