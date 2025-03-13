@@ -12,7 +12,8 @@ import {
   Timestamp,
   QueryConstraint,
   setDoc,
-  serverTimestamp
+  serverTimestamp,
+  documentId
 } from 'firebase/firestore';
 import type { Post, UserProfile, Answer } from '@/types/models';
 
@@ -92,43 +93,68 @@ export const PostService = {
 
   async getUserPosts(userID: string) {
     try {
-      // First get the user's answer references
-      const userAnswersRef = collection(db, 'userAnswers', userID, 'posts');
-      const userAnswersSnapshot = await getDocs(userAnswersRef);
-
-      if (userAnswersSnapshot.empty) {
-        console.log(`No posts found for user ${userID}`);
-        return [];
-      }
-
-      // Get all the post IDs
-      const postIds = userAnswersSnapshot.docs.map(doc => doc.id);
-
-      // Then fetch the actual posts
-      const posts: Post[] = [];
-      const chunkSize = 10; // Firestore has a limit on 'in' queries
-
-      // Split the post IDs into chunks to avoid query limits
-      for (let i = 0; i < postIds.length; i += chunkSize) {
-        const chunk = postIds.slice(i, i + chunkSize);
-        const postsRef = collection(db, 'posts');
-        const q = query(
-          postsRef,
-          where('id', 'in', chunk),
-          orderBy('lastEngagement', 'desc')
-        );
-
-        const snapshot = await getDocs(q);
-        posts.push(...snapshot.docs.map(doc => ({
+      console.log(`[getUserPosts] Starting to fetch posts for user ${userID}`);
+      
+      // Try to get posts where the user is the creator
+      const postsRef = collection(db, 'posts');
+      const createdPostsQuery = query(
+        postsRef,
+        where('userId', '==', userID)
+      );
+      
+      console.log(`[getUserPosts] Fetching posts created by user`);
+      const createdPostsSnapshot = await getDocs(createdPostsQuery);
+      const createdPosts = createdPostsSnapshot.docs.map(doc => {
+        const data = doc.data();
+        console.log(`[getUserPosts] Found created post:`, { id: doc.id, question: data.question });
+        return {
           id: doc.id,
-          ...doc.data()
-        } as Post)));
-      }
+          ...data,
+          createdAt: data.createdAt?.toMillis?.() || Date.now(),
+          lastEngagement: data.lastEngagement?.toMillis?.() || Date.now(),
+          answers: (data.answers || []).map((answer: any) => ({
+            ...answer,
+            createdAt: answer.createdAt?.toMillis?.() || Date.now(),
+            totems: answer.totems || []
+          }))
+        } as Post;
+      });
 
-      console.log(`Found ${posts.length} posts for user ${userID}`);
-      return posts;
+      // Try to get posts where the user has answered
+      const answeredPostsQuery = query(
+        postsRef,
+        where('answers', 'array-contains', { userId: userID })
+      );
+      
+      console.log(`[getUserPosts] Fetching posts with user's answers`);
+      const answeredPostsSnapshot = await getDocs(answeredPostsQuery);
+      const answeredPosts = answeredPostsSnapshot.docs.map(doc => {
+        const data = doc.data();
+        console.log(`[getUserPosts] Found answered post:`, { id: doc.id, question: data.question });
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toMillis?.() || Date.now(),
+          lastEngagement: data.lastEngagement?.toMillis?.() || Date.now(),
+          answers: (data.answers || []).map((answer: any) => ({
+            ...answer,
+            createdAt: answer.createdAt?.toMillis?.() || Date.now(),
+            totems: answer.totems || []
+          }))
+        } as Post;
+      });
+
+      // Combine and deduplicate posts
+      const allPosts = [...createdPosts, ...answeredPosts];
+      const uniquePosts = Array.from(new Map(allPosts.map(post => [post.id, post])).values());
+      
+      // Sort posts by lastEngagement
+      uniquePosts.sort((a, b) => b.lastEngagement - a.lastEngagement);
+
+      console.log(`[getUserPosts] Total posts found: ${uniquePosts.length} (${createdPosts.length} created, ${answeredPosts.length} answered)`);
+      return uniquePosts;
     } catch (error) {
-      console.error('Error fetching user posts:', error);
+      console.error('[getUserPosts] Error fetching user posts:', error);
       throw error;
     }
   },
@@ -143,9 +169,10 @@ export const PostService = {
       }
 
       const post = postDoc.data() as Post;
+      const now = Date.now();
       const newAnswer: Answer = {
         ...answer,
-        createdAt: new Date().toISOString()
+        createdAt: now
       };
 
       // Update the post with the new answer
@@ -237,7 +264,7 @@ export class TotemService {
         throw new Error("You've already liked this totem!");
       }
 
-      const now = new Date().toISOString();
+      const now = Date.now();
       const updatedAnswers = this.updateTotemStats(post.answers, answerIdx, totemName, userId, now);
       
       await updateDoc(doc(db, "posts", post.id), { 
@@ -257,7 +284,7 @@ export class TotemService {
     answerIdx: number,
     totemName: string,
     userId: string,
-    timestamp: string
+    timestamp: number
   ) {
     return answers.map((ans, idx) =>
       idx === answerIdx
@@ -268,13 +295,13 @@ export class TotemService {
                 ? {
                     ...t,
                     likes: t.likes + 1,
-                    likeTimes: [...(t.likeTimes || []), timestamp],
+                    likeTimes: [...(t.likeTimes || []).map(Number), timestamp],
                     likeValues: [...(t.likeValues || []), 1],
                     lastLike: timestamp,
                     likedBy: [...t.likedBy, userId],
                     crispness: this.calculateCrispness(
                       [...(t.likeValues || []), 1],
-                      [...(t.likeTimes || []), timestamp]
+                      [...(t.likeTimes || []).map(Number), timestamp]
                     )
                   }
                 : t
@@ -284,16 +311,15 @@ export class TotemService {
     );
   }
 
-  private static calculateCrispness(likes: number[], timestamps: string[]): number {
-    const now = new Date().getTime();
+  private static calculateCrispness(likes: number[], timestamps: number[]): number {
+    const now = Date.now();
     const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
     
     let totalWeight = 0;
     let weightedSum = 0;
 
     timestamps.forEach((timestamp, index) => {
-      const likeTime = new Date(timestamp).getTime();
-      const timeSinceLike = now - likeTime;
+      const timeSinceLike = now - timestamp;
       const weight = Math.max(0, 1 - (timeSinceLike / ONE_WEEK_MS));
       
       weightedSum += weight * likes[index];
@@ -309,7 +335,8 @@ export async function trackUserAnswer(userID: string, postID: string) {
   try {
     const userAnswerRef = doc(db, 'userAnswers', userID, 'posts', postID);
     await setDoc(userAnswerRef, {
-      timestamp: serverTimestamp()
+      timestamp: serverTimestamp(),
+      type: "answered"
     });
   } catch (error) {
     console.error('Error tracking user answer:', error);

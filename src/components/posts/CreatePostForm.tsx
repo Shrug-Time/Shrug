@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { doc, setDoc, collection, Timestamp } from 'firebase/firestore';
+import { doc, setDoc, collection, Timestamp, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/firebase';
 import type { Post } from '@/types/models';
 
@@ -32,7 +32,7 @@ export function CreatePostForm({
 
       const postsRef = collection(db, "posts");
       const newPostRef = doc(postsRef);
-      const now = Timestamp.now();
+      const now = Date.now();
 
       const newPost: Post = {
         id: newPostRef.id,
@@ -46,7 +46,21 @@ export function CreatePostForm({
         userName
       };
 
-      await setDoc(newPostRef, newPost);
+      // Create the post
+      await setDoc(newPostRef, {
+        ...newPost,
+        createdAt: serverTimestamp(),
+        lastEngagement: serverTimestamp()
+      });
+
+      // Create a reference in the user's posts collection
+      const userAnswersRef = doc(db, "userAnswers", userId, "posts", newPostRef.id);
+      await setDoc(userAnswersRef, {
+        timestamp: serverTimestamp(),
+        postId: newPostRef.id,
+        type: "created"
+      });
+
       setQuestion("");
       onPostCreated();
     } catch (err) {

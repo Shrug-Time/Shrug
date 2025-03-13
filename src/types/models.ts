@@ -60,20 +60,20 @@ export interface Answer {
   text: string;
   userId: string;
   userName: string;
-  createdAt: Date;
+  createdAt: number;
   totems: Totem[];
-  isVerified: boolean;
-  isPremium: boolean;
+  isVerified?: boolean;
+  isPremium?: boolean;
 }
 
 export interface Post {
   id: string;
   question: string;
-  answers: Answer[];
-  createdAt: Date;
-  lastEngagement: Date;
-  score: number;
-  categories: string[];
   userId: string;
   userName: string;
+  createdAt: number;
+  lastEngagement: number;
+  categories: string[];
+  answers: Answer[];
+  score?: number;
 } 

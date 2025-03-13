@@ -12,6 +12,31 @@ import { auth } from '@/firebase';
 import { handleTotemLike, handleTotemRefresh } from '@/utils/totem';
 import { QuestionList } from '@/components/questions/QuestionList';
 
+// Helper function to convert timestamps
+function convertTimestamps(obj: any): any {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+
+  if (obj instanceof Timestamp) {
+    return obj.toMillis();
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(convertTimestamps);
+  }
+
+  if (typeof obj === 'object') {
+    const converted: any = {};
+    for (const key in obj) {
+      converted[key] = convertTimestamps(obj[key]);
+    }
+    return converted;
+  }
+
+  return obj;
+}
+
 interface GroupedAnswer {
   totemName: string;
   answers: Array<{
@@ -37,7 +62,11 @@ export default function PostPage({ params }: { params: Promise<{ id: string }> }
       doc(db, "posts", resolvedParams.id),
       (doc) => {
         if (doc.exists()) {
-          setPost({ id: doc.id, ...doc.data() } as Post);
+          const data = doc.data();
+          setPost(convertTimestamps({
+            id: doc.id,
+            ...data
+          }) as Post);
         } else {
           router.push('/');
         }
@@ -115,7 +144,12 @@ export default function PostPage({ params }: { params: Promise<{ id: string }> }
       <div className="bg-white shadow">
         <div className="max-w-4xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold">{post.question}</h1>
+            <div>
+              <h1 className="text-2xl font-bold">{post.question}</h1>
+              <p className="text-gray-600 mt-1">
+                {post.answers.length} {post.answers.length === 1 ? 'answer' : 'answers'} • Posted {formatDistanceToNow(post.createdAt, { addSuffix: true })} by {post.userName || 'Anonymous'}
+              </p>
+            </div>
             <button
               onClick={() => router.push('/')}
               className="text-blue-500 hover:underline"
@@ -128,13 +162,16 @@ export default function PostPage({ params }: { params: Promise<{ id: string }> }
 
       <main className="max-w-4xl mx-auto p-6">
         <div className="space-y-8">
-          <QuestionList
-            posts={[post]}
-            onSelectQuestion={() => {}}
-            onLikeTotem={(post, answerIdx, totemName, userId) => onLikeTotem(answerIdx, totemName)}
-            onRefreshTotem={(post, answerIdx, totemName, refreshCount) => onRefreshTotem(answerIdx, totemName)}
-            showAllTotems={true}
-          />
+          <div className="bg-white rounded-xl shadow p-4">
+            <h2 className="text-lg font-semibold mb-4">All Answers</h2>
+            <QuestionList
+              posts={[post]}
+              onSelectQuestion={() => {}}
+              onLikeTotem={(_post, answerIdx, totemName) => onLikeTotem(answerIdx, totemName)}
+              onRefreshTotem={(_post, answerIdx, totemName) => onRefreshTotem(answerIdx, totemName)}
+              showAllTotems={true}
+            />
+          </div>
         </div>
       </main>
     </div>

@@ -1,5 +1,8 @@
+"use client";
+
 import { MouseEvent, memo, useCallback, useMemo } from 'react';
 import { auth } from '@/firebase';
+import { useRouter } from 'next/navigation';
 
 interface TotemButtonProps {
   name: string;
@@ -7,9 +10,12 @@ interface TotemButtonProps {
   crispness?: number;
   onLike?: (e: MouseEvent<HTMLButtonElement>) => void;
   onRefresh?: (e: MouseEvent<HTMLButtonElement>) => void;
+  postId?: string;
 }
 
-function TotemButtonBase({ name, likes, crispness, onLike, onRefresh }: TotemButtonProps) {
+function TotemButtonBase({ name, likes, crispness, onLike, onRefresh, postId }: TotemButtonProps) {
+  const router = useRouter();
+  
   const getTotemColor = useCallback((name: string) => {
     switch (name.toLowerCase()) {
       case "all-natural":
@@ -29,12 +35,24 @@ function TotemButtonBase({ name, likes, crispness, onLike, onRefresh }: TotemBut
   const backgroundColor = useMemo(() => getTotemColor(name), [getTotemColor, name]);
   const isAuthenticated = auth.currentUser !== null;
 
+  const handleTotemClick = (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    if (postId) {
+      // If we're in a post context, navigate to the post's totem view
+      router.push(`/post/${postId}/totem/${encodeURIComponent(name)}`);
+    } else {
+      // If we're not in a post context, navigate to the global totem view
+      router.push(`/totem/${encodeURIComponent(name)}`);
+    }
+  };
+
   return (
     <div className={`inline-flex items-center bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow ${!isAuthenticated ? 'opacity-75' : ''}`}>
       <button
         className="px-4 py-2 rounded-l-lg text-white hover:opacity-90 text-sm font-medium flex items-center justify-center min-w-[100px]"
         style={{ backgroundColor }}
-        disabled={!isAuthenticated}
+        onClick={handleTotemClick}
+        title="View all posts with this totem"
       >
         {name}
       </button>
@@ -43,7 +61,7 @@ function TotemButtonBase({ name, likes, crispness, onLike, onRefresh }: TotemBut
         className="px-3 py-2 rounded-r-lg text-white hover:opacity-90 text-sm font-medium flex items-center justify-center min-w-[40px]"
         style={{ backgroundColor }}
         disabled={!isAuthenticated}
-        title={!isAuthenticated ? "Log in to interact" : undefined}
+        title={!isAuthenticated ? "Log in to interact" : "Like this totem"}
       >
         {likes}
       </button>
@@ -62,7 +80,8 @@ function propsAreEqual(prevProps: TotemButtonProps, nextProps: TotemButtonProps)
     prevProps.likes === nextProps.likes &&
     prevProps.crispness === nextProps.crispness &&
     prevProps.onLike === nextProps.onLike &&
-    prevProps.onRefresh === nextProps.onRefresh
+    prevProps.onRefresh === nextProps.onRefresh &&
+    prevProps.postId === nextProps.postId
   );
 }
 

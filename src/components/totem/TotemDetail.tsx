@@ -1,7 +1,8 @@
+"use client";
+
 import { Post } from '@/types/models';
 import { TotemButton } from '@/components/common/TotemButton';
 import { formatDistanceToNow } from 'date-fns';
-import { Timestamp } from 'firebase/firestore';
 import Link from 'next/link';
 import { InfiniteScroll } from '@/components/common/InfiniteScroll';
 
@@ -27,14 +28,18 @@ export function TotemDetail({
   // Filter and sort answers that have this totem
   const sortedAnswers = posts.flatMap(post => 
     post.answers
-      .map((answer, index) => ({
-        post,
-        answer,
-        answerIndex: index,
-        totem: answer.totems?.find(t => t.name === totemName),
-      }))
-      .filter(({ totem }) => totem)
-  ).sort((a, b) => (b.totem?.likes || 0) - (a.totem?.likes || 0));
+      .map((answer, index) => {
+        const matchingTotem = answer.totems?.find(t => t.name === totemName);
+        if (!matchingTotem) return null;
+        return {
+          post,
+          answer,
+          answerIndex: index,
+          totem: matchingTotem,
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null)
+  ).sort((a, b) => b.totem.likes - a.totem.likes);
 
   if (!sortedAnswers.length && !isLoading) {
     return (
@@ -70,21 +75,15 @@ export function TotemDetail({
 
           <div className="flex items-center justify-between">
             <TotemButton
-              name={totem?.name || totemName}
-              likes={totem?.likes || 0}
-              crispness={totem?.crispness || 0}
+              name={totem.name}
+              likes={totem.likes}
+              crispness={totem.crispness}
               onLike={() => onLikeTotem(post.id, totemName)}
               onRefresh={() => onRefreshTotem(post.id, totemName)}
             />
             
             <div className="text-sm text-gray-500">
-              {answer.createdAt ? 
-                formatDistanceToNow(
-                  typeof answer.createdAt === 'number' 
-                    ? new Date(answer.createdAt) 
-                    : (answer.createdAt as Timestamp).toDate(), 
-                  { addSuffix: true }
-                ) : "Just now"} by {answer.userName || 'Anonymous'}
+              {formatDistanceToNow(answer.createdAt, { addSuffix: true })} by {answer.userName || 'Anonymous'}
             </div>
           </div>
         </article>

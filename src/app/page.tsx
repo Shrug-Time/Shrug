@@ -56,6 +56,14 @@ const getPersonalizedFeed = async (posts: Post[], userData: UserProfile | null) 
   return Array.from(new Set(allPosts));
 };
 
+// Helper function to get highest totem likes for a post
+const getHighestTotemLikes = (post: Post): number => {
+  if (!post.answers || post.answers.length === 0) return 0;
+  return Math.max(...post.answers.map(answer => 
+    Math.max(...(answer.totems || []).map(totem => totem.likes || 0))
+  ));
+};
+
 export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [selectedQuestion, setSelectedQuestion] = useState<Post | null>(null);
@@ -128,26 +136,41 @@ export default function Home() {
             let postsList = snapshot.docs.map((doc) => {
               const data = doc.data();
               
-              // Helper function to safely convert timestamps
-              const convertTimestamp = (timestamp: any): Date => {
-                if (!timestamp) return new Date();
-                if (timestamp.toDate) return timestamp.toDate();
-                if (timestamp.seconds) return new Date(timestamp.seconds * 1000);
-                if (timestamp instanceof Date) return timestamp;
-                return new Date(timestamp);
+              // Helper function to safely convert timestamps to milliseconds
+              const convertTimestamp = (timestamp: any): number => {
+                if (!timestamp) return Date.now();
+                if (timestamp.toDate) return timestamp.toDate().getTime();
+                if (timestamp.seconds) return timestamp.seconds * 1000;
+                if (timestamp instanceof Date) return timestamp.getTime();
+                return typeof timestamp === 'number' ? timestamp : Date.now();
               };
 
               return {
                 id: doc.id,
-                ...data,
+                question: data.question || '',
+                userId: data.userId || '',
+                userName: data.userName || 'Anonymous',
+                categories: data.categories || [],
                 createdAt: convertTimestamp(data.createdAt),
                 lastEngagement: convertTimestamp(data.lastEngagement),
                 answers: (data.answers || []).map((answer: any) => ({
                   ...answer,
                   createdAt: convertTimestamp(answer.createdAt)
                 }))
-              };
-            }) as Post[];
+              } as Post;
+            });
+
+            // Sort posts based on active tab
+            if (activeTab === 'popular') {
+              postsList.sort((a, b) => {
+                const aLikes = getHighestTotemLikes(a);
+                const bLikes = getHighestTotemLikes(b);
+                if (aLikes !== bLikes) return bLikes - aLikes;
+                return calculatePostScore(b) - calculatePostScore(a);
+              });
+            } else if (activeTab === 'latest') {
+              postsList.sort((a, b) => b.createdAt - a.createdAt);
+            }
 
             if (activeTab === 'for-you' && userData) {
               getPersonalizedFeed(postsList, userData).then(filteredPosts => {
@@ -164,10 +187,6 @@ export default function Home() {
                 resolve(filteredPosts);
               });
             } else {
-              if (activeTab === 'popular') {
-                postsList.sort((a, b) => calculatePostScore(b) - calculatePostScore(a));
-              }
-
               if (searchQuery) {
                 const query = searchQuery.toLowerCase();
                 postsList = postsList.filter(post => 

@@ -42,7 +42,151 @@ export function QuestionList({
     action();
   }, []);
 
+  const getBestAnswer = useCallback((post: Post) => {
+    if (!post.answers || post.answers.length === 0) return null;
+    
+    // Find the answer with the highest likes for any totem
+    return post.answers.reduce((best, current, index) => {
+      // Get the highest likes from any totem in the current answer
+      const currentMaxLikes = current.totems?.reduce((max, totem) => 
+        totem.likes > max ? totem.likes : max, 0) || 0;
+      
+      // Get the highest likes from any totem in the best answer so far
+      const bestMaxLikes = best.answer.totems?.reduce((max, totem) => 
+        totem.likes > max ? totem.likes : max, 0) || 0;
+      
+      return currentMaxLikes > bestMaxLikes ? { answer: current, index } : best;
+    }, { answer: post.answers[0], index: 0 });
+  }, []);
+
+  const getBestTotem = useCallback((answer: Answer) => {
+    if (!answer.totems || answer.totems.length === 0) return null;
+    return answer.totems.reduce((best, current) => 
+      current.likes > best.likes ? current : best
+    );
+  }, []);
+
+  const renderAnswer = useCallback((post: Post, answer: Answer, index: number, isBestAnswer: boolean = false) => {
+    // Get only the highest-liked totem for this answer
+    const bestTotem = getBestTotem(answer);
+
+    if (!bestTotem) return null;
+
+    return (
+      <div key={`${post.id}-${answer.text}`} 
+           className={`bg-white rounded-xl shadow p-4 hover:shadow-md transition-shadow ${isBestAnswer ? 'border-l-4 border-blue-500' : ''}`}>
+        <div className="text-gray-600 mb-4">
+          {answer.text}
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <TotemButton
+              key={bestTotem.name}
+              name={bestTotem.name}
+              likes={bestTotem.likes}
+              crispness={bestTotem.crispness}
+              onLike={() => handleInteraction(() => onLikeTotem(post, index, bestTotem.name))}
+              onRefresh={() => handleInteraction(() => onRefreshTotem(post, index, bestTotem.name))}
+              postId={post.id}
+            />
+            {answer.totems && answer.totems.length > 1 && (
+              <span className="text-sm text-gray-500">
+                +{answer.totems.length - 1} more totems
+              </span>
+            )}
+          </div>
+          
+          <div className="text-sm text-gray-500">
+            {formatDistanceToNow(answer.createdAt, { addSuffix: true })} by {answer.userName || 'Anonymous'}
+          </div>
+        </div>
+      </div>
+    );
+  }, [handleInteraction, onLikeTotem, onRefreshTotem, getBestTotem]);
+
   const renderQuestion = useCallback((post: Post) => {
+    const bestAnswer = getBestAnswer(post);
+    
+    // If we're showing all answers (question page view)
+    if (showAllTotems && post.answers.length > 0) {
+      // Group answers by their best totem
+      const answersByTotem = post.answers.reduce((groups, answer, index) => {
+        const bestTotem = getBestTotem(answer);
+        if (!bestTotem) return groups;
+
+        if (!groups[bestTotem.name]) {
+          groups[bestTotem.name] = [];
+        }
+        groups[bestTotem.name].push({ answer, index });
+        return groups;
+      }, {} as Record<string, { answer: Answer; index: number }[]>);
+
+      // For each totem group, get the answer with the highest likes
+      const bestAnswersPerTotem = Object.entries(answersByTotem).map(([totemName, answers]) => {
+        // Sort answers in this group by their totem's likes
+        const sortedAnswers = answers.sort((a, b) => {
+          const aTotem = a.answer.totems?.find(t => t.name === totemName);
+          const bTotem = b.answer.totems?.find(t => t.name === totemName);
+          return (bTotem?.likes || 0) - (aTotem?.likes || 0);
+        });
+        return sortedAnswers[0]; // Return the answer with highest likes for this totem
+      });
+
+      // Sort the best answers by their totem likes
+      const sortedBestAnswers = bestAnswersPerTotem.sort((a, b) => {
+        const aTotem = getBestTotem(a.answer);
+        const bTotem = getBestTotem(b.answer);
+        return (bTotem?.likes || 0) - (aTotem?.likes || 0);
+      });
+
+      return (
+        <div className="space-y-4">
+          {sortedBestAnswers.map(({ answer, index }) => {
+            const bestTotem = getBestTotem(answer);
+            const totalAnswersWithTotem = answersByTotem[bestTotem?.name || ''].length;
+            
+            return (
+              <div key={`${post.id}-${answer.text}`} 
+                   className={`bg-white rounded-xl shadow p-4 hover:shadow-md transition-shadow ${answer === bestAnswer?.answer ? 'border-l-4 border-blue-500' : ''}`}>
+                <div className="text-gray-600 mb-4">
+                  {answer.text}
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    {bestTotem && (
+                      <>
+                        <TotemButton
+                          key={bestTotem.name}
+                          name={bestTotem.name}
+                          likes={bestTotem.likes}
+                          crispness={bestTotem.crispness}
+                          onLike={() => handleInteraction(() => onLikeTotem(post, index, bestTotem.name))}
+                          onRefresh={() => handleInteraction(() => onRefreshTotem(post, index, bestTotem.name))}
+                          postId={post.id}
+                        />
+                        {totalAnswersWithTotem > 1 && (
+                          <span className="text-sm text-gray-500">
+                            +{totalAnswersWithTotem - 1} more answers with this totem
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  
+                  <div className="text-sm text-gray-500">
+                    {formatDistanceToNow(answer.createdAt, { addSuffix: true })} by {answer.userName || 'Anonymous'}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+    
+    // Main page view - show only the best answer
     return (
       <div className="bg-white rounded-xl shadow p-4 hover:shadow-md transition-shadow">
         <div className="flex justify-between items-start mb-4">
@@ -53,9 +197,9 @@ export function QuestionList({
             <h2 className="text-xl font-bold mb-2">
               {post.question}
             </h2>
-            {post.answers.length > 0 && (
+            {bestAnswer && (
               <div className="text-gray-600">
-                {post.answers[0].text.split('\n')[0]}
+                {bestAnswer.answer.text}
               </div>
             )}
           </Link>
@@ -70,21 +214,32 @@ export function QuestionList({
 
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            {post.answers.length > 0 ? (
+            {bestAnswer ? (
               <>
-                {post.answers[0].totems.map((totem) => (
-                  <TotemButton
-                    key={totem.name}
-                    name={totem.name}
-                    likes={totem.likes}
-                    crispness={totem.crispness}
-                    onLike={() => handleInteraction(() => onLikeTotem(post, 0, totem.name))}
-                    onRefresh={() => handleInteraction(() => onRefreshTotem(post, 0, totem.name))}
-                  />
-                ))}
-                <span className="text-sm text-gray-500">
-                  {post.answers.length} answers
-                </span>
+                {(() => {
+                  const bestTotem = getBestTotem(bestAnswer.answer);
+                  return bestTotem && (
+                    <>
+                      <TotemButton
+                        key={bestTotem.name}
+                        name={bestTotem.name}
+                        likes={bestTotem.likes}
+                        crispness={bestTotem.crispness}
+                        onLike={() => handleInteraction(() => onLikeTotem(post, bestAnswer.index, bestTotem.name))}
+                        onRefresh={() => handleInteraction(() => onRefreshTotem(post, bestAnswer.index, bestTotem.name))}
+                        postId={post.id}
+                      />
+                      {bestAnswer.answer.totems && bestAnswer.answer.totems.length > 1 && (
+                        <span className="text-sm text-gray-500">
+                          +{bestAnswer.answer.totems.length - 1} more totems
+                        </span>
+                      )}
+                      <span className="text-sm text-gray-500 ml-2">
+                        {post.answers.length} answers
+                      </span>
+                    </>
+                  );
+                })()}
               </>
             ) : (
               <span className="text-sm text-gray-500">
@@ -99,7 +254,7 @@ export function QuestionList({
         </div>
       </div>
     );
-  }, [onLikeTotem, onRefreshTotem, onSelectQuestion, handleInteraction]);
+  }, [onLikeTotem, onRefreshTotem, onSelectQuestion, handleInteraction, getBestAnswer, getBestTotem]);
 
   if (!posts.length && !isLoading) {
     return (
