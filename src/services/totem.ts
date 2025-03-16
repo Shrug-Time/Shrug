@@ -40,12 +40,29 @@ export class TotemService {
       const totem = answer.totems.find(t => t.name === totemName);
       
       if (!totem) throw new Error('Totem not found');
+      
+      console.log('TotemService.handleTotemLike - Initial totem state:', JSON.stringify(totem));
+      console.log('TotemService.handleTotemLike - userId:', userId);
+      console.log('TotemService.handleTotemLike - likedBy array:', JSON.stringify(totem.likedBy));
+      
+      // Initialize likedBy if it doesn't exist
+      if (!totem.likedBy) {
+        console.log('TotemService.handleTotemLike - likedBy array is undefined, initializing as empty array');
+        totem.likedBy = [];
+      }
+      
       if (totem.likedBy.includes(userId)) {
+        console.error('TotemService.handleTotemLike - User has already liked this totem');
         throw new Error("You've already liked this totem!");
       }
 
       const now = new Date().toISOString();
       const updatedAnswers = this.updateTotemStats(post.answers, answerIdx, totemName, userId, now);
+      
+      // Log the updated totem for debugging
+      const updatedTotem = updatedAnswers[answerIdx].totems.find(t => t.name === totemName);
+      console.log('TotemService.handleTotemLike - Updated totem state:', JSON.stringify(updatedTotem));
+      console.log('TotemService.handleTotemLike - Updated likedBy array:', JSON.stringify(updatedTotem?.likedBy));
       
       // Update totem relationships based on similar answers
       const { groups } = SimilarityService.groupSimilarAnswers(updatedAnswers);
@@ -86,7 +103,7 @@ export class TotemService {
                     likeTimes: [...(t.likeTimes || []), timestamp],
                     likeValues: [...(t.likeValues || []), 1],
                     lastLike: timestamp,
-                    likedBy: [...t.likedBy, userId],
+                    likedBy: [...(t.likedBy || []), userId],
                     crispness: this.calculateCrispness(
                       [...(t.likeValues || []), 1],
                       [...(t.likeTimes || []), timestamp],
@@ -101,9 +118,9 @@ export class TotemService {
   }
 
   /**
-   * Calculate crispness score based on likes and decay model
+   * Calculate the crispness of a totem based on its like history
    */
-  private static calculateCrispness(
+  static calculateCrispness(
     likes: number[],
     timestamps: string[],
     decayModel: keyof typeof DECAY_PERIODS = 'MEDIUM'

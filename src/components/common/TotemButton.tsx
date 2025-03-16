@@ -1,6 +1,6 @@
 "use client";
 
-import { MouseEvent, memo, useCallback, useMemo } from 'react';
+import { MouseEvent, memo, useCallback, useMemo, useState, useEffect } from 'react';
 import { auth } from '@/firebase';
 import { useRouter } from 'next/navigation';
 
@@ -11,10 +11,17 @@ interface TotemButtonProps {
   onLike?: (e: MouseEvent<HTMLButtonElement>) => void;
   onRefresh?: (e: MouseEvent<HTMLButtonElement>) => void;
   postId?: string;
+  isLiked?: boolean;
 }
 
-function TotemButtonBase({ name, likes, crispness, onLike, onRefresh, postId }: TotemButtonProps) {
+function TotemButtonBase({ name, likes, crispness, onLike, onRefresh, postId, isLiked = false }: TotemButtonProps) {
   const router = useRouter();
+  const [isLikeDisabled, setIsLikeDisabled] = useState(isLiked);
+  
+  // Update the disabled state when isLiked prop changes
+  useEffect(() => {
+    setIsLikeDisabled(isLiked);
+  }, [isLiked]);
   
   const getTotemColor = useCallback((name: string) => {
     switch (name.toLowerCase()) {
@@ -45,6 +52,16 @@ function TotemButtonBase({ name, likes, crispness, onLike, onRefresh, postId }: 
       router.push(`/totem/${encodeURIComponent(name)}`);
     }
   };
+  
+  const handleLikeClick = (e: MouseEvent<HTMLButtonElement>) => {
+    if (!onLike || isLikeDisabled || !isAuthenticated) return;
+    
+    // Disable the button immediately to prevent multiple clicks
+    setIsLikeDisabled(true);
+    
+    // Call the onLike handler
+    onLike(e);
+  };
 
   return (
     <div className={`inline-flex items-center bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow ${!isAuthenticated ? 'opacity-75' : ''}`}>
@@ -57,11 +74,13 @@ function TotemButtonBase({ name, likes, crispness, onLike, onRefresh, postId }: 
         {name}
       </button>
       <button
-        onClick={onLike}
-        className="px-3 py-2 rounded-r-lg text-white hover:opacity-90 text-sm font-medium flex items-center justify-center min-w-[40px]"
+        onClick={handleLikeClick}
+        className={`px-3 py-2 rounded-r-lg text-white text-sm font-medium flex items-center justify-center min-w-[40px] ${
+          isLikeDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90'
+        }`}
         style={{ backgroundColor }}
-        disabled={!isAuthenticated}
-        title={!isAuthenticated ? "Log in to interact" : "Like this totem"}
+        disabled={!isAuthenticated || isLikeDisabled}
+        title={!isAuthenticated ? "Log in to interact" : isLikeDisabled ? "You've already liked this totem" : "Like this totem"}
       >
         {likes}
       </button>
@@ -81,7 +100,8 @@ function propsAreEqual(prevProps: TotemButtonProps, nextProps: TotemButtonProps)
     prevProps.crispness === nextProps.crispness &&
     prevProps.onLike === nextProps.onLike &&
     prevProps.onRefresh === nextProps.onRefresh &&
-    prevProps.postId === nextProps.postId
+    prevProps.postId === nextProps.postId &&
+    prevProps.isLiked === nextProps.isLiked
   );
 }
 
