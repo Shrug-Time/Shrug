@@ -76,4 +76,5 @@ export interface Post {
   categories: string[];
   answers: Answer[];
   score?: number;
+  answerUserIds?: string[];
 } 
