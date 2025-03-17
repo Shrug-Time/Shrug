@@ -33,7 +33,8 @@ export interface TotemSuggestion {
 }
 
 export interface UserProfile {
-  userID: string;
+  firebaseUid: string;
+  username: string;
   name: string;
   email: string;
   bio?: string;
@@ -54,27 +55,39 @@ export interface UserProfile {
     category: string;
     level: number;
   }[];
+  // Legacy fields for backward compatibility
+  userID?: string;
+  userId?: string;
+  userName?: string;
 }
 
 export interface Answer {
   text: string;
-  userId: string;
-  userName: string;
+  firebaseUid: string;
+  username: string;
+  name: string;
   createdAt: number;
   totems: Totem[];
   isVerified?: boolean;
   isPremium?: boolean;
+  userId?: string;
+  userName?: string;
 }
 
 export interface Post {
   id: string;
   question: string;
-  userId: string;
-  userName: string;
+  firebaseUid: string;
+  username: string;
+  name: string;
   createdAt: number;
   lastEngagement: number;
   categories: string[];
   answers: Answer[];
   score?: number;
+  answerFirebaseUids?: string[];
+  answerUsernames?: string[];
+  userId?: string;
+  userName?: string;
   answerUserIds?: string[];
 } 

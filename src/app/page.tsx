@@ -39,7 +39,10 @@ const getPersonalizedFeed = async (posts: Post[], userData: UserProfile | null) 
 
   const followedUsers = userData.following || [];
   const followedPosts = posts.filter(post => 
-    post.answers.some(answer => followedUsers.includes(answer.userId))
+    post.answers.some(answer => 
+      followedUsers.includes(answer.firebaseUid || '') || 
+      followedUsers.includes(answer.userId || '') // For backward compatibility
+    )
   );
 
   const rankedPosts = posts.map(post => ({
@@ -67,7 +70,7 @@ const getHighestTotemLikes = (post: Post): number => {
 export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [selectedQuestion, setSelectedQuestion] = useState<Post | null>(null);
-  const [isCreatingPost, setIsCreatingPost] = useState(false);
+  const [showCreatePost, setShowCreatePost] = useState(false);
   const [activeTab, setActiveTab] = useState<FeedType>('latest');
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshCount, setRefreshCount] = useState(5);
@@ -148,8 +151,9 @@ export default function Home() {
               return {
                 id: doc.id,
                 question: data.question || '',
-                userId: data.userId || '',
-                userName: data.userName || 'Anonymous',
+                firebaseUid: data.firebaseUid || data.userId || '',
+                username: data.username || data.userName || '',
+                name: data.name || data.userName || '',
                 categories: data.categories || [],
                 createdAt: convertTimestamp(data.createdAt),
                 lastEngagement: convertTimestamp(data.lastEngagement),
@@ -180,7 +184,7 @@ export default function Home() {
                     post.question.toLowerCase().includes(query) ||
                     post.answers.some(answer => 
                       answer.text.toLowerCase().includes(query) ||
-                      answer.userName.toLowerCase().includes(query)
+                      answer.username.toLowerCase().includes(query)
                     )
                   );
                 }
@@ -193,7 +197,7 @@ export default function Home() {
                   post.question.toLowerCase().includes(query) ||
                   post.answers.some(answer => 
                     answer.text.toLowerCase().includes(query) ||
-                    answer.userName.toLowerCase().includes(query)
+                    answer.username.toLowerCase().includes(query)
                   )
                 );
               }
@@ -297,7 +301,7 @@ export default function Home() {
           />
           {user && (
             <button
-              onClick={() => setIsCreatingPost(true)}
+              onClick={() => setShowCreatePost(true)}
               className="px-6 py-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 shadow"
             >
               Ask Question
@@ -305,50 +309,41 @@ export default function Home() {
           )}
         </div>
 
-        {isCreatingPost ? (
-          user ? (
-            <CreatePostForm
-              userId={user.uid}
-              userName={userData?.name || 'Anonymous'}
-              onPostCreated={() => {
-                setIsCreatingPost(false);
-                queryClient.invalidateQueries({ queryKey: ['posts'] });
-              }}
-              onCancel={() => setIsCreatingPost(false)}
-            />
-          ) : (
-            <div className="bg-white rounded-xl shadow p-6 text-center">
-              <p className="text-gray-600 mb-4">Please log in to ask questions</p>
-              <button
-                onClick={() => setIsCreatingPost(false)}
-                className="px-4 py-2 text-blue-600 hover:text-blue-700"
-              >
-                Back to Questions
-              </button>
-            </div>
-          )
+        {showCreatePost && userData && (
+          <CreatePostForm
+            firebaseUid={userData.firebaseUid ?? ''}
+            username={userData.username ?? ''}
+            name={userData.name ?? ''}
+            onPostCreated={() => {
+              setShowCreatePost(false);
+              queryClient.invalidateQueries({ queryKey: ['posts'] });
+            }}
+            onCancel={() => setShowCreatePost(false)}
+          />
+        )}
+
+        {selectedQuestion && user && userData ? (
+          <AnswerForm
+            selectedQuestion={selectedQuestion}
+            firebaseUid={userData.firebaseUid ?? ''}
+            username={userData.username ?? ''}
+            name={userData.name ?? ''}
+            isVerified={userData.verificationStatus === 'email_verified'}
+            onAnswerSubmitted={() => {
+              setSelectedQuestion(null);
+              queryClient.invalidateQueries({ queryKey: ['posts'] });
+            }}
+          />
         ) : selectedQuestion ? (
-          user ? (
-            <AnswerForm
-              selectedQuestion={selectedQuestion}
-              userId={user.uid}
-              isVerified={userData?.verificationStatus === 'email_verified' || userData?.verificationStatus === 'identity_verified'}
-              onAnswerSubmitted={() => {
-                setSelectedQuestion(null);
-                queryClient.invalidateQueries({ queryKey: ['posts'] });
-              }}
-            />
-          ) : (
-            <div className="bg-white rounded-xl shadow p-6 text-center">
-              <p className="text-gray-600 mb-4">Please log in to answer questions</p>
-              <button
-                onClick={() => setSelectedQuestion(null)}
-                className="px-4 py-2 text-blue-600 hover:text-blue-700"
-              >
-                Back to Questions
-              </button>
-            </div>
-          )
+          <div className="bg-white rounded-xl shadow p-6 text-center">
+            <p className="text-gray-600 mb-4">Please log in to answer questions</p>
+            <button
+              onClick={() => setSelectedQuestion(null)}
+              className="px-4 py-2 text-blue-600 hover:text-blue-700"
+            >
+              Back to Questions
+            </button>
+          </div>
         ) : (
           <QuestionList
             posts={posts}

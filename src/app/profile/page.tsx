@@ -16,7 +16,7 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
     name: '',
-    userID: '',
+    username: '',
     bio: ''
   });
   const [userIDError, setUserIDError] = useState<string | null>(null);
@@ -32,7 +32,8 @@ export default function ProfilePage() {
     fetchNextPage,
     isFetchingNextPage
   } = usePosts({
-    userId: profile?.userID,
+    username: profile?.username,
+    userId: profile?.userID, // For backward compatibility
     firebaseUid: auth.currentUser?.uid,
     pageSize: 10
   });
@@ -44,7 +45,7 @@ export default function ProfilePage() {
     setIsEditing(true);
     setEditForm({
       name: profile?.name || '',
-      userID: profile?.userID || '',
+      username: profile?.username || profile?.userID || '',
       bio: profile?.bio || ''
     });
   };
@@ -55,7 +56,7 @@ export default function ProfilePage() {
     if (profile) {
       setEditForm({
         name: profile.name,
-        userID: profile.userID,
+        username: profile.username || profile.userID || '',
         bio: profile.bio || ''
       });
     }
@@ -66,7 +67,7 @@ export default function ProfilePage() {
       setIsCheckingID(true);
       await updateProfile({
         name: editForm.name,
-        userID: editForm.userID,
+        username: editForm.username,
         bio: editForm.bio
       });
       setIsEditing(false);
@@ -149,33 +150,33 @@ export default function ProfilePage() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          User ID
+                          Username
                         </label>
                         <input
                           type="text"
-                          value={editForm.userID}
+                          value={editForm.username}
                           onChange={(e) => {
-                            const newID = e.target.value.toLowerCase().trim().replace(/[^a-z0-9_-]/g, '');
-                            setEditForm(prev => ({ ...prev, userID: newID }));
+                            const newUsername = e.target.value.toLowerCase().trim().replace(/[^a-z0-9_-]/g, '');
+                            setEditForm(prev => ({ ...prev, username: newUsername }));
                           }}
                           className={`w-full px-3 py-2 border rounded-lg ${
                             userIDError ? 'border-red-500' : 'border-gray-300'
                           }`}
-                          placeholder="Choose a unique ID (lowercase letters, numbers, _, -)"
+                          placeholder="Choose a unique username (lowercase letters, numbers, _, -)"
                           maxLength={15}
                         />
                         {userIDError && (
                           <p className="text-sm text-red-500 mt-1">{userIDError}</p>
                         )}
                         {isCheckingID && (
-                          <p className="text-sm text-gray-500 mt-1">Checking ID availability...</p>
+                          <p className="text-sm text-gray-500 mt-1">Checking username availability...</p>
                         )}
                       </div>
                     </div>
                   ) : (
                     <div>
                       <h2 className="text-xl font-semibold">{profile.name}</h2>
-                      <p className="text-gray-600">@{profile.userID}</p>
+                      <p className="text-gray-600">@{profile.username || profile.userID}</p>
                       <div className="mt-4 flex items-center space-x-4">
                         <div className="text-sm text-gray-600">
                           <span className="font-semibold">{profile.followers?.length || 0}</span> followers

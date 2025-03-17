@@ -93,83 +93,98 @@ export const PostService = {
 
   async getUserPosts(userID: string) {
     try {
+      console.log('🔍 USING UPDATED VERSION OF getUserPosts - STANDARDIZED FIELDS ONLY');
       console.log(`[getUserPosts] Starting to fetch posts for user ${userID}`);
-      
-      // Import the data normalization utilities
-      const { normalizePost } = await import('@/utils/dataTransform');
       
       // Create a batch of promises to run in parallel for better performance
       const postsRef = collection(db, 'posts');
       
-      // Query 1: Get posts created by the user
-      const createdPostsQuery = query(
+      // TELEMETRY: Track which query paths are being used
+      const telemetry = {
+        standardizedQuery: { attempted: true, succeeded: false, count: 0 }
+      };
+      
+      // Use only the standardized userId field
+      const standardizedQuery = query(
         postsRef,
         where('userId', '==', userID),
         orderBy('lastEngagement', 'desc')
       );
       
-      // Query 2: First try to use the answerUserIds field if it exists
-      const answeredPostsWithFieldQuery = query(
+      // Use only the standardized answerUserIds field
+      const standardizedAnswersQuery = query(
         postsRef,
         where('answerUserIds', 'array-contains', userID),
         orderBy('lastEngagement', 'desc')
       );
       
-      // Query 3: Fallback to the old approach for backward compatibility
-      const answeredPostsLegacyQuery = query(
-        postsRef,
-        where('answers', 'array-contains', { userId: userID })
-      );
-      
       console.log(`[getUserPosts] Executing queries in parallel`);
       
-      // Execute all queries in parallel for better performance
-      const [createdPostsSnapshot, answeredPostsWithFieldSnapshot, answeredPostsLegacySnapshot] = 
-        await Promise.all([
-          getDocs(createdPostsQuery),
-          getDocs(answeredPostsWithFieldQuery).catch(() => ({ docs: [] })), // Handle if the field doesn't exist
-          getDocs(answeredPostsLegacyQuery).catch(() => ({ docs: [] }))     // Handle if the query fails
-        ]);
+      // Execute queries in parallel for better performance
+      const queryPromises = [
+        // Try standardized queries
+        getDocs(standardizedQuery).catch(err => {
+          console.error(`[getUserPosts] Error in standardized userId query:`, err);
+          telemetry.standardizedQuery.succeeded = false;
+          return { docs: [] };
+        }),
+        getDocs(standardizedAnswersQuery).catch(err => {
+          console.error('[getUserPosts] Error in standardized answerUserIds query:', err);
+          return { docs: [] };
+        })
+      ];
       
+      const queryResults = await Promise.all(queryPromises);
+      
+      // Process the results
       console.log(`[getUserPosts] Processing query results`);
       
-      // Process the results using our normalization utilities
-      const createdPosts = createdPostsSnapshot.docs.map(doc => 
-        normalizePost(doc.id, doc.data())
-      );
+      // Extract results from each query
+      const [
+        standardizedQuerySnapshot,
+        standardizedAnswersSnapshot
+      ] = queryResults;
       
-      const answeredPostsWithField = answeredPostsWithFieldSnapshot.docs.map(doc => 
-        normalizePost(doc.id, doc.data())
-      );
+      // Track telemetry
+      telemetry.standardizedQuery.count = standardizedQuerySnapshot.docs.length + standardizedAnswersSnapshot.docs.length;
+      telemetry.standardizedQuery.succeeded = telemetry.standardizedQuery.count > 0;
       
-      const answeredPostsLegacy = answeredPostsLegacySnapshot.docs.map(doc => 
-        normalizePost(doc.id, doc.data())
-      );
+      // Process created posts
+      const allCreatedPosts: Post[] = [];
       
-      // Combine all results
-      const allPosts = [...createdPosts, ...answeredPostsWithField, ...answeredPostsLegacy];
-      
-      // Deduplicate posts by ID
-      const uniquePostsMap = new Map<string, Post>();
-      allPosts.forEach(post => {
-        uniquePostsMap.set(post.id, post);
+      // Add posts from standardized query
+      standardizedQuerySnapshot.docs.forEach(doc => {
+        const postData = doc.data();
+        allCreatedPosts.push({
+          id: doc.id,
+          ...postData
+        } as Post);
       });
       
-      const uniquePosts = Array.from(uniquePostsMap.values());
+      // Process answered posts
+      const answeredPostsStandardized: Post[] = [];
       
-      // Sort by lastEngagement (most recent first)
-      uniquePosts.sort((a, b) => b.lastEngagement - a.lastEngagement);
+      // Add posts from standardized answers query
+      standardizedAnswersSnapshot.docs.forEach(doc => {
+        const postData = doc.data();
+        answeredPostsStandardized.push({
+          id: doc.id,
+          ...postData
+        } as Post);
+      });
       
-      console.log(`[getUserPosts] Total posts found: ${uniquePosts.length} (${createdPosts.length} created, ${answeredPostsWithField.length + answeredPostsLegacy.length} answered)`);
+      // Combine all posts and remove duplicates
+      const allPosts = [...allCreatedPosts, ...answeredPostsStandardized];
+      const uniquePostIds = new Set<string>();
+      const uniquePosts = allPosts.filter(post => {
+        if (uniquePostIds.has(post.id)) {
+          return false;
+        }
+        uniquePostIds.add(post.id);
+        return true;
+      });
       
-      // If we found posts using the legacy query but not the new field,
-      // we should update those posts with the answerUserIds field
-      if (answeredPostsLegacy.length > 0 && answeredPostsWithField.length === 0) {
-        console.log(`[getUserPosts] Scheduling background update for ${answeredPostsLegacy.length} posts to add answerUserIds field`);
-        
-        // Don't await this - let it run in the background
-        this.updatePostsWithAnswerUserIds(answeredPostsLegacy);
-      }
+      console.log(`[getUserPosts] Total posts found: ${uniquePosts.length} (${allCreatedPosts.length} created, ${answeredPostsStandardized.length} answered)`);
       
       return uniquePosts;
     } catch (error) {
@@ -265,24 +280,85 @@ export const PostService = {
       console.error('Error migrating answers:', error);
       throw error;
     }
-  }
+  },
+
+  // New method to check the structure of a post document
+  async checkPostStructure(postId: string) {
+    try {
+      console.log(`[checkPostStructure] Checking structure of post ${postId}`);
+      
+      const postRef = doc(db, 'posts', postId);
+      const postDoc = await getDoc(postRef);
+      
+      if (!postDoc.exists()) {
+        console.error(`[checkPostStructure] Post ${postId} not found`);
+        return { exists: false };
+      }
+      
+      const data = postDoc.data();
+      
+      // Check the structure of the post
+      const structure = {
+        id: postId,
+        hasUserId: !!data.userId,
+        userId: data.userId,
+        hasQuestion: !!data.question,
+        hasAnswers: Array.isArray(data.answers),
+        answersCount: Array.isArray(data.answers) ? data.answers.length : 0,
+        hasAnswerUserIds: Array.isArray(data.answerUserIds),
+        answerUserIdsCount: Array.isArray(data.answerUserIds) ? data.answerUserIds.length : 0,
+        createdAt: data.createdAt,
+        lastEngagement: data.lastEngagement
+      };
+      
+      console.log(`[checkPostStructure] Post structure:`, structure);
+      
+      // Check the structure of the first answer if available
+      if (Array.isArray(data.answers) && data.answers.length > 0) {
+        const firstAnswer = data.answers[0];
+        const answerStructure = {
+          hasText: !!firstAnswer.text,
+          hasUserId: !!firstAnswer.userId,
+          userId: firstAnswer.userId,
+          hasUserName: !!firstAnswer.userName,
+          hasTotems: Array.isArray(firstAnswer.totems),
+          totemsCount: Array.isArray(firstAnswer.totems) ? firstAnswer.totems.length : 0
+        };
+        
+        console.log(`[checkPostStructure] First answer structure:`, answerStructure);
+      }
+      
+      return { exists: true, structure };
+    } catch (error) {
+      console.error(`[checkPostStructure] Error checking post structure:`, error);
+      return { exists: false, error };
+    }
+  },
 };
 
 export class UserService {
   static async getUserProfile(userID: string): Promise<UserProfile | null> {
     try {
+      console.log('[UserService.getUserProfile] Fetching profile for user:', userID);
+      
       const userRef = doc(db, 'users', userID);
       const userDoc = await getDoc(userRef);
 
       if (userDoc.exists()) {
-        console.log('Found user profile:', userDoc.data());
-        return userDoc.data() as UserProfile;
+        const userData = userDoc.data();
+        console.log('[UserService.getUserProfile] Found user profile:', {
+          userID: userData.userID,
+          name: userData.name,
+          email: userData.email?.substring(0, 3) + '***',
+          membershipTier: userData.membershipTier
+        });
+        return userData as UserProfile;
       }
       
-      console.log('No user profile found for:', userID);
+      console.log('[UserService.getUserProfile] No user profile found for:', userID);
       return null;
     } catch (error) {
-      console.error('Error fetching user profile:', error);
+      console.error('[UserService.getUserProfile] Error fetching user profile:', error);
       throw error;
     }
   }

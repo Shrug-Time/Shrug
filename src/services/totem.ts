@@ -95,23 +95,47 @@ export class TotemService {
       idx === answerIdx
         ? {
             ...ans,
-            totems: ans.totems.map((t) =>
-              t.name === totemName
-                ? {
-                    ...t,
-                    likes: t.likes + 1,
-                    likeTimes: [...(t.likeTimes || []), timestamp],
-                    likeValues: [...(t.likeValues || []), 1],
-                    lastLike: timestamp,
-                    likedBy: [...(t.likedBy || []), userId],
-                    crispness: this.calculateCrispness(
-                      [...(t.likeValues || []), 1],
-                      [...(t.likeTimes || []), timestamp],
-                      t.decayModel
-                    )
-                  }
-                : t
-            ),
+            totems: ans.totems.map((t) => {
+              if (t.name === totemName) {
+                // Create a copy of the totem to avoid mutating the original
+                const updatedTotem = { ...t };
+                
+                // Update the likes count
+                updatedTotem.likes = (updatedTotem.likes || 0) + 1;
+                
+                // Update the lastLike timestamp
+                updatedTotem.lastLike = timestamp;
+                
+                // Ensure arrays are initialized
+                updatedTotem.likeTimes = updatedTotem.likeTimes || [];
+                updatedTotem.likeValues = updatedTotem.likeValues || [];
+                updatedTotem.likedBy = updatedTotem.likedBy || [];
+                
+                // Add the new like data
+                updatedTotem.likeTimes = [...updatedTotem.likeTimes, timestamp];
+                updatedTotem.likeValues = [...updatedTotem.likeValues, 1]; // Each like has a value of 1
+                updatedTotem.likedBy = [...updatedTotem.likedBy, userId];
+                
+                // Calculate the new crispness based on all likes
+                updatedTotem.crispness = this.calculateCrispness(
+                  updatedTotem.likeValues,
+                  updatedTotem.likeTimes,
+                  updatedTotem.decayModel
+                );
+                
+                console.log('TotemService.updateTotemStats - Updated totem:', {
+                  name: updatedTotem.name,
+                  likes: updatedTotem.likes,
+                  likeTimes: updatedTotem.likeTimes.length,
+                  likeValues: updatedTotem.likeValues.length,
+                  likedBy: updatedTotem.likedBy.length,
+                  crispness: updatedTotem.crispness
+                });
+                
+                return updatedTotem;
+              }
+              return t;
+            }),
           }
         : ans
     );
@@ -125,22 +149,85 @@ export class TotemService {
     timestamps: string[],
     decayModel: keyof typeof DECAY_PERIODS = 'MEDIUM'
   ): number {
+    console.log('TotemService.calculateCrispness - Starting calculation with:', {
+      likesCount: likes.length,
+      timestampsCount: timestamps.length,
+      decayModel
+    });
+    
+    // Validate input arrays
+    if (likes.length !== timestamps.length) {
+      console.error('TotemService.calculateCrispness - Mismatch between likes and timestamps arrays:', {
+        likesLength: likes.length,
+        timestampsLength: timestamps.length
+      });
+      // Use the shorter length to avoid index errors
+      const minLength = Math.min(likes.length, timestamps.length);
+      likes = likes.slice(0, minLength);
+      timestamps = timestamps.slice(0, minLength);
+    }
+    
+    if (likes.length === 0) {
+      console.log('TotemService.calculateCrispness - No likes to calculate crispness from');
+      return 0;
+    }
+    
+    // If there's only one like, it's 100% crisp
+    if (likes.length === 1) {
+      console.log('TotemService.calculateCrispness - Only one like, returning 100% crispness');
+      return 100;
+    }
+    
     const now = new Date().getTime();
     const decayPeriod = DECAY_PERIODS[decayModel];
     
+    console.log('TotemService.calculateCrispness - Using decay period:', {
+      decayPeriod,
+      decayModel,
+      currentTime: now
+    });
+    
     let totalWeight = 0;
     let weightedSum = 0;
+    const debugWeights: Array<{timestamp: string, age: number, weight: number, value: number, contribution: number}> = [];
 
     timestamps.forEach((timestamp, index) => {
       const likeTime = new Date(timestamp).getTime();
       const timeSinceLike = now - likeTime;
-      const weight = Math.max(0, 1 - (timeSinceLike / decayPeriod));
       
-      weightedSum += weight * likes[index];
+      // Calculate weight based on how recent the like is
+      // More recent likes have higher weights
+      const weight = Math.max(0, 1 - (timeSinceLike / decayPeriod));
+      const value = likes[index];
+      const contribution = weight * value;
+      
+      weightedSum += contribution;
       totalWeight += weight;
+      
+      debugWeights.push({
+        timestamp,
+        age: Math.round(timeSinceLike / (1000 * 60 * 60 * 24)), // Age in days
+        weight: parseFloat(weight.toFixed(4)),
+        value,
+        contribution: parseFloat(contribution.toFixed(4))
+      });
+    });
+    
+    console.log('TotemService.calculateCrispness - Weight calculations:', {
+      debugWeights,
+      totalWeight: parseFloat(totalWeight.toFixed(4)),
+      weightedSum: parseFloat(weightedSum.toFixed(4))
     });
 
-    return totalWeight > 0 ? (weightedSum / totalWeight) * 100 : 0;
+    // Calculate the weighted average
+    // This ensures that more recent likes have a greater impact on the crispness
+    const crispness = totalWeight > 0 ? (weightedSum / totalWeight) * 100 : 0;
+    
+    // Ensure crispness is between 0 and 100
+    const boundedCrispness = Math.min(100, Math.max(0, crispness));
+    console.log('TotemService.calculateCrispness - Final crispness:', parseFloat(boundedCrispness.toFixed(2)));
+    
+    return boundedCrispness;
   }
 
   /**

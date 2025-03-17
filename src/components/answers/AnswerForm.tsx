@@ -1,19 +1,30 @@
 import { useState, useEffect } from 'react';
-import { doc, updateDoc, setDoc, getDoc, arrayUnion, increment, Timestamp } from 'firebase/firestore';
+import { doc, updateDoc, setDoc, getDoc, arrayUnion, increment, Timestamp, collection, serverTimestamp } from 'firebase/firestore';
 import { db, sendVerificationEmail, auth } from '@/firebase';
 import type { Post, Answer, UserProfile } from '@/types/models';
 
+// Extend the Answer interface to include the id property
+interface ExtendedAnswer extends Answer {
+  id: string;
+  upvotes: number;
+  downvotes: number;
+}
+
 interface AnswerFormProps {
   selectedQuestion: Post;
-  userId: string;
-  isVerified: boolean;
+  firebaseUid: string;
+  username: string;
+  name: string;
+  isVerified?: boolean;
   onAnswerSubmitted: () => void;
 }
 
 export function AnswerForm({
   selectedQuestion,
-  userId,
-  isVerified,
+  firebaseUid,
+  username,
+  name,
+  isVerified = false,
   onAnswerSubmitted
 }: AnswerFormProps) {
   const [answer, setAnswer] = useState("");
@@ -21,20 +32,24 @@ export function AnswerForm({
   const [customTotem, setCustomTotem] = useState("");
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showVerificationPrompt, setShowVerificationPrompt] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Debug log for props
   useEffect(() => {
     console.log('AnswerForm props:', {
       selectedQuestion,
-      userId,
+      firebaseUid,
+      username,
+      name,
       isVerified
     });
-  }, [selectedQuestion, userId, isVerified]);
+  }, [selectedQuestion, firebaseUid, username, name, isVerified]);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
       try {
-        const userDoc = await getDoc(doc(db, 'users', userId));
+        const userDoc = await getDoc(doc(db, 'users', firebaseUid));
         if (userDoc.exists()) {
           const userData = userDoc.data() as UserProfile;
           console.log('Fetched user profile:', userData);
@@ -47,7 +62,7 @@ export function AnswerForm({
       }
     };
     fetchUserProfile();
-  }, [userId]);
+  }, [firebaseUid]);
 
   if (!selectedQuestion || !selectedQuestion.question) {
     console.warn('Invalid selectedQuestion:', selectedQuestion);
@@ -58,36 +73,28 @@ export function AnswerForm({
     );
   }
 
-  const handlePostAnswer = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!isVerified) {
-      setShowVerificationPrompt(true);
-      return;
-    }
-
-    console.log('Submitting answer with data:', {
-      answer,
-      totems,
-      selectedQuestion,
-      userProfile
-    });
     
-    // Comprehensive validation
     if (!answer.trim()) {
-      alert("Please enter an answer before submitting.");
+      setError('Please enter an answer');
       return;
     }
-
+    
+    setIsSubmitting(true);
+    setError(null);
+    
     if (!userProfile) {
       console.error("User profile not loaded");
       alert("Please wait for your profile to load and try again.");
+      setIsSubmitting(false);
       return;
     }
 
     if (!selectedQuestion?.id) {
       console.error("Invalid question:", selectedQuestion);
       alert("Invalid question. Please try again.");
+      setIsSubmitting(false);
       return;
     }
 
@@ -96,109 +103,48 @@ export function AnswerForm({
     if (validTotems.length !== totems.length) {
       console.error("Invalid totems found:", totems);
       alert("Some totems are invalid. Please try again.");
+      setIsSubmitting(false);
       return;
     }
 
     try {
-      // Log the current state before updates
-      console.log('Current question state:', {
-        id: selectedQuestion.id,
-        answers: selectedQuestion.answers,
-        createdAt: selectedQuestion.createdAt
+      const now = new Date();
+      
+      const newAnswer: ExtendedAnswer = {
+        id: `${selectedQuestion.id}_${firebaseUid}_${now.getTime()}`,
+        text: answer.trim(),
+        firebaseUid,
+        username,
+        name,
+        isVerified,
+        createdAt: now.getTime(),
+        upvotes: 0,
+        downvotes: 0,
+        totems: []
+      };
+      
+      // Update the post with the new answer
+      const postRef = doc(db, 'posts', selectedQuestion.id);
+      await updateDoc(postRef, {
+        answers: arrayUnion(newAnswer),
+        lastEngagement: serverTimestamp()
       });
-
-      // Create new answer with explicit null checks
-      const newAnswer: Answer = {
-        text: answer.trim(),
-        totems: validTotems.map((t) => ({
-          name: t,
-          likes: 0,
-          lastLike: '',  // Empty string instead of null/undefined
-          likedBy: [],
-          likeTimes: [],
-          likeValues: [],
-          crispness: 0,
-          category: { id: '', name: '', description: '', children: [], usageCount: 0 },
-          decayModel: 'MEDIUM',
-          usageCount: 0,
-          relatedTotems: []
-        })),
-        userId,
-        userName: userProfile.name || 'Anonymous',
-        createdAt: Timestamp.now().toDate(),
-        isVerified: isVerified,
-        isPremium: userProfile.membershipTier === 'premium'
-      };
-
-      // Ensure we have valid arrays and timestamps
-      const updatedAnswers = Array.isArray(selectedQuestion.answers) 
-        ? [newAnswer, ...selectedQuestion.answers] 
-        : [newAnswer];
-
-      // Create update data with proper type
-      const updateData: Partial<Post> = {
-        answers: updatedAnswers,
-        lastEngagement: Timestamp.now().toDate(),
-      };
-
-      // Add createdAt only if it doesn't exist
-      if (!selectedQuestion.createdAt) {
-        updateData.createdAt = Timestamp.now().toDate();
-      }
-
-      console.log('Update data to be sent:', updateData);
-
-      // Validate update data before sending to Firebase
-      if (!updateData.answers || !Array.isArray(updateData.answers)) {
-        throw new Error('Invalid answers array');
-      }
-
-      const postRef = doc(db, "posts", selectedQuestion.id);
-      await updateDoc(postRef, updateData);
-
-      const answerId = `${selectedQuestion.id}-${updatedAnswers.length - 1}`;
-      const userAnswer = {
+      
+      // Add to user's answers collection
+      const userAnswerRef = doc(db, 'userAnswers', firebaseUid, 'answers', newAnswer.id);
+      await setDoc(userAnswerRef, {
         postId: selectedQuestion.id,
-        answerIdx: 0,
-        text: answer.trim(),
-        totems: totems.filter(t => t && typeof t === 'string'),
-        createdAt: Timestamp.now()
-      };
-
-      await setDoc(doc(db, "users", userId, "answers", answerId), userAnswer);
-
-      for (const totemName of totems) {
-        if (!totemName || typeof totemName !== 'string') continue;
-        
-        const totemRef = doc(db, "totems", totemName);
-        const totemSnap = await getDoc(totemRef);
-        if (totemSnap.exists()) {
-          await updateDoc(totemRef, {
-            answerRefs: arrayUnion({
-              userId,
-              postId: selectedQuestion.id,
-              answerId
-            }),
-            usageCount: increment(1),
-            lastUsed: Timestamp.now()
-          });
-        } else {
-          await setDoc(totemRef, {
-            name: totemName,
-            answerRefs: [{ userId, postId: selectedQuestion.id, answerId }],
-            usageCount: 1,
-            lastUsed: Timestamp.now()
-          });
-        }
-      }
-
-      setAnswer("");
-      setTotems([]);
-      setCustomTotem("");
+        answerId: newAnswer.id,
+        timestamp: serverTimestamp()
+      });
+      
+      setAnswer('');
       onAnswerSubmitted();
-    } catch (error) {
-      console.error("Error posting answer:", error);
-      alert("Failed to post answer. Please try again.");
+    } catch (err) {
+      console.error('Error submitting answer:', err);
+      setError('Failed to submit answer. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -223,7 +169,7 @@ export function AnswerForm({
         await auth.currentUser.reload();
         if (auth.currentUser.emailVerified) {
           // User is already verified, update their profile
-          const userRef = doc(db, "users", userId);
+          const userRef = doc(db, "users", firebaseUid);
           await updateDoc(userRef, { verificationStatus: 'email_verified' });
           alert("Your account is already verified! You can now post answers.");
           setShowVerificationPrompt(false);
@@ -269,7 +215,7 @@ export function AnswerForm({
   return (
     <div className="bg-white rounded-xl shadow p-6">
       <h2 className="text-xl font-bold mb-4">{selectedQuestion.question}</h2>
-      <form onSubmit={handlePostAnswer} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <textarea
           value={answer}
           onChange={(e) => setAnswer(e.target.value)}
@@ -321,13 +267,18 @@ export function AnswerForm({
             </div>
           </div>
         )}
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">
+            {error}
+          </div>
+        )}
         <div className="flex gap-4">
           <button
             type="submit"
             className="flex-1 p-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 disabled:opacity-50"
-            disabled={!answer.trim()}
+            disabled={!answer.trim() || isSubmitting}
           >
-            {isVerified ? 'Post Answer' : 'Continue to Post'}
+            {isSubmitting ? 'Submitting...' : 'Submit Answer'}
           </button>
           <button
             type="button"

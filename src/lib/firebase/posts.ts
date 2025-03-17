@@ -104,51 +104,114 @@ export async function updateTotemLikes(postId: string, totemName: string) {
 }
 
 export async function refreshTotem(postId: string, totemName: string): Promise<{ crispness: number } | null> {
-  const postRef = doc(db, 'posts', postId);
-  const postDoc = await getDoc(postRef);
-  if (!postDoc.exists()) return null;
+  try {
+    console.log('refreshTotem - Starting with postId:', postId, 'totemName:', totemName);
+    
+    const postRef = doc(db, 'posts', postId);
+    const postDoc = await getDoc(postRef);
+    if (!postDoc.exists()) {
+      console.error('refreshTotem - Post not found');
+      return null;
+    }
 
-  const post = postDoc.data() as Post;
-  
-  // Find the answer that contains the totem
-  const answerIdx = post.answers.findIndex(answer => 
-    answer.totems?.some(totem => totem.name === totemName)
-  );
-  
-  if (answerIdx === -1) {
-    throw new Error("Totem not found in this post");
-  }
-  
-  const answer = post.answers[answerIdx];
-  const totem = answer.totems.find(t => t.name === totemName);
-  
-  if (!totem) {
-    throw new Error("Totem not found");
-  }
-  
-  // Recalculate crispness based on like history
-  const newCrispness = TotemService.calculateCrispness(
-    totem.likeValues || [],
-    totem.likeTimes || [],
-    totem.decayModel
-  );
-  
-  // Update the totem with the new crispness
-  const updatedAnswers = post.answers.map((ans, idx) =>
-    idx === answerIdx
-      ? {
-          ...ans,
-          totems: ans.totems.map((t) =>
-            t.name === totemName
-              ? { ...t, crispness: newCrispness }
-              : t
-          ),
-        }
-      : ans
-  );
+    const post = postDoc.data() as Post;
+    console.log('refreshTotem - Post retrieved:', {
+      id: post.id,
+      question: post.question,
+      answersCount: post.answers.length
+    });
+    
+    // Find the answer that contains the totem
+    const answerIdx = post.answers.findIndex(answer => 
+      answer.totems?.some(totem => totem.name === totemName)
+    );
+    
+    if (answerIdx === -1) {
+      console.error('refreshTotem - Totem not found in any answer');
+      throw new Error("Totem not found in this post");
+    }
+    console.log('refreshTotem - Found totem in answer index:', answerIdx);
+    
+    const answer = post.answers[answerIdx];
+    const totem = answer.totems.find(t => t.name === totemName);
+    
+    if (!totem) {
+      console.error('refreshTotem - Totem not found in the answer');
+      throw new Error("Totem not found");
+    }
+    
+    console.log('refreshTotem - Totem before refresh:', {
+      name: totem.name,
+      likes: totem.likes,
+      likeTimes: totem.likeTimes?.length || 0,
+      likeValues: totem.likeValues?.length || 0,
+      likedBy: totem.likedBy?.length || 0,
+      crispness: totem.crispness
+    });
+    
+    // Ensure arrays are initialized
+    const likeTimes = totem.likeTimes || [];
+    const likeValues = totem.likeValues || [];
+    
+    // Verify that the arrays have the correct length
+    if (likeTimes.length !== likeValues.length) {
+      console.error('refreshTotem - Mismatch between likeTimes and likeValues arrays:', {
+        likeTimesLength: likeTimes.length,
+        likeValuesLength: likeValues.length
+      });
+    }
+    
+    // Verify that the arrays match the likes count
+    if (likeTimes.length !== totem.likes) {
+      console.warn('refreshTotem - Mismatch between likes count and likeTimes array length:', {
+        likesCount: totem.likes,
+        likeTimesLength: likeTimes.length
+      });
+    }
+    
+    console.log('refreshTotem - Like history:', {
+      likeTimes,
+      likeValues
+    });
+    
+    // Recalculate crispness based on like history
+    const newCrispness = TotemService.calculateCrispness(
+      likeValues,
+      likeTimes,
+      totem.decayModel
+    );
+    
+    console.log('refreshTotem - New crispness calculated:', newCrispness);
+    
+    // Update the totem with the new crispness
+    const updatedAnswers = post.answers.map((ans, idx) =>
+      idx === answerIdx
+        ? {
+            ...ans,
+            totems: ans.totems.map((t) =>
+              t.name === totemName
+                ? { 
+                    ...t, 
+                    crispness: newCrispness,
+                    // Ensure arrays are properly initialized
+                    likeTimes: t.likeTimes || [],
+                    likeValues: t.likeValues || [],
+                    likedBy: t.likedBy || []
+                  }
+                : t
+            ),
+          }
+        : ans
+    );
 
-  await updateDoc(postRef, { answers: updatedAnswers });
-  return { crispness: newCrispness };
+    await updateDoc(postRef, { answers: updatedAnswers });
+    console.log('refreshTotem - Successfully updated totem crispness');
+    
+    return { crispness: newCrispness };
+  } catch (error) {
+    console.error('Error refreshing totem:', error);
+    throw error;
+  }
 }
 
 export async function getPost(postId: string): Promise<Post | null> {

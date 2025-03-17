@@ -4,111 +4,164 @@ import { db } from '@/firebase';
 import type { Post } from '@/types/models';
 
 interface CreatePostFormProps {
-  userId: string;
-  userName: string;
+  firebaseUid: string;
+  username: string;
+  name: string;
   onPostCreated: () => void;
   onCancel: () => void;
 }
 
 export function CreatePostForm({
-  userId,
-  userName,
+  firebaseUid,
+  username,
+  name,
   onPostCreated,
   onCancel
 }: CreatePostFormProps) {
-  const [question, setQuestion] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [question, setQuestion] = useState('');
+  const [categories, setCategories] = useState<string[]>([]);
+  const [newCategory, setNewCategory] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!question.trim()) {
+      setError('Please enter a question');
+      return;
+    }
+    
+    setIsSubmitting(true);
     setError(null);
-    setIsLoading(true);
-
+    
     try {
-      if (!question.trim()) {
-        throw new Error("Please enter a question");
-      }
-
-      const postsRef = collection(db, "posts");
+      const postsRef = collection(db, 'posts');
       const newPostRef = doc(postsRef);
-      const now = Date.now();
-
-      const newPost: Post = {
+      const now = new Date();
+      
+      const newPost: Partial<Post> = {
         id: newPostRef.id,
         question: question.trim(),
-        answers: [],
-        createdAt: now,
-        lastEngagement: now,
-        score: 0,
-        categories: [],
-        userId,
-        userName
+        firebaseUid,
+        username,
+        name,
+        categories,
+        createdAt: now.getTime(),
+        lastEngagement: now.getTime(),
+        answers: []
       };
-
-      // Create the post
+      
       await setDoc(newPostRef, {
         ...newPost,
-        createdAt: serverTimestamp(),
+        createdAt: Timestamp.fromDate(now),
         lastEngagement: serverTimestamp()
       });
-
-      // Create a reference in the user's posts collection
-      const userAnswersRef = doc(db, "userAnswers", userId, "posts", newPostRef.id);
-      await setDoc(userAnswersRef, {
-        timestamp: serverTimestamp(),
-        postId: newPostRef.id,
-        type: "created"
-      });
-
-      setQuestion("");
+      
       onPostCreated();
     } catch (err) {
-      console.error("Error creating post:", err);
-      setError(err instanceof Error ? err.message : "Failed to create post");
+      console.error('Error creating post:', err);
+      setError('Failed to create post. Please try again.');
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
+  };
+
+  const handleAddCategory = () => {
+    if (newCategory.trim() && !categories.includes(newCategory.trim())) {
+      setCategories([...categories, newCategory.trim()]);
+      setNewCategory('');
+    }
+  };
+
+  const handleRemoveCategory = (category: string) => {
+    setCategories(categories.filter(c => c !== category));
   };
 
   return (
     <div className="bg-white rounded-xl shadow p-6">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {error && (
-          <div className="p-3 bg-red-100 text-red-700 rounded-lg text-sm">
-            {error}
-          </div>
-        )}
-        
-        <div>
-          <label htmlFor="question" className="block text-sm font-medium text-gray-700">
+      <h2 className="text-2xl font-bold mb-4">Ask a Question</h2>
+      
+      <form onSubmit={handleSubmit}>
+        <div className="mb-4">
+          <label htmlFor="question" className="block text-gray-700 mb-2">
             Your Question
           </label>
           <textarea
             id="question"
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
-            placeholder="What would you like to ask?"
-            className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full p-3 border rounded-lg"
             rows={4}
+            placeholder="What would you like to ask?"
             required
           />
         </div>
-
-        <div className="flex gap-4">
-          <button
-            type="submit"
-            disabled={isLoading || !question.trim()}
-            className="flex-1 p-3 bg-blue-500 text-white rounded-full hover:bg-blue-600 disabled:opacity-50"
-          >
-            {isLoading ? "Creating..." : "Ask Question"}
-          </button>
+        
+        <div className="mb-6">
+          <label htmlFor="categories" className="block text-gray-700 mb-2">
+            Categories (optional)
+          </label>
+          <div className="flex gap-2 mb-2">
+            <input
+              type="text"
+              id="categories"
+              value={newCategory}
+              onChange={(e) => setNewCategory(e.target.value)}
+              className="flex-1 p-3 border rounded-lg"
+              placeholder="Add a category"
+            />
+            <button
+              type="button"
+              onClick={handleAddCategory}
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg"
+            >
+              Add
+            </button>
+          </div>
+          
+          {categories.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {categories.map((category) => (
+                <span
+                  key={category}
+                  className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full flex items-center"
+                >
+                  {category}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveCategory(category)}
+                    className="ml-2 text-blue-500 hover:text-blue-700"
+                  >
+                    &times;
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+        
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">
+            {error}
+          </div>
+        )}
+        
+        <div className="flex justify-end gap-4">
           <button
             type="button"
             onClick={onCancel}
-            className="px-6 py-3 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300"
+            className="px-4 py-2 text-gray-600 hover:text-gray-800"
+            disabled={isSubmitting}
           >
             Cancel
+          </button>
+          <button
+            type="submit"
+            className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-blue-300"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Posting...' : 'Post Question'}
           </button>
         </div>
       </form>

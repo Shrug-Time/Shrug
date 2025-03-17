@@ -1,0 +1,35 @@
+[
+  {
+    "id": "87m5IWrx3pUplWg2eKVyg76bM5g1",
+    "userID": "KyleNowak",
+    "verificationStatus": "email_verified",
+    "userId": "KyleNowak",
+    "createdAt": "2025-03-02T04:48:21.845Z",
+    "bio": "",
+    "displayName": "KyleN",
+    "following": [],
+    "email": "knowak0924@gmail.com",
+    "verified": true,
+    "name": "Kyle Nowak",
+    "handle": "user87m5IWrx"
+  },
+  {
+    "id": "KyleNowak",
+    "userID": "KyleNowak",
+    "followers": [],
+    "following": [],
+    "userId": "KyleNowak",
+    "createdAt": {
+      "seconds": 1741570919,
+      "nanoseconds": 951000000
+    }
+  },
+  {
+    "id": "clyjW75O4zX5U1Bt4NondWlKQvu1",
+    "verified": false,
+    "handle": "userclyjW75O",
+    "email": "test@example.com",
+    "createdAt": "2025-03-02T03:48:34.527Z",
+    "name": "Default User"
+  }
+]
