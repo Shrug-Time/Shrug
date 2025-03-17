@@ -9,6 +9,23 @@ import Link from 'next/link';
 import { SimilarityService } from '@/services/similarity';
 import { InfiniteScroll } from '@/components/common/InfiniteScroll';
 
+// Helper function to safely convert various date formats to a Date object
+const toDate = (dateField: any): Date => {
+  if (!dateField) return new Date();
+  
+  if (dateField instanceof Date) return dateField;
+  
+  if (typeof dateField === 'object' && 'toDate' in dateField && typeof dateField.toDate === 'function') {
+    return dateField.toDate();
+  }
+  
+  if (typeof dateField === 'string') return new Date(dateField);
+  
+  if (typeof dateField === 'number') return new Date(dateField);
+  
+  return new Date();
+};
+
 export interface QuestionListProps {
   posts: Post[];
   onSelectQuestion: (post: Post) => void;
@@ -249,7 +266,7 @@ export function QuestionList({
           </div>
           
           <div className="text-sm text-gray-500">
-            {formatDistanceToNow(post.createdAt, { addSuffix: true })} by {post.userName || 'Anonymous'}
+            {formatDistanceToNow(toDate(post.createdAt), { addSuffix: true })} by {post.userName || 'Anonymous'}
           </div>
         </div>
       </div>

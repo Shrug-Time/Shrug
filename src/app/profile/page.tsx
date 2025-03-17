@@ -33,6 +33,7 @@ export default function ProfilePage() {
     isFetchingNextPage
   } = usePosts({
     userId: profile?.userID,
+    firebaseUid: auth.currentUser?.uid,
     pageSize: 10
   });
 
