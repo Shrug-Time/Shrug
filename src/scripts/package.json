@@ -1,0 +1,9 @@
+{
+  "name": "shrug-scripts",
+  "version": "1.0.0",
+  "description": "Scripts for Shrug application",
+  "type": "module",
+  "engines": {
+    "node": ">=14.16"
+  }
+} 

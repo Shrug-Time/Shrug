@@ -8,20 +8,45 @@ interface TotemButtonProps {
   name: string;
   likes: number;
   crispness?: number;
-  onLike?: (e: MouseEvent<HTMLButtonElement>) => void;
-  onRefresh?: (e: MouseEvent<HTMLButtonElement>) => void;
+  onLike?: (e: MouseEvent<HTMLButtonElement>) => Promise<void> | void;
+  onUnlike?: (e: MouseEvent<HTMLButtonElement>) => Promise<void> | void;
+  onRefresh?: (e: MouseEvent<HTMLButtonElement>) => Promise<void> | void;
   postId?: string;
   isLiked?: boolean;
+  originalLikeTimestamp?: number;
 }
 
-function TotemButtonBase({ name, likes, crispness, onLike, onRefresh, postId, isLiked = false }: TotemButtonProps) {
+function TotemButtonBase({ 
+  name, 
+  likes, 
+  crispness, 
+  onLike, 
+  onUnlike,
+  onRefresh, 
+  postId, 
+  isLiked = false,
+  originalLikeTimestamp
+}: TotemButtonProps) {
   const router = useRouter();
   const [isLikeDisabled, setIsLikeDisabled] = useState(isLiked);
+  const [showRefreshPrompt, setShowRefreshPrompt] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   
   // Update the disabled state when isLiked prop changes
   useEffect(() => {
     setIsLikeDisabled(isLiked);
   }, [isLiked]);
+  
+  // Determine if this is a re-like situation that would benefit from a refresh
+  const isReLike = useMemo(() => {
+    if (!originalLikeTimestamp) return false;
+    
+    const now = Date.now();
+    const daysSinceLike = (now - originalLikeTimestamp) / (1000 * 60 * 60 * 24);
+    
+    // If the original like was more than a day ago, show refresh prompt
+    return daysSinceLike > 1;
+  }, [originalLikeTimestamp]);
   
   const getTotemColor = useCallback((name: string) => {
     switch (name.toLowerCase()) {
@@ -52,56 +77,145 @@ function TotemButtonBase({ name, likes, crispness, onLike, onRefresh, postId, is
       router.push(`/totem/${encodeURIComponent(name)}`);
     }
   };
+
+  const handleLikeClick = async (e: MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    
+    if (isLoading) return;
+    
+    if (!isAuthenticated) {
+      // Not logged in, handle this in the parent component
+      if (onLike) onLike(e);
+      return;
+    }
+    
+    if (isLikeDisabled && onUnlike) {
+      // If already liked and we have an unlike handler, unlike the totem
+      setIsLoading(true);
+      try {
+        await onUnlike(e);
+        setIsLikeDisabled(false);
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+    
+    if (!isLikeDisabled && onLike) {
+      // If not liked and we have a like handler, like the totem
+      setIsLoading(true);
+      try {
+        await onLike(e);
+        setIsLikeDisabled(true);
+        
+        // If this is a re-like situation, show the refresh prompt
+        if (isReLike) {
+          setShowRefreshPrompt(true);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const handleRefreshClick = async (e: MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    
+    if (isLoading) return;
+    
+    if (onRefresh) {
+      setIsLoading(true);
+      try {
+        await onRefresh(e);
+        setShowRefreshPrompt(false);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
   
-  const handleLikeClick = (e: MouseEvent<HTMLButtonElement>) => {
-    if (!onLike || isLikeDisabled || !isAuthenticated) return;
-    
-    // Disable the button immediately to prevent multiple clicks
-    setIsLikeDisabled(true);
-    
-    // Call the onLike handler
-    onLike(e);
+  const handleCloseRefreshPrompt = () => {
+    setShowRefreshPrompt(false);
   };
 
   return (
-    <div className={`inline-flex items-center bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow ${!isAuthenticated ? 'opacity-75' : ''}`}>
+    <div className="inline-flex flex-col items-center">
       <button
-        className="px-4 py-2 rounded-l-lg text-white hover:opacity-90 text-sm font-medium flex items-center justify-center min-w-[100px]"
-        style={{ backgroundColor }}
         onClick={handleTotemClick}
-        title="View all posts with this totem"
+        className="flex items-center justify-center px-3 py-1 rounded-xl text-white shadow-sm transition-colors hover:shadow-md"
+        style={{ backgroundColor }}
       >
         {name}
+        
+        <span className="ml-2 text-white/90 flex items-center">
+          {likes}
+        </span>
       </button>
-      <button
-        onClick={handleLikeClick}
-        className={`px-3 py-2 rounded-r-lg text-white text-sm font-medium flex items-center justify-center min-w-[40px] ${
-          isLikeDisabled ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90'
-        }`}
-        style={{ backgroundColor }}
-        disabled={!isAuthenticated || isLikeDisabled}
-        title={!isAuthenticated ? "Log in to interact" : isLikeDisabled ? "You've already liked this totem" : "Like this totem"}
-      >
-        {likes}
-      </button>
-      {crispness !== undefined && (
-        <div className="ml-2 text-sm text-gray-600 whitespace-nowrap">
-          {Math.round(crispness)}% fresh
+      
+      <div className="flex items-center mt-1 space-x-2">
+        <button
+          onClick={handleLikeClick}
+          disabled={isLoading}
+          className={`text-xs flex items-center justify-center w-6 h-6 rounded-full transition-colors ${
+            isLikeDisabled 
+              ? 'bg-red-100 text-red-500 hover:bg-red-200' 
+              : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+          }`}
+          title={!isAuthenticated ? "Log in to interact" : isLikeDisabled ? "Unlike this totem" : "Like this totem"}
+        >
+          {isLikeDisabled ? '❤️' : '♡'}
+        </button>
+        
+        {crispness !== undefined && (
+          <button
+            onClick={handleRefreshClick}
+            disabled={isLoading}
+            className="text-xs flex items-center justify-center bg-gray-100 hover:bg-gray-200 w-14 h-6 rounded-full transition-colors text-gray-500"
+            title="Refresh crispness"
+          >
+            {Math.round(crispness)}% fresh
+          </button>
+        )}
+      </div>
+      
+      {showRefreshPrompt && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md">
+            <h3 className="text-lg font-semibold mb-2">Refresh Your Like?</h3>
+            <p className="mb-4">
+              Your like is using your original timestamp from {new Date(originalLikeTimestamp || 0).toLocaleDateString()}.
+              Want 100% fresh crispness? Use 1 refresh credit.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={handleCloseRefreshPrompt}
+                className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300"
+              >
+                Keep as is
+              </button>
+              <button
+                onClick={handleRefreshClick}
+                className="px-4 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600"
+              >
+                Refresh Now
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
   );
 }
 
+// Memoization to prevent unnecessary re-renders
 function propsAreEqual(prevProps: TotemButtonProps, nextProps: TotemButtonProps) {
   return (
     prevProps.name === nextProps.name &&
     prevProps.likes === nextProps.likes &&
     prevProps.crispness === nextProps.crispness &&
-    prevProps.onLike === nextProps.onLike &&
-    prevProps.onRefresh === nextProps.onRefresh &&
+    prevProps.isLiked === nextProps.isLiked &&
     prevProps.postId === nextProps.postId &&
-    prevProps.isLiked === nextProps.isLiked
+    prevProps.originalLikeTimestamp === nextProps.originalLikeTimestamp
   );
 }
 

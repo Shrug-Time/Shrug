@@ -15,7 +15,8 @@ import {
   serverTimestamp,
   documentId
 } from 'firebase/firestore';
-import type { Post, UserProfile, Answer } from '@/types/models';
+import type { Post, UserProfile, Answer, TotemAssociation } from '@/types/models';
+import { COMMON_FIELDS, USER_FIELDS, POST_FIELDS, ANSWER_FIELDS, TOTEM_ASSOCIATION_FIELDS } from '@/constants/fields';
 
 const POSTS_PER_PAGE = 20;
 
@@ -27,7 +28,7 @@ export const PostService = {
     try {
       const postsRef = collection(db, 'posts');
       let constraints: QueryConstraint[] = [
-        orderBy('createdAt', 'desc'),
+        orderBy(COMMON_FIELDS.CREATED_AT, 'desc'),
         limit(POSTS_PER_PAGE)
       ];
 
@@ -36,15 +37,15 @@ export const PostService = {
       }
 
       if (lastVisible) {
-        constraints.push(where('createdAt', '<', lastVisible));
+        constraints.push(where(COMMON_FIELDS.CREATED_AT, '<', lastVisible));
       }
 
       const q = query(postsRef, ...constraints);
       const snapshot = await getDocs(q);
-
+      
       return {
-        posts: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Post),
-        lastVisible: snapshot.docs[snapshot.docs.length - 1]?.data().createdAt
+        posts: snapshot.docs.map(doc => this.standardizePostData({ id: doc.id, ...doc.data() })),
+        lastVisible: snapshot.docs[snapshot.docs.length - 1]?.data()[COMMON_FIELDS.CREATED_AT]
       };
     } catch (error) {
       console.error('Error fetching paginated posts:', error);
@@ -55,22 +56,26 @@ export const PostService = {
   async getUserAnswers(userID: string, lastVisible: any = null) {
     try {
       const postsRef = collection(db, 'posts');
+      
+      // Use standardized field names but maintain backward compatibility
       const constraints: QueryConstraint[] = [
+        // This query needs to be updated when we have fully migrated to the new schema
+        // Currently using the legacy array-contains which isn't optimal
         where('answers', 'array-contains', { userID }),
-        orderBy('createdAt', 'desc'),
+        orderBy(COMMON_FIELDS.CREATED_AT, 'desc'),
         limit(POSTS_PER_PAGE)
       ];
 
       if (lastVisible) {
-        constraints.push(where('createdAt', '<', lastVisible));
+        constraints.push(where(COMMON_FIELDS.CREATED_AT, '<', lastVisible));
       }
 
       const q = query(postsRef, ...constraints);
       const snapshot = await getDocs(q);
 
       return {
-        posts: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Post),
-        lastVisible: snapshot.docs[snapshot.docs.length - 1]?.data().createdAt
+        posts: snapshot.docs.map(doc => this.standardizePostData({ id: doc.id, ...doc.data() })),
+        lastVisible: snapshot.docs[snapshot.docs.length - 1]?.data()[COMMON_FIELDS.CREATED_AT]
       };
     } catch (error) {
       console.error('Error fetching user answers:', error);
@@ -83,7 +88,9 @@ export const PostService = {
       const postRef = doc(db, 'posts', postId);
       await updateDoc(postRef, {
         score: newScore,
-        lastScoreUpdate: Timestamp.now()
+        lastScoreUpdate: Timestamp.now(),
+        [COMMON_FIELDS.UPDATED_AT]: Date.now(),
+        [COMMON_FIELDS.LAST_INTERACTION]: Date.now()
       });
     } catch (error) {
       console.error('Error updating post score:', error);
@@ -93,7 +100,7 @@ export const PostService = {
 
   async getUserPosts(userID: string) {
     try {
-      console.log('🔍 USING UPDATED VERSION OF getUserPosts - STANDARDIZED FIELDS ONLY');
+      console.log('🔍 USING UPDATED VERSION OF getUserPosts - STANDARDIZED FIELDS');
       console.log(`[getUserPosts] Starting to fetch posts for user ${userID}`);
       
       // Create a batch of promises to run in parallel for better performance
@@ -104,32 +111,46 @@ export const PostService = {
         standardizedQuery: { attempted: true, succeeded: false, count: 0 }
       };
       
-      // Use only the standardized userId field
-      const standardizedQuery = query(
+      // Query posts where user is the author using standardized fields
+      const authorQuery = query(
         postsRef,
-        where('userId', '==', userID),
-        orderBy('lastEngagement', 'desc')
+        where(USER_FIELDS.FIREBASE_UID, '==', userID),
+        orderBy(COMMON_FIELDS.LAST_INTERACTION, 'desc')
       );
       
-      // Use only the standardized answerUserIds field
-      const standardizedAnswersQuery = query(
+      // Fallback to legacy userId field if needed during transition
+      const legacyAuthorQuery = query(
         postsRef,
-        where('answerUserIds', 'array-contains', userID),
-        orderBy('lastEngagement', 'desc')
+        where(USER_FIELDS.LEGACY_USER_ID, '==', userID),
+        orderBy(COMMON_FIELDS.LAST_INTERACTION, 'desc')
+      );
+      
+      // Use standardized answerUserIds field to find posts user has answered
+      const answersQuery = query(
+        postsRef,
+        where(POST_FIELDS.ANSWER_USER_IDS, 'array-contains', userID),
+        orderBy(COMMON_FIELDS.LAST_INTERACTION, 'desc')
       );
       
       console.log(`[getUserPosts] Executing queries in parallel`);
       
       // Execute queries in parallel for better performance
       const queryPromises = [
-        // Try standardized queries
-        getDocs(standardizedQuery).catch(err => {
-          console.error(`[getUserPosts] Error in standardized userId query:`, err);
-          telemetry.standardizedQuery.succeeded = false;
+        // Standardized author query
+        getDocs(authorQuery).catch(err => {
+          console.error(`[getUserPosts] Error in standardized author query:`, err);
           return { docs: [] };
         }),
-        getDocs(standardizedAnswersQuery).catch(err => {
-          console.error('[getUserPosts] Error in standardized answerUserIds query:', err);
+        
+        // Legacy author query
+        getDocs(legacyAuthorQuery).catch(err => {
+          console.error(`[getUserPosts] Error in legacy author query:`, err);
+          return { docs: [] };
+        }),
+        
+        // Answers query
+        getDocs(answersQuery).catch(err => {
+          console.error('[getUserPosts] Error in answers query:', err);
           return { docs: [] };
         })
       ];
@@ -141,40 +162,50 @@ export const PostService = {
       
       // Extract results from each query
       const [
-        standardizedQuerySnapshot,
-        standardizedAnswersSnapshot
+        authorQuerySnapshot,
+        legacyAuthorQuerySnapshot,
+        answersQuerySnapshot
       ] = queryResults;
       
       // Track telemetry
-      telemetry.standardizedQuery.count = standardizedQuerySnapshot.docs.length + standardizedAnswersSnapshot.docs.length;
+      telemetry.standardizedQuery.count = authorQuerySnapshot.docs.length + answersQuerySnapshot.docs.length;
       telemetry.standardizedQuery.succeeded = telemetry.standardizedQuery.count > 0;
       
-      // Process created posts
-      const allCreatedPosts: Post[] = [];
+      // Process author posts
+      const createdPosts: Post[] = [];
       
-      // Add posts from standardized query
-      standardizedQuerySnapshot.docs.forEach(doc => {
+      // Add posts from standardized author query
+      authorQuerySnapshot.docs.forEach(doc => {
         const postData = doc.data();
-        allCreatedPosts.push({
+        createdPosts.push(this.standardizePostData({
           id: doc.id,
           ...postData
-        } as Post);
+        }));
+      });
+      
+      // Add posts from legacy author query
+      legacyAuthorQuerySnapshot.docs.forEach(doc => {
+        const postData = doc.data();
+        createdPosts.push(this.standardizePostData({
+          id: doc.id,
+          ...postData
+        }));
       });
       
       // Process answered posts
-      const answeredPostsStandardized: Post[] = [];
+      const answeredPosts: Post[] = [];
       
-      // Add posts from standardized answers query
-      standardizedAnswersSnapshot.docs.forEach(doc => {
+      // Add posts from answers query
+      answersQuerySnapshot.docs.forEach(doc => {
         const postData = doc.data();
-        answeredPostsStandardized.push({
+        answeredPosts.push(this.standardizePostData({
           id: doc.id,
           ...postData
-        } as Post);
+        }));
       });
       
       // Combine all posts and remove duplicates
-      const allPosts = [...allCreatedPosts, ...answeredPostsStandardized];
+      const allPosts = [...createdPosts, ...answeredPosts];
       const uniquePostIds = new Set<string>();
       const uniquePosts = allPosts.filter(post => {
         if (uniquePostIds.has(post.id)) {
@@ -184,7 +215,7 @@ export const PostService = {
         return true;
       });
       
-      console.log(`[getUserPosts] Total posts found: ${uniquePosts.length} (${allCreatedPosts.length} created, ${answeredPostsStandardized.length} answered)`);
+      console.log(`[getUserPosts] Total posts found: ${uniquePosts.length} (${createdPosts.length} created, ${answeredPosts.length} answered)`);
       
       return uniquePosts;
     } catch (error) {
@@ -193,20 +224,23 @@ export const PostService = {
     }
   },
   
-  // New method to update posts with the answerUserIds field
+  // Update posts with the standardized answerUserIds field
   async updatePostsWithAnswerUserIds(posts: Post[]) {
     try {
       for (const post of posts) {
         // Extract unique user IDs from answers
         const answerUserIds = [...new Set(
-          post.answers
-            .map(answer => answer.userId)
+          (post.answers || [])
+            .map(answer => answer.userId || answer.firebaseUid)
             .filter(Boolean)
         )];
         
         // Update the post document
         const postRef = doc(db, 'posts', post.id);
-        await updateDoc(postRef, { answerUserIds });
+        await updateDoc(postRef, { 
+          [POST_FIELDS.ANSWER_USER_IDS]: answerUserIds,
+          [COMMON_FIELDS.UPDATED_AT]: Date.now()
+        });
         
         console.log(`[updatePostsWithAnswerUserIds] Updated post ${post.id} with answerUserIds field`);
       }
@@ -216,7 +250,7 @@ export const PostService = {
     }
   },
 
-  async createAnswer(postId: string, answer: Omit<Answer, 'createdAt'>) {
+  async createAnswer(postId: string, answer: Omit<Answer, 'createdAt' | 'id'>) {
     try {
       const postRef = doc(db, 'posts', postId);
       const postDoc = await getDoc(postRef);
@@ -227,34 +261,178 @@ export const PostService = {
 
       const post = postDoc.data() as Post;
       const now = Date.now();
+      
+      // Create a standardized answer with both new and legacy fields
       const newAnswer: Answer = {
         ...answer,
-        createdAt: now
+        id: `${answer.firebaseUid || answer.userId}_${now}`, // Generate a unique ID for the answer
+        createdAt: now,
+        updatedAt: now,
+        lastInteraction: now,
+        
+        // Ensure both new and legacy fields are set
+        firebaseUid: answer.firebaseUid || answer.userId,
+        userId: answer.userId || answer.firebaseUid,
+        name: answer.name || answer.userName,
+        userName: answer.userName || answer.name
       };
 
       // Get existing answerUserIds or initialize as empty array
-      const existingAnswerUserIds = post.answerUserIds || [];
+      const existingAnswerUserIds = post[POST_FIELDS.ANSWER_USER_IDS] || [];
       
       // Add the new user ID if it's not already in the array
-      const updatedAnswerUserIds = existingAnswerUserIds.includes(answer.userId)
+      const updatedAnswerUserIds = existingAnswerUserIds.includes(newAnswer.firebaseUid)
         ? existingAnswerUserIds
-        : [...existingAnswerUserIds, answer.userId];
+        : [...existingAnswerUserIds, newAnswer.firebaseUid];
 
-      // Update the post with the new answer and answerUserIds
+      // Get existing answers or initialize as empty array
+      const existingAnswers = post.answers || [];
+      
+      // Add the new answer
+      const updatedAnswers = [...existingAnswers, newAnswer];
+      
+      // Update the post with the new answer and metadata
       await updateDoc(postRef, {
-        answers: [...post.answers, newAnswer],
-        answerUserIds: updatedAnswerUserIds,
-        lastEngagement: serverTimestamp()
+        answers: updatedAnswers,
+        [POST_FIELDS.ANSWER_USER_IDS]: updatedAnswerUserIds,
+        [POST_FIELDS.ANSWER_COUNT]: updatedAnswers.length,
+        [COMMON_FIELDS.UPDATED_AT]: now,
+        [COMMON_FIELDS.LAST_INTERACTION]: now
       });
-
-      // Track the answer in userAnswers collection
-      await trackUserAnswer(answer.userId, postId);
-
-      return newAnswer;
+      
+      return { 
+        success: true, 
+        newAnswer,
+        updatedPost: {
+          ...post,
+          id: postId,
+          answers: updatedAnswers,
+          [POST_FIELDS.ANSWER_USER_IDS]: updatedAnswerUserIds,
+          [POST_FIELDS.ANSWER_COUNT]: updatedAnswers.length,
+          [COMMON_FIELDS.UPDATED_AT]: now,
+          [COMMON_FIELDS.LAST_INTERACTION]: now
+        }
+      };
     } catch (error) {
       console.error('Error creating answer:', error);
-      throw error;
+      return { success: false, error };
     }
+  },
+  
+  /**
+   * Standardizes post data to ensure all fields are in the expected format
+   * @param postData Raw post data from Firestore
+   * @returns Standardized Post object
+   */
+  standardizePostData(postData: Record<string, any>): Post {
+    // Handle timestamps
+    const now = Date.now();
+    let createdAt = postData.createdAt;
+    
+    // Convert string timestamps to numbers
+    if (typeof createdAt === 'string') {
+      createdAt = new Date(createdAt).getTime();
+    }
+    // Convert Firestore timestamps to numbers
+    else if (createdAt && typeof createdAt === 'object' && 'seconds' in createdAt) {
+      createdAt = createdAt.seconds * 1000;
+    }
+    
+    // Process totem associations
+    const totemAssociations: TotemAssociation[] = [];
+    
+    // Convert legacy totems array to structured associations if needed
+    if (Array.isArray(postData.totems)) {
+      postData.totems.forEach((totem: string) => {
+        totemAssociations.push({
+          totemName: totem,
+          relevanceScore: 1.0,
+          userEndorsed: false,
+          aiGenerated: false,
+          createdAt: createdAt || now,
+          updatedAt: createdAt || now
+        });
+      });
+    }
+    
+    // Include existing structured associations
+    if (Array.isArray(postData.totemAssociations)) {
+      // Deduplicate by totem name
+      const existingTotemNames = new Set(totemAssociations.map(t => t.totemName));
+      
+      postData.totemAssociations.forEach((assoc: TotemAssociation) => {
+        if (!existingTotemNames.has(assoc.totemName)) {
+          totemAssociations.push(assoc);
+          existingTotemNames.add(assoc.totemName);
+        }
+      });
+    }
+    
+    // Ensure answers are standardized
+    const standardizedAnswers = (postData.answers || []).map((answer: Record<string, any>) => {
+      const answerCreatedAt = typeof answer.createdAt === 'object' && 'seconds' in answer.createdAt 
+        ? answer.createdAt.seconds * 1000 
+        : (answer.createdAt || now);
+        
+      return {
+        id: answer.id || `${answer.userId || answer.firebaseUid}_${answerCreatedAt}`,
+        text: answer.text || '',
+        firebaseUid: answer.firebaseUid || answer.userId || '',
+        userId: answer.userId || answer.firebaseUid || '',
+        username: answer.username || answer.userID || '',
+        name: answer.name || answer.userName || '',
+        userID: answer.userID || answer.username || '',
+        userName: answer.userName || answer.name || '',
+        createdAt: answerCreatedAt,
+        updatedAt: answer.updatedAt || answerCreatedAt,
+        lastInteraction: answer.lastInteraction || answerCreatedAt,
+        likes: answer.likes || 0,
+        totems: answer.totems || []
+      };
+    });
+    
+    // Get unique answer user IDs
+    const answerUserIds = [...new Set(
+      standardizedAnswers.map(answer => answer.firebaseUid || answer.userId).filter(Boolean)
+    )];
+    
+    // Extract extracted totems for backward compatibility
+    const extractedTotems = totemAssociations.map(assoc => assoc.totemName);
+    
+    // Return the standardized post
+    return {
+      id: postData.id,
+      firebaseUid: postData.firebaseUid || postData.userId || postData.authorId || '',
+      username: postData.username || postData.userID || '',
+      name: postData.name || postData.userName || '',
+      
+      // Post content
+      question: postData.question || '',
+      
+      // User engagement metrics
+      likes: postData.likes || 0,
+      views: postData.views || 0,
+      
+      // Totems (both structured and legacy format)
+      totemAssociations,
+      totems: extractedTotems,
+      
+      // Answers
+      answers: standardizedAnswers,
+      answerCount: standardizedAnswers.length,
+      answerUserIds,
+      
+      // Timestamps
+      createdAt: createdAt || now,
+      updatedAt: postData.updatedAt || createdAt || now,
+      lastInteraction: postData.lastInteraction || postData.lastEngagement || createdAt || now,
+      
+      // Legacy fields for backward compatibility
+      userID: postData.userID || postData.username || '',
+      userId: postData.userId || postData.firebaseUid || postData.authorId || '',
+      userName: postData.userName || postData.name || '',
+      authorId: postData.authorId || postData.firebaseUid || postData.userId || ''
+    };
   },
 
   async migrateAnswersToUserAnswers() {

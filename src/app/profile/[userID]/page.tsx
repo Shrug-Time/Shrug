@@ -10,6 +10,8 @@ import { handleTotemLike as utilHandleTotemLike, handleTotemRefresh as utilHandl
 import { useRouter } from 'next/navigation';
 import type { Post, UserProfile } from '@/types/models';
 import { useState } from 'react';
+import { USER_FIELDS } from '@/constants/fields';
+import { detectUserIdentifierType, extractUserIdentifier } from '@/utils/userIdHelpers';
 
 interface PageProps {
   params: { userID: string };
@@ -30,15 +32,34 @@ function ProfileContent({ userID }: { userID: string }) {
   const router = useRouter();
   const [toastMessage, setToastMessage] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
-  // Fetch user profile
+  // Determine identifier type (username, firebaseUid, or legacy userId)
+  const idType = detectUserIdentifierType(userID);
+  console.log(`Profile - Identified user ID type: ${idType} for value: ${userID}`);
+
+  // Fetch user profile using standardized methods
   const { 
     data: userData,
     isLoading: userLoading,
     error: userError,
     refetch: refetchUser
   } = useQuery({
-    queryKey: ['user', userID],
-    queryFn: () => UserService.getUserProfile(userID),
+    queryKey: ['user', userID, idType],
+    queryFn: async () => {
+      try {
+        // For now, use the existing getUserProfile method which handles different ID types
+        const profile = await UserService.getUserProfile(userID);
+        
+        // If we didn't find a profile, throw an error
+        if (!profile) {
+          throw new Error(`User profile not found for ID: ${userID}`);
+        }
+        
+        return profile;
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+        throw error;
+      }
+    },
   });
 
   // Fetch user posts with better error handling
@@ -48,12 +69,19 @@ function ProfileContent({ userID }: { userID: string }) {
     error: postsError,
     refetch: refetchPosts
   } = useQuery({
-    queryKey: ['userPosts', userID],
+    queryKey: ['userPosts', userID, idType],
     queryFn: async () => {
       console.log('Fetching posts for user:', userID);
       try {
-        const posts = await PostService.getUserPosts(userID);
-        console.log(`Fetched ${posts.length} posts for user ${userID}`);
+        let userIdentifier = userID;
+        
+        // If we have user data, prefer firebaseUid for consistency
+        if (userData) {
+          userIdentifier = userData.firebaseUid || userID;
+        }
+        
+        const posts = await PostService.getUserPosts(userIdentifier);
+        console.log(`Fetched ${posts.length} posts for user ${userIdentifier}`);
         return posts;
       } catch (error) {
         console.error('Error fetching user posts:', error);
@@ -80,7 +108,9 @@ function ProfileContent({ userID }: { userID: string }) {
     if (!userData) return;
     
     try {
-      await utilHandleTotemLike(post, answerIdx, totemName, userData.userID || '');
+      // Use firebaseUid as the standard identifier for likes
+      const userId = userData.firebaseUid;
+      await utilHandleTotemLike(post, answerIdx, totemName, userId);
       // Refetch posts to update the UI
       refetchPosts();
     } catch (error) {
@@ -181,7 +211,8 @@ function ProfileContent({ userID }: { userID: string }) {
       
       <div className="mb-8">
         <h1 className="text-2xl font-bold">{userData.name || 'User'}</h1>
-        <p className="text-gray-600">{userData.bio || 'No bio provided'}</p>
+        <p className="text-gray-600">@{userData.username}</p>
+        <p className="text-gray-600 mt-2">{userData.bio || 'No bio provided'}</p>
       </div>
       
       {userPosts && userPosts.length > 0 ? (

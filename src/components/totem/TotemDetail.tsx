@@ -1,18 +1,22 @@
 "use client";
 
-import { Post } from '@/types/models';
+import { Post, TotemLike } from '@/types/models';
 import { TotemButton } from '@/components/common/TotemButton';
 import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
 import { InfiniteScroll } from '@/components/common/InfiniteScroll';
 import { auth } from '@/firebase';
 import { useEffect, useState, useCallback } from 'react';
+import { TOTEM_FIELDS } from '@/constants/fields';
 
 interface TotemDetailProps {
   totemName: string;
   posts: Post[];
   onLikeTotem: (postId: string, totemName: string) => Promise<void>;
+  onUnlikeTotem: (postId: string, totemName: string) => Promise<void>;
   onRefreshTotem: (postId: string, totemName: string) => Promise<void>;
+  onRefreshUserLike: (postId: string, totemName: string) => Promise<void>;
+  originalLikeTimestamp?: number;
   hasNextPage?: boolean;
   isLoading?: boolean;
   onLoadMore?: () => void;
@@ -22,7 +26,10 @@ export function TotemDetail({
   totemName,
   posts,
   onLikeTotem,
+  onUnlikeTotem,
   onRefreshTotem,
+  onRefreshUserLike,
+  originalLikeTimestamp,
   hasNextPage = false,
   isLoading = false,
   onLoadMore = () => {},
@@ -40,8 +47,16 @@ export function TotemDetail({
       return true;
     }
     
-    // Then check the server data
-    const likedBy = totem.likedBy || [];
+    // Then check the server data - use both standardized and legacy fields
+    const likedBy = totem[TOTEM_FIELDS.LIKED_BY] || totem.likedBy || [];
+    
+    // Also check likeHistory if available
+    if (totem.likeHistory && totem.likeHistory.length > 0 && currentUserId) {
+      return totem.likeHistory.some((like: TotemLike) => 
+        like.userId === currentUserId && like.isActive
+      );
+    }
+    
     return currentUserId ? likedBy.includes(currentUserId) : false;
   }, [currentUserId, likedTotems]);
   
@@ -64,6 +79,34 @@ export function TotemDetail({
     }
   }, [onLikeTotem]);
   
+  // Handle unlike action with local state update
+  const handleUnlike = useCallback(async (postId: string, totemName: string) => {
+    // Update local state immediately for UI feedback
+    setLikedTotems(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(totemName);
+      return newSet;
+    });
+    
+    try {
+      // Call the parent component's unlike handler
+      await onUnlikeTotem(postId, totemName);
+    } catch (error) {
+      // If there was an error, revert the local state
+      console.error('Error unliking totem:', error);
+      setLikedTotems(prev => new Set(prev).add(totemName));
+    }
+  }, [onUnlikeTotem]);
+  
+  // Handle refresh user like
+  const handleRefreshUserLike = useCallback(async (postId: string, totemName: string) => {
+    try {
+      await onRefreshUserLike(postId, totemName);
+    } catch (error) {
+      console.error('Error refreshing user like:', error);
+    }
+  }, [onRefreshUserLike]);
+  
   // Debug: Log posts and currentUserId
   useEffect(() => {
     console.log('TotemDetail - Posts:', posts);
@@ -83,8 +126,19 @@ export function TotemDetail({
     const newLikedTotems = new Set(likedTotems);
     
     totems.forEach(totem => {
-      const likedBy = totem.likedBy || [];
-      if (currentUserId && likedBy.includes(currentUserId)) {
+      // Check both standardized and legacy liked-by arrays
+      const likedBy = totem[TOTEM_FIELDS.LIKED_BY] || totem.likedBy || [];
+      
+      // Also check likeHistory if available
+      if (totem.likeHistory && totem.likeHistory.length > 0 && currentUserId) {
+        const isLiked = totem.likeHistory.some((like: TotemLike) => 
+          like.userId === currentUserId && like.isActive
+        );
+        
+        if (isLiked) {
+          newLikedTotems.add(totem.name);
+        }
+      } else if (currentUserId && likedBy.includes(currentUserId)) {
         newLikedTotems.add(totem.name);
       }
     });
@@ -93,7 +147,7 @@ export function TotemDetail({
       setLikedTotems(newLikedTotems);
     }
     
-    const totemsWithUndefinedLikedBy = totems.filter(totem => !totem.likedBy);
+    const totemsWithUndefinedLikedBy = totems.filter(totem => !totem.likedBy && !totem[TOTEM_FIELDS.LIKED_BY]);
     if (totemsWithUndefinedLikedBy.length > 0) {
       console.error('TotemDetail - Totems with undefined likedBy:', totemsWithUndefinedLikedBy);
     }
@@ -133,7 +187,7 @@ export function TotemDetail({
       {sortedAnswers.map(({ post, answer, totem }) => {
         // Debug: Log totem and likedBy
         console.log(`TotemDetail - Totem ${totem.name}:`, totem);
-        console.log(`TotemDetail - Totem ${totem.name} likedBy:`, totem.likedBy);
+        console.log(`TotemDetail - Totem ${totem.name} likedBy:`, totem.likedBy || totem[TOTEM_FIELDS.LIKED_BY]);
         
         // Check if the current user has already liked this totem
         const isLiked = isTotemLiked(totem);
@@ -163,8 +217,10 @@ export function TotemDetail({
                 likes={totem.likes}
                 crispness={totem.crispness}
                 onLike={() => handleLike(post.id, totemName)}
-                onRefresh={() => onRefreshTotem(post.id, totemName)}
+                onUnlike={() => handleUnlike(post.id, totemName)}
+                onRefresh={() => handleRefreshUserLike(post.id, totemName)}
                 isLiked={isLiked}
+                originalLikeTimestamp={originalLikeTimestamp}
               />
               
               <div className="text-sm text-gray-500">

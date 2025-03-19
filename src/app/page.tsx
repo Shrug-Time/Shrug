@@ -13,6 +13,9 @@ import { CreatePostForm } from '@/components/posts/CreatePostForm';
 import type { Post, UserProfile } from '@/types/models';
 import { handleTotemLike, handleTotemRefresh } from '@/utils/totem';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { UserService } from '@/services/userService';
+import { USER_FIELDS, POST_FIELDS } from '@/constants/fields';
+import { extractUserIdentifier } from '@/utils/userIdHelpers';
 
 type FeedType = 'for-you' | 'popular' | 'latest';
 
@@ -151,14 +154,23 @@ export default function Home() {
               return {
                 id: doc.id,
                 question: data.question || '',
-                firebaseUid: data.firebaseUid || data.userId || '',
-                username: data.username || data.userName || '',
-                name: data.name || data.userName || '',
+                firebaseUid: data[USER_FIELDS.FIREBASE_UID] || data[USER_FIELDS.LEGACY_USER_ID_LOWERCASE] || '',
+                username: data[USER_FIELDS.USERNAME] || data[USER_FIELDS.LEGACY_USER_ID] || data[USER_FIELDS.LEGACY_USER_NAME] || '',
+                name: data[USER_FIELDS.NAME] || data[USER_FIELDS.LEGACY_USER_NAME] || '',
                 categories: data.categories || [],
                 createdAt: convertTimestamp(data.createdAt),
-                lastEngagement: convertTimestamp(data.lastEngagement),
+                updatedAt: convertTimestamp(data.updatedAt || data.createdAt),
+                lastInteraction: convertTimestamp(data.lastInteraction || data.lastEngagement || data.createdAt),
+                lastEngagement: convertTimestamp(data.lastEngagement || data.lastInteraction || data.createdAt),
+                totemAssociations: data.totemAssociations || [],
+                answerFirebaseUids: data.answerFirebaseUids || [],
+                answerUsernames: data.answerUsernames || [],
                 answers: (data.answers || []).map((answer: any) => ({
                   ...answer,
+                  // Ensure user fields are properly standardized in answers
+                  firebaseUid: answer[USER_FIELDS.FIREBASE_UID] || answer[USER_FIELDS.LEGACY_USER_ID_LOWERCASE] || answer.userId || '',
+                  username: answer[USER_FIELDS.USERNAME] || answer[USER_FIELDS.LEGACY_USER_ID] || '',
+                  name: answer[USER_FIELDS.NAME] || answer[USER_FIELDS.LEGACY_USER_NAME] || '',
                   createdAt: convertTimestamp(answer.createdAt)
                 }))
               } as Post;

@@ -1,0 +1,1986 @@
+{
+  "summary": {
+    "totalFiles": 76,
+    "filesWithLegacyFields": 30,
+    "totalReferences": 256,
+    "legacyFieldCounts": {
+      "userID": 74,
+      "userId": 139,
+      "userName": 43
+    }
+  },
+  "fileReferences": [
+    {
+      "filePath": "/Users/lindseyruss/Desktop/shrug-cursor/src/services/firebase.ts",
+      "relativePath": "src/services/firebase.ts",
+      "references": [
+        {
+          "field": "userID",
+          "lineNumber": 55,
+          "line": "async getUserAnswers(userID: string, lastVisible: any = null) {",
+          "position": 23,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 59,
+          "line": "where('answers', 'array-contains', { userID }),",
+          "position": 45,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 94,
+          "line": "async getUserPosts(userID: string) {",
+          "position": 21,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 97,
+          "line": "console.log(`[getUserPosts] Starting to fetch posts for user ${userID}`);",
+          "position": 69,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 110,
+          "line": "where('userId', '==', userID),",
+          "position": 30,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 110,
+          "line": "where('userId', '==', userID),",
+          "position": 15,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 117,
+          "line": "where('answerUserIds', 'array-contains', userID),",
+          "position": 49,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 127,
+          "line": "console.error(`[getUserPosts] Error in standardized userId query:`, err);",
+          "position": 62,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 203,
+          "line": ".map(answer => answer.userId)",
+          "position": 34,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 239,
+          "line": "const updatedAnswerUserIds = existingAnswerUserIds.includes(answer.userId)",
+          "position": 73,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 241,
+          "line": ": [...existingAnswerUserIds, answer.userId];",
+          "position": 44,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 251,
+          "line": "await trackUserAnswer(answer.userId, postId);",
+          "position": 35,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 270,
+          "line": "const userIds = new Set(post.answers.map(answer => answer.userId));",
+          "position": 66,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 273,
+          "line": "for (const userId of userIds) {",
+          "position": 19,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 274,
+          "line": "await trackUserAnswer(userId, postId);",
+          "position": 32,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 303,
+          "line": "hasUserId: !!data.userId,",
+          "position": 26,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 304,
+          "line": "userId: data.userId,",
+          "position": 8,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 304,
+          "line": "userId: data.userId,",
+          "position": 21,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 321,
+          "line": "hasUserId: !!firstAnswer.userId,",
+          "position": 35,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 322,
+          "line": "userId: firstAnswer.userId,",
+          "position": 10,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 322,
+          "line": "userId: firstAnswer.userId,",
+          "position": 30,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 323,
+          "line": "hasUserName: !!firstAnswer.userName,",
+          "position": 37,
+          "suggestedReplacement": "name"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 340,
+          "line": "static async getUserProfile(userID: string): Promise<UserProfile | null> {",
+          "position": 30,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 342,
+          "line": "console.log('[UserService.getUserProfile] Fetching profile for user:', userID);",
+          "position": 77,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 344,
+          "line": "const userRef = doc(db, 'users', userID);",
+          "position": 39,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 350,
+          "line": "userID: userData.userID,",
+          "position": 10,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 350,
+          "line": "userID: userData.userID,",
+          "position": 27,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 358,
+          "line": "console.log('[UserService.getUserProfile] No user profile found for:', userID);",
+          "position": 77,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 366,
+          "line": "static async checkPremiumStatus(userId: string): Promise<boolean> {",
+          "position": 34,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 368,
+          "line": "const userDoc = await getDoc(doc(db, 'users', userId));",
+          "position": 52,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 383,
+          "line": "userId: string",
+          "position": 4,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 390,
+          "line": "if (totem.likedBy.includes(userId)) {",
+          "position": 33,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 395,
+          "line": "const updatedAnswers = this.updateTotemStats(post.answers, answerIdx, totemName, userId, now);",
+          "position": 87,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 413,
+          "line": "userId: string,",
+          "position": 4,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 428,
+          "line": "likedBy: [...t.likedBy, userId],",
+          "position": 44,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 461,
+          "line": "export async function trackUserAnswer(userID: string, postID: string) {",
+          "position": 38,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 463,
+          "line": "const userAnswerRef = doc(db, 'userAnswers', userID, 'posts', postID);",
+          "position": 49,
+          "suggestedReplacement": "username"
+        }
+      ]
+    },
+    {
+      "filePath": "/Users/lindseyruss/Desktop/shrug-cursor/src/utils/userIdHelpers.ts",
+      "relativePath": "src/utils/userIdHelpers.ts",
+      "references": [
+        {
+          "field": "userId",
+          "lineNumber": 15,
+          "line": "if (normalizedPost.userId && !normalizedPost.firebaseUid) {",
+          "position": 21,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 16,
+          "line": "normalizedPost.firebaseUid = normalizedPost.userId;",
+          "position": 48,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 17,
+          "line": "} else if (normalizedPost.firebaseUid && !normalizedPost.userId) {",
+          "position": 59,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 18,
+          "line": "normalizedPost.userId = normalizedPost.firebaseUid;",
+          "position": 19,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 21,
+          "line": "if (normalizedPost.userName && !normalizedPost.username) {",
+          "position": 21,
+          "suggestedReplacement": "name"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 22,
+          "line": "normalizedPost.username = normalizedPost.userName;",
+          "position": 45,
+          "suggestedReplacement": "name"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 23,
+          "line": "normalizedPost.name = normalizedPost.userName;",
+          "position": 41,
+          "suggestedReplacement": "name"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 24,
+          "line": "} else if (normalizedPost.username && !normalizedPost.userName) {",
+          "position": 56,
+          "suggestedReplacement": "name"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 25,
+          "line": "normalizedPost.userName = normalizedPost.username;",
+          "position": 19,
+          "suggestedReplacement": "name"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 49,
+          "line": "if (normalizedAnswer.userId && !normalizedAnswer.firebaseUid) {",
+          "position": 23,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 50,
+          "line": "normalizedAnswer.firebaseUid = normalizedAnswer.userId;",
+          "position": 52,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 51,
+          "line": "} else if (normalizedAnswer.firebaseUid && !normalizedAnswer.userId) {",
+          "position": 63,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 52,
+          "line": "normalizedAnswer.userId = normalizedAnswer.firebaseUid;",
+          "position": 21,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 55,
+          "line": "if (normalizedAnswer.userName && !normalizedAnswer.username) {",
+          "position": 23,
+          "suggestedReplacement": "name"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 56,
+          "line": "normalizedAnswer.username = normalizedAnswer.userName;",
+          "position": 49,
+          "suggestedReplacement": "name"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 57,
+          "line": "normalizedAnswer.name = normalizedAnswer.userName;",
+          "position": 45,
+          "suggestedReplacement": "name"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 58,
+          "line": "} else if (normalizedAnswer.username && !normalizedAnswer.userName) {",
+          "position": 60,
+          "suggestedReplacement": "name"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 59,
+          "line": "normalizedAnswer.userName = normalizedAnswer.username;",
+          "position": 21,
+          "suggestedReplacement": "name"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 71,
+          "line": "if (normalizedProfile.userID && !normalizedProfile.username) {",
+          "position": 24,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 72,
+          "line": "normalizedProfile.username = normalizedProfile.userID;",
+          "position": 51,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 73,
+          "line": "} else if (normalizedProfile.username && !normalizedProfile.userID) {",
+          "position": 62,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 74,
+          "line": "normalizedProfile.userID = normalizedProfile.username;",
+          "position": 22,
+          "suggestedReplacement": "username"
+        }
+      ]
+    },
+    {
+      "filePath": "/Users/lindseyruss/Desktop/shrug-cursor/src/app/api/debug/user/[id]/posts/route.ts",
+      "relativePath": "src/app/api/debug/user/[id]/posts/route.ts",
+      "references": [
+        {
+          "field": "userId",
+          "lineNumber": 9,
+          "line": "userId?: string;",
+          "position": 2,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 11,
+          "line": "userName?: string;",
+          "position": 2,
+          "suggestedReplacement": "name"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 16,
+          "line": "userId?: string;",
+          "position": 4,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 18,
+          "line": "userName?: string;",
+          "position": 4,
+          "suggestedReplacement": "name"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 31,
+          "line": "const userId = id;",
+          "position": 10,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 33,
+          "line": "if (!userId) {",
+          "position": 9,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 40,
+          "line": "console.log(`[API] Fetching posts for user: ${userId}`);",
+          "position": 50,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 43,
+          "line": "let firebaseUid = userId;",
+          "position": 22,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 44,
+          "line": "let username = userId;",
+          "position": 19,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 47,
+          "line": "let userProfile = await UserService.getUserByFirebaseUid(userId);",
+          "position": 61,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 51,
+          "line": "userProfile = await UserService.getUserByUsername(userId);",
+          "position": 56,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 65,
+          "line": "post.userId === firebaseUid ||",
+          "position": 13,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 67,
+          "line": "post.userName === username",
+          "position": 13,
+          "suggestedReplacement": "name"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 71,
+          "line": "post.userId === firebaseUid ||",
+          "position": 13,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 73,
+          "line": "post.userName === username",
+          "position": 13,
+          "suggestedReplacement": "name"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 80,
+          "line": "a.userId === firebaseUid ||",
+          "position": 12,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 82,
+          "line": "a.userName === username",
+          "position": 12,
+          "suggestedReplacement": "name"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 90,
+          "line": "a.userId === firebaseUid ||",
+          "position": 12,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 92,
+          "line": "a.userName === username",
+          "position": 12,
+          "suggestedReplacement": "name"
+        }
+      ]
+    },
+    {
+      "filePath": "/Users/lindseyruss/Desktop/shrug-cursor/src/utils/dataNormalization.ts",
+      "relativePath": "src/utils/dataNormalization.ts",
+      "references": [
+        {
+          "field": "userID",
+          "lineNumber": 25,
+          "line": "if (data.userID && !data.userId) {",
+          "position": 11,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 25,
+          "line": "if (data.userID && !data.userId) {",
+          "position": 27,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 26,
+          "line": "normalized.userId = data.userID;",
+          "position": 29,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 26,
+          "line": "normalized.userId = data.userID;",
+          "position": 15,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 27,
+          "line": "} else if (data.userid && !data.userId) {",
+          "position": 34,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 28,
+          "line": "normalized.userId = data.userid;",
+          "position": 15,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 29,
+          "line": "} else if (data.user_id && !data.userId) {",
+          "position": 35,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 30,
+          "line": "normalized.userId = data.user_id;",
+          "position": 15,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 46,
+          "line": ".filter(answer => answer && answer.userId)",
+          "position": 43,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 47,
+          "line": ".map(answer => answer.userId);",
+          "position": 30,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 126,
+          "line": "userId: 0,",
+          "position": 4,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 127,
+          "line": "userID: 0,",
+          "position": 4,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 156,
+          "line": "if (data.userId) fieldCounts.userId++;",
+          "position": 15,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 156,
+          "line": "if (data.userId) fieldCounts.userId++;",
+          "position": 35,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 157,
+          "line": "if (data.userID) fieldCounts.userID++;",
+          "position": 15,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 157,
+          "line": "if (data.userID) fieldCounts.userID++;",
+          "position": 35,
+          "suggestedReplacement": "username"
+        }
+      ]
+    },
+    {
+      "filePath": "/Users/lindseyruss/Desktop/shrug-cursor/src/scripts/migrateUserIds.ts",
+      "relativePath": "src/scripts/migrateUserIds.ts",
+      "references": [
+        {
+          "field": "userID",
+          "lineNumber": 29,
+          "line": "const username = userData.userID || userData.userId || userData.username || `user_${firebaseUid.substring(0, 8)}`;",
+          "position": 30,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 29,
+          "line": "const username = userData.userID || userData.userId || userData.username || `user_${firebaseUid.substring(0, 8)}`;",
+          "position": 49,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 45,
+          "line": "const username = uidToUsernameMap.get(firebaseUid) || userData.userID || userData.userId || `user_${firebaseUid.substring(0, 8)}`;",
+          "position": 67,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 45,
+          "line": "const username = uidToUsernameMap.get(firebaseUid) || userData.userID || userData.userId || `user_${firebaseUid.substring(0, 8)}`;",
+          "position": 86,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 62,
+          "line": "if (userData.userID !== undefined) {",
+          "position": 17,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 63,
+          "line": "updates.userID = null; // This will be removed in Firestore",
+          "position": 14,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 66,
+          "line": "if (userData.userId !== undefined && userData.userId !== firebaseUid) {",
+          "position": 17,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 66,
+          "line": "if (userData.userId !== undefined && userData.userId !== firebaseUid) {",
+          "position": 50,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 67,
+          "line": "updates.userId = null; // This will be removed in Firestore",
+          "position": 14,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 99,
+          "line": "if (postData.userId) {",
+          "position": 17,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 100,
+          "line": "const firebaseUid = postData.userId;",
+          "position": 35,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 105,
+          "line": "updates.name = postData.userName || username;",
+          "position": 30,
+          "suggestedReplacement": "name"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 115,
+          "line": "if (answer.userId) {",
+          "position": 19,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 116,
+          "line": "const firebaseUid = answer.userId;",
+          "position": 37,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 123,
+          "line": "name: answer.userName || username,",
+          "position": 25,
+          "suggestedReplacement": "name"
+        }
+      ]
+    },
+    {
+      "filePath": "/Users/lindseyruss/Desktop/shrug-cursor/src/scripts/runMigration.js",
+      "relativePath": "src/scripts/runMigration.js",
+      "references": [
+        {
+          "field": "userID",
+          "lineNumber": 49,
+          "line": "const username = userData.userID || userData.userId || userData.username || `user_${firebaseUid.substring(0, 8)}`;",
+          "position": 30,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 49,
+          "line": "const username = userData.userID || userData.userId || userData.username || `user_${firebaseUid.substring(0, 8)}`;",
+          "position": 49,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 65,
+          "line": "const username = uidToUsernameMap.get(firebaseUid) || userData.userID || userData.userId || `user_${firebaseUid.substring(0, 8)}`;",
+          "position": 67,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 65,
+          "line": "const username = uidToUsernameMap.get(firebaseUid) || userData.userID || userData.userId || `user_${firebaseUid.substring(0, 8)}`;",
+          "position": 86,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 82,
+          "line": "if (userData.userID !== undefined) {",
+          "position": 17,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 83,
+          "line": "updates.userID = null; // This will be removed in Firestore",
+          "position": 14,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 86,
+          "line": "if (userData.userId !== undefined && userData.userId !== firebaseUid) {",
+          "position": 17,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 86,
+          "line": "if (userData.userId !== undefined && userData.userId !== firebaseUid) {",
+          "position": 50,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 87,
+          "line": "updates.userId = null; // This will be removed in Firestore",
+          "position": 14,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 119,
+          "line": "if (postData.userId) {",
+          "position": 17,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 120,
+          "line": "const firebaseUid = postData.userId;",
+          "position": 35,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 125,
+          "line": "updates.name = postData.userName || username;",
+          "position": 30,
+          "suggestedReplacement": "name"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 135,
+          "line": "if (answer.userId) {",
+          "position": 19,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 136,
+          "line": "const firebaseUid = answer.userId;",
+          "position": 37,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 143,
+          "line": "name: answer.userName || username,",
+          "position": 25,
+          "suggestedReplacement": "name"
+        }
+      ]
+    },
+    {
+      "filePath": "/Users/lindseyruss/Desktop/shrug-cursor/src/scripts/testMigration.js",
+      "relativePath": "src/scripts/testMigration.js",
+      "references": [
+        {
+          "field": "userID",
+          "lineNumber": 41,
+          "line": "const username = userData.userID || userData.username || `user_${firebaseUid.substring(0, 8)}`;",
+          "position": 32,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 72,
+          "line": "const username = uidToUsernameMap.get(firebaseUid) || userData.userID || `user_${firebaseUid.substring(0, 8)}`;",
+          "position": 67,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 113,
+          "line": "userId: postData.userId,",
+          "position": 6,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 113,
+          "line": "userId: postData.userId,",
+          "position": 23,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 114,
+          "line": "userName: postData.userName,",
+          "position": 6,
+          "suggestedReplacement": "name"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 114,
+          "line": "userName: postData.userName,",
+          "position": 25,
+          "suggestedReplacement": "name"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 122,
+          "line": "if (postData.userId) {",
+          "position": 17,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 123,
+          "line": "const firebaseUid = postData.userId;",
+          "position": 35,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 128,
+          "line": "updates.name = postData.userName || username;",
+          "position": 30,
+          "suggestedReplacement": "name"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 144,
+          "line": "userId: postData.userId,",
+          "position": 6,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 144,
+          "line": "userId: postData.userId,",
+          "position": 23,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 145,
+          "line": "userName: postData.userName,",
+          "position": 6,
+          "suggestedReplacement": "name"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 145,
+          "line": "userName: postData.userName,",
+          "position": 25,
+          "suggestedReplacement": "name"
+        }
+      ]
+    },
+    {
+      "filePath": "/Users/lindseyruss/Desktop/shrug-cursor/src/app/profile/[userID]/page.tsx",
+      "relativePath": "src/app/profile/[userID]/page.tsx",
+      "references": [
+        {
+          "field": "userID",
+          "lineNumber": 15,
+          "line": "params: { userID: string };",
+          "position": 12,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 29,
+          "line": "function ProfileContent({ userID }: { userID: string }) {",
+          "position": 26,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 29,
+          "line": "function ProfileContent({ userID }: { userID: string }) {",
+          "position": 38,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 40,
+          "line": "queryKey: ['user', userID],",
+          "position": 23,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 41,
+          "line": "queryFn: () => UserService.getUserProfile(userID),",
+          "position": 46,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 51,
+          "line": "queryKey: ['userPosts', userID],",
+          "position": 28,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 53,
+          "line": "console.log('Fetching posts for user:', userID);",
+          "position": 46,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 55,
+          "line": "const posts = await PostService.getUserPosts(userID);",
+          "position": 53,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 56,
+          "line": "console.log(`Fetched ${posts.length} posts for user ${userID}`);",
+          "position": 62,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 83,
+          "line": "await utilHandleTotemLike(post, answerIdx, totemName, userData.userID || '');",
+          "position": 69,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 219,
+          "line": "<ProfileContent userID={params.userID} />",
+          "position": 24,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 219,
+          "line": "<ProfileContent userID={params.userID} />",
+          "position": 39,
+          "suggestedReplacement": "username"
+        }
+      ]
+    },
+    {
+      "filePath": "/Users/lindseyruss/Desktop/shrug-cursor/src/hooks/usePosts.ts",
+      "relativePath": "src/hooks/usePosts.ts",
+      "references": [
+        {
+          "field": "userId",
+          "lineNumber": 7,
+          "line": "userId?: string;",
+          "position": 2,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 19,
+          "line": "export function usePosts({ userId, username, firebaseUid, totemName, pageSize = 10 }: UsePostsOptions = {}) {",
+          "position": 27,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 23,
+          "line": "console.log(`[usePosts] Fetching posts with params:`, { userId, username, firebaseUid, totemName, pageSize, pageParam });",
+          "position": 60,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 37,
+          "line": "} else if (userId) {",
+          "position": 19,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 39,
+          "line": "console.log(`[usePosts] Fetching posts for legacy userId: ${userId}`);",
+          "position": 60,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 39,
+          "line": "console.log(`[usePosts] Fetching posts for legacy userId: ${userId}`);",
+          "position": 70,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 40,
+          "line": "const posts = await PostService.getUserPosts(userId);",
+          "position": 55,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 41,
+          "line": "console.log(`[usePosts] Fetched ${posts.length} posts for legacy userId ${userId}`);",
+          "position": 75,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 41,
+          "line": "console.log(`[usePosts] Fetched ${posts.length} posts for legacy userId ${userId}`);",
+          "position": 84,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 53,
+          "line": "throw new Error('Either userId, username, firebaseUid, or totemName must be provided');",
+          "position": 32,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 83,
+          "line": "queryKey: ['posts', { userId, username, firebaseUid, totemName, pageSize }],",
+          "position": 26,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 86,
+          "line": "enabled: Boolean(userId || username || firebaseUid || totemName),",
+          "position": 21,
+          "suggestedReplacement": "firebaseUid"
+        }
+      ]
+    },
+    {
+      "filePath": "/Users/lindseyruss/Desktop/shrug-cursor/src/utils/dataTransform.ts",
+      "relativePath": "src/utils/dataTransform.ts",
+      "references": [
+        {
+          "field": "userId",
+          "lineNumber": 56,
+          "line": "userId: answer.userId || '',",
+          "position": 4,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 56,
+          "line": "userId: answer.userId || '',",
+          "position": 19,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 57,
+          "line": "userName: answer.userName || 'Anonymous',",
+          "position": 4,
+          "suggestedReplacement": "name"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 57,
+          "line": "userName: answer.userName || 'Anonymous',",
+          "position": 21,
+          "suggestedReplacement": "name"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 82,
+          "line": ".map(answer => answer.userId)",
+          "position": 26,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 88,
+          "line": "userId: data.userId || '',",
+          "position": 4,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 88,
+          "line": "userId: data.userId || '',",
+          "position": 17,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 89,
+          "line": "userName: data.userName || 'Anonymous',",
+          "position": 4,
+          "suggestedReplacement": "name"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 89,
+          "line": "userName: data.userName || 'Anonymous',",
+          "position": 19,
+          "suggestedReplacement": "name"
+        }
+      ]
+    },
+    {
+      "filePath": "/Users/lindseyruss/Desktop/shrug-cursor/src/app/api/debug/hooks/usePosts/route.ts",
+      "relativePath": "src/app/api/debug/hooks/usePosts/route.ts",
+      "references": [
+        {
+          "field": "userId",
+          "lineNumber": 7,
+          "line": "const userId = searchParams.get('userId');",
+          "position": 10,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 7,
+          "line": "const userId = searchParams.get('userId');",
+          "position": 37,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 10,
+          "line": "if (!userId && !totemName) {",
+          "position": 9,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 12,
+          "line": "{ error: 'Either userId or totemName must be provided' },",
+          "position": 25,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 19,
+          "line": "if (userId) {",
+          "position": 8,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 20,
+          "line": "console.log(`[API] Testing usePosts hook with userId: ${userId}`);",
+          "position": 52,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 20,
+          "line": "console.log(`[API] Testing usePosts hook with userId: ${userId}`);",
+          "position": 62,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 22,
+          "line": "const posts = await PostService.getUserPosts(userId);",
+          "position": 53,
+          "suggestedReplacement": "firebaseUid"
+        }
+      ]
+    },
+    {
+      "filePath": "/Users/lindseyruss/Desktop/shrug-cursor/src/services/PostService.ts",
+      "relativePath": "src/services/PostService.ts",
+      "references": [
+        {
+          "field": "userID",
+          "lineNumber": 6,
+          "line": "static async fetchUserPosts(userID: string, pageSize = 10, lastDoc?: any): Promise<{ items: Post[]; lastDoc: any }> {",
+          "position": 30,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 11,
+          "line": "where('authorId', '==', userID),",
+          "position": 32,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 77,
+          "line": "static async getUserAnswers(userID: string, pageSize = 10, lastDoc?: any): Promise<{ items: Post[]; lastDoc: any }> {",
+          "position": 30,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 82,
+          "line": "where(`answers.${userID}`, '!=', null),",
+          "position": 25,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 94,
+          "line": "const aAnswer = (a.answers || []).find(ans => ans.userId === userID);",
+          "position": 69,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 94,
+          "line": "const aAnswer = (a.answers || []).find(ans => ans.userId === userID);",
+          "position": 58,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 95,
+          "line": "const bAnswer = (b.answers || []).find(ans => ans.userId === userID);",
+          "position": 69,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 95,
+          "line": "const bAnswer = (b.answers || []).find(ans => ans.userId === userID);",
+          "position": 58,
+          "suggestedReplacement": "firebaseUid"
+        }
+      ]
+    },
+    {
+      "filePath": "/Users/lindseyruss/Desktop/shrug-cursor/src/app/api/debug/user/[id]/profile/route.ts",
+      "relativePath": "src/app/api/debug/user/[id]/profile/route.ts",
+      "references": [
+        {
+          "field": "userId",
+          "lineNumber": 12,
+          "line": "const userId = id;",
+          "position": 10,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 14,
+          "line": "if (!userId) {",
+          "position": 9,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 21,
+          "line": "console.log(`[API] Fetching profile for user: ${userId}`);",
+          "position": 52,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 24,
+          "line": "let profile = await AppUserService.getUserByFirebaseUid(userId);",
+          "position": 60,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 28,
+          "line": "profile = await AppUserService.getUserByUsername(userId);",
+          "position": 55,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 33,
+          "line": "profile = await UserService.getUserProfile(userId);",
+          "position": 49,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 38,
+          "line": "{ exists: false, message: `No profile found for user ID: ${userId}` },",
+          "position": 67,
+          "suggestedReplacement": "firebaseUid"
+        }
+      ]
+    },
+    {
+      "filePath": "/Users/lindseyruss/Desktop/shrug-cursor/src/components/common/FollowButton.tsx",
+      "relativePath": "src/components/common/FollowButton.tsx",
+      "references": [
+        {
+          "field": "userID",
+          "lineNumber": 27,
+          "line": "if (!profile || profile.userID === targetUserId) {",
+          "position": 26,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 48,
+          "line": "const ensureUserExists = async (userId: string, isTarget: boolean = false) => {",
+          "position": 34,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 49,
+          "line": "const userRef = doc(db, 'users', userId);",
+          "position": 37,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 55,
+          "line": "userID: userId,",
+          "position": 8,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 55,
+          "line": "userID: userId,",
+          "position": 16,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 56,
+          "line": "name: isTarget ? targetUserId : userId, // Use userID as name if not available",
+          "position": 55,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 56,
+          "line": "name: isTarget ? targetUserId : userId, // Use userID as name if not available",
+          "position": 40,
+          "suggestedReplacement": "firebaseUid"
+        }
+      ]
+    },
+    {
+      "filePath": "/Users/lindseyruss/Desktop/shrug-cursor/src/services/totem.ts",
+      "relativePath": "src/services/totem.ts",
+      "references": [
+        {
+          "field": "userId",
+          "lineNumber": 36,
+          "line": "userId: string",
+          "position": 4,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 45,
+          "line": "console.log('TotemService.handleTotemLike - userId:', userId);",
+          "position": 50,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 45,
+          "line": "console.log('TotemService.handleTotemLike - userId:', userId);",
+          "position": 60,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 54,
+          "line": "if (totem.likedBy.includes(userId)) {",
+          "position": 33,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 60,
+          "line": "const updatedAnswers = this.updateTotemStats(post.answers, answerIdx, totemName, userId, now);",
+          "position": 87,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 91,
+          "line": "userId: string,",
+          "position": 4,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 117,
+          "line": "updatedTotem.likedBy = [...updatedTotem.likedBy, userId];",
+          "position": 65,
+          "suggestedReplacement": "firebaseUid"
+        }
+      ]
+    },
+    {
+      "filePath": "/Users/lindseyruss/Desktop/shrug-cursor/src/types/models.ts",
+      "relativePath": "src/types/models.ts",
+      "references": [
+        {
+          "field": "userID",
+          "lineNumber": 59,
+          "line": "userID?: string;",
+          "position": 2,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 60,
+          "line": "userId?: string;",
+          "position": 2,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 61,
+          "line": "userName?: string;",
+          "position": 2,
+          "suggestedReplacement": "name"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 73,
+          "line": "userId?: string;",
+          "position": 2,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 74,
+          "line": "userName?: string;",
+          "position": 2,
+          "suggestedReplacement": "name"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 90,
+          "line": "userId?: string;",
+          "position": 2,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 91,
+          "line": "userName?: string;",
+          "position": 2,
+          "suggestedReplacement": "name"
+        }
+      ]
+    },
+    {
+      "filePath": "/Users/lindseyruss/Desktop/shrug-cursor/src/hooks/useUser.ts",
+      "relativePath": "src/hooks/useUser.ts",
+      "references": [
+        {
+          "field": "userID",
+          "lineNumber": 55,
+          "line": "else if (updates.userID && updates.userID !== profile.userID) {",
+          "position": 23,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 55,
+          "line": "else if (updates.userID && updates.userID !== profile.userID) {",
+          "position": 41,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 55,
+          "line": "else if (updates.userID && updates.userID !== profile.userID) {",
+          "position": 60,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 56,
+          "line": "const validation = await UserService.validateUsername(updates.userID, profile.userID);",
+          "position": 70,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 56,
+          "line": "const validation = await UserService.validateUsername(updates.userID, profile.userID);",
+          "position": 86,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 61,
+          "line": "updates.username = updates.userID;",
+          "position": 35,
+          "suggestedReplacement": "username"
+        }
+      ]
+    },
+    {
+      "filePath": "/Users/lindseyruss/Desktop/shrug-cursor/src/scripts/codeAudit.js",
+      "relativePath": "src/scripts/codeAudit.js",
+      "references": [
+        {
+          "field": "userID",
+          "lineNumber": 14,
+          "line": "'userID',",
+          "position": 3,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 15,
+          "line": "'userId',",
+          "position": 3,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 16,
+          "line": "'userName',",
+          "position": 3,
+          "suggestedReplacement": "name"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 22,
+          "line": "'userID': 'username',",
+          "position": 3,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 23,
+          "line": "'userId': 'firebaseUid',",
+          "position": 3,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 24,
+          "line": "'userName': 'name',",
+          "position": 3,
+          "suggestedReplacement": "name"
+        }
+      ]
+    },
+    {
+      "filePath": "/Users/lindseyruss/Desktop/shrug-cursor/src/app/profile/page.tsx",
+      "relativePath": "src/app/profile/page.tsx",
+      "references": [
+        {
+          "field": "userID",
+          "lineNumber": 36,
+          "line": "userId: profile?.userID, // For backward compatibility",
+          "position": 21,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 36,
+          "line": "userId: profile?.userID, // For backward compatibility",
+          "position": 4,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 48,
+          "line": "username: profile?.username || profile?.userID || '',",
+          "position": 46,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 59,
+          "line": "username: profile.username || profile.userID || '',",
+          "position": 46,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 179,
+          "line": "<p className=\"text-gray-600\">@{profile.username || profile.userID}</p>",
+          "position": 81,
+          "suggestedReplacement": "username"
+        }
+      ]
+    },
+    {
+      "filePath": "/Users/lindseyruss/Desktop/shrug-cursor/src/app/page.tsx",
+      "relativePath": "src/app/page.tsx",
+      "references": [
+        {
+          "field": "userId",
+          "lineNumber": 44,
+          "line": "followedUsers.includes(answer.userId || '') // For backward compatibility",
+          "position": 36,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 154,
+          "line": "firebaseUid: data.firebaseUid || data.userId || '',",
+          "position": 54,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 155,
+          "line": "username: data.username || data.userName || '',",
+          "position": 48,
+          "suggestedReplacement": "name"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 156,
+          "line": "name: data.name || data.userName || '',",
+          "position": 40,
+          "suggestedReplacement": "name"
+        }
+      ]
+    },
+    {
+      "filePath": "/Users/lindseyruss/Desktop/shrug-cursor/src/app/post/[id]/page.tsx",
+      "relativePath": "src/app/post/[id]/page.tsx",
+      "references": [
+        {
+          "field": "userId",
+          "lineNumber": 44,
+          "line": "userId: string;",
+          "position": 4,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 49,
+          "line": "userName: string;",
+          "position": 4,
+          "suggestedReplacement": "name"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 50,
+          "line": "userID: string;",
+          "position": 4,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 150,
+          "line": "{post.answers.length} {post.answers.length === 1 ? 'answer' : 'answers'} • Posted {formatDistanceToNow(post.createdAt, { addSuffix: true })} by {post.userName || 'Anonymous'}",
+          "position": 166,
+          "suggestedReplacement": "name"
+        }
+      ]
+    },
+    {
+      "filePath": "/Users/lindseyruss/Desktop/shrug-cursor/src/services/userService.ts",
+      "relativePath": "src/services/userService.ts",
+      "references": [
+        {
+          "field": "userID",
+          "lineNumber": 13,
+          "line": "if (userData.userID && !userData.username) {",
+          "position": 19,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 14,
+          "line": "userData.username = userData.userID;",
+          "position": 37,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 114,
+          "line": "const legacyQuery = query(usersRef, where('userID', '==', username.toLowerCase()));",
+          "position": 49,
+          "suggestedReplacement": "username"
+        },
+        {
+          "field": "userID",
+          "lineNumber": 137,
+          "line": "q = query(usersRef, where('userID', '==', username.toLowerCase()));",
+          "position": 35,
+          "suggestedReplacement": "username"
+        }
+      ]
+    },
+    {
+      "filePath": "/Users/lindseyruss/Desktop/shrug-cursor/src/components/questions/QuestionList.tsx",
+      "relativePath": "src/components/questions/QuestionList.tsx",
+      "references": [
+        {
+          "field": "userName",
+          "lineNumber": 118,
+          "line": "{formatDistanceToNow(answer.createdAt, { addSuffix: true })} by {answer.userName || 'Anonymous'}",
+          "position": 84,
+          "suggestedReplacement": "name"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 196,
+          "line": "{formatDistanceToNow(answer.createdAt, { addSuffix: true })} by {answer.userName || 'Anonymous'}",
+          "position": 92,
+          "suggestedReplacement": "name"
+        },
+        {
+          "field": "userName",
+          "lineNumber": 269,
+          "line": "{formatDistanceToNow(toDate(post.createdAt), { addSuffix: true })} by {post.userName || 'Anonymous'}",
+          "position": 88,
+          "suggestedReplacement": "name"
+        }
+      ]
+    },
+    {
+      "filePath": "/Users/lindseyruss/Desktop/shrug-cursor/src/utils/totem.ts",
+      "relativePath": "src/utils/totem.ts",
+      "references": [
+        {
+          "field": "userId",
+          "lineNumber": 32,
+          "line": "userId: string",
+          "position": 2,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 35,
+          "line": "const updatedAnswers = await TotemService.updateTotemStats(post.answers, answerIdx, totemName, userId, timestamp);",
+          "position": 97,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 48,
+          "line": "const updatedAnswers = await TotemService.updateTotemStats(post.answers, answerIdx, totemName, post.answers[answerIdx].userId, timestamp);",
+          "position": 123,
+          "suggestedReplacement": "firebaseUid"
+        }
+      ]
+    },
+    {
+      "filePath": "/Users/lindseyruss/Desktop/shrug-cursor/src/app/debug/profile-test/page.tsx",
+      "relativePath": "src/app/debug/profile-test/page.tsx",
+      "references": [
+        {
+          "field": "userId",
+          "lineNumber": 9,
+          "line": "const [userId, setUserId] = useState<string>('');",
+          "position": 9,
+          "suggestedReplacement": "firebaseUid"
+        },
+        {
+          "field": "userId",
+          "lineNumber": 119,
+          "line": "{userId && (",
+          "position": 7,
+          "suggestedReplacement": "firebaseUid"
+        }
+      ]
+    },
+    {
+      "filePath": "/Users/lindseyruss/Desktop/shrug-cursor/src/app/api/admin/data-normalization/audit/route.ts",
+      "relativePath": "src/app/api/admin/data-normalization/audit/route.ts",
+      "references": [
+        {
+          "field": "userID",
+          "lineNumber": 21,
+          "line": "auditResults.userID +",
+          "position": 23,
+          "suggestedReplacement": "username"
+        }
+      ]
+    },
+    {
+      "filePath": "/Users/lindseyruss/Desktop/shrug-cursor/src/components/auth/SignupForm.tsx",
+      "relativePath": "src/components/auth/SignupForm.tsx",
+      "references": [
+        {
+          "field": "userID",
+          "lineNumber": 32,
+          "line": "userID: user.uid,",
+          "position": 8,
+          "suggestedReplacement": "username"
+        }
+      ]
+    },
+    {
+      "filePath": "/Users/lindseyruss/Desktop/shrug-cursor/src/components/totem/TotemDetail.tsx",
+      "relativePath": "src/components/totem/TotemDetail.tsx",
+      "references": [
+        {
+          "field": "userName",
+          "lineNumber": 171,
+          "line": "{formatDistanceToNow(answer.createdAt, { addSuffix: true })} by {answer.userName || 'Anonymous'}",
+          "position": 88,
+          "suggestedReplacement": "name"
+        }
+      ]
+    },
+    {
+      "filePath": "/Users/lindseyruss/Desktop/shrug-cursor/src/scripts/createIndexes.ts",
+      "relativePath": "src/scripts/createIndexes.ts",
+      "references": [
+        {
+          "field": "userId",
+          "lineNumber": 46,
+          "line": "{ fieldPath: 'userId', order: 'ASCENDING' },",
+          "position": 20,
+          "suggestedReplacement": "firebaseUid"
+        }
+      ]
+    },
+    {
+      "filePath": "/Users/lindseyruss/Desktop/shrug-cursor/src/scripts/migrateAnswerUserIds.ts",
+      "relativePath": "src/scripts/migrateAnswerUserIds.ts",
+      "references": [
+        {
+          "field": "userId",
+          "lineNumber": 41,
+          "line": ".map(answer => answer.userId)",
+          "position": 36,
+          "suggestedReplacement": "firebaseUid"
+        }
+      ]
+    }
+  ]
+}

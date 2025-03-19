@@ -3,8 +3,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { TotemDetail } from '@/components/totem/TotemDetail';
 import type { Post } from '@/types/models';
-import { updateTotemLikes, refreshTotem, getPost } from '@/lib/firebase/posts';
+import { updateTotemLikes, unlikeTotem, refreshUserLike, refreshTotem, getPost } from '@/lib/firebase/posts';
 import { auth } from '@/firebase';
+import { USER_FIELDS, TOTEM_FIELDS } from '@/constants/fields';
+import { hasUserLikedTotem } from '@/utils/componentHelpers';
 
 // Create a global cache to track liked totems across component instances
 // This will persist even if the component is unmounted and remounted
@@ -19,6 +21,7 @@ export function PostTotemClient({ initialPost, totemName }: PostTotemClientProps
   const [post, setPost] = useState(initialPost);
   const [error, setError] = useState<string | null>(null);
   const [isLiking, setIsLiking] = useState(false);
+  const [originalLikeTimestamp, setOriginalLikeTimestamp] = useState<number | undefined>(undefined);
   const currentUserId = auth.currentUser?.uid;
   
   // Local cache of liked totems for this user and post
@@ -31,7 +34,7 @@ export function PostTotemClient({ initialPost, totemName }: PostTotemClientProps
     }
   }, [currentUserId]);
   
-  // Initialize the local cache from the global cache
+  // Initialize the local cache from the global cache and post data
   useEffect(() => {
     if (currentUserId) {
       // Check if the user has already liked this totem in our global cache
@@ -47,41 +50,32 @@ export function PostTotemClient({ initialPost, totemName }: PostTotemClientProps
       if (answer) {
         const totem = answer.totems.find(totem => totem.name === totemName);
         if (totem) {
-          const likedBy = totem.likedBy || [];
-          if (likedBy.includes(currentUserId)) {
-            // Add to both local and global cache
+          // Check both standardized and legacy liked-by arrays
+          const likedBy = totem[TOTEM_FIELDS.LIKED_BY] || totem.likedBy || [];
+          
+          // Also check the likeHistory if available
+          if (totem.likeHistory && totem.likeHistory.length > 0) {
+            const userLike = totem.likeHistory.find(like => 
+              like.userId === currentUserId && like.isActive
+            );
+            
+            if (userLike) {
+              // User has an active like
+              likedTotemsRef.current.add(totemName);
+              globalLikedTotemsCache[currentUserId]?.add(totemName);
+              
+              // Store the original like timestamp for potential refresh prompts
+              setOriginalLikeTimestamp(userLike.originalTimestamp);
+              
+              console.log(`PostTotemClient - User ${currentUserId} has already liked totem ${totemName} (original timestamp: ${new Date(userLike.originalTimestamp).toISOString()})`);
+            }
+          } else if (likedBy.includes(currentUserId)) {
+            // Legacy check - if no likeHistory but user is in likedBy
             likedTotemsRef.current.add(totemName);
             globalLikedTotemsCache[currentUserId]?.add(totemName);
-            console.log(`PostTotemClient - User ${currentUserId} has already liked totem ${totemName} (from post data)`);
+            console.log(`PostTotemClient - User ${currentUserId} has already liked totem ${totemName} (from legacy data)`);
           }
         }
-      }
-    }
-  }, [post, totemName, currentUserId]);
-
-  // Debug: Log the current state of the post and user
-  useEffect(() => {
-    console.log('PostTotemClient - Current post state:', post);
-    console.log('PostTotemClient - Current user ID:', currentUserId);
-    console.log('PostTotemClient - Local liked totems cache:', Array.from(likedTotemsRef.current));
-    
-    if (currentUserId) {
-      console.log('PostTotemClient - Global liked totems cache for user:', 
-        Array.from(globalLikedTotemsCache[currentUserId] || new Set()));
-    }
-    
-    // Check if the user has already liked the totem
-    const answer = post.answers.find(answer => 
-      answer.totems.some(totem => totem.name === totemName)
-    );
-    
-    if (answer) {
-      const totem = answer.totems.find(totem => totem.name === totemName);
-      if (totem) {
-        const likedBy = totem.likedBy || [];
-        const hasLiked = currentUserId ? likedBy.includes(currentUserId) : false;
-        console.log('PostTotemClient - User has liked totem (from post data):', hasLiked);
-        console.log('PostTotemClient - Totem likedBy array:', likedBy);
       }
     }
   }, [post, totemName, currentUserId]);
@@ -114,32 +108,6 @@ export function PostTotemClient({ initialPost, totemName }: PostTotemClientProps
         return;
       }
       
-      // Check our global cache next (in case the component was remounted)
-      if (globalLikedTotemsCache[currentUserId]?.has(totemName)) {
-        console.log('PostTotemClient - User has already liked this totem (global cache check)');
-        setError("You've already liked this totem!");
-        setIsLiking(false);
-        return;
-      }
-      
-      // Check if user has already liked this totem in our local state
-      const answer = post.answers.find(answer => 
-        answer.totems.some(totem => totem.name === totemName)
-      );
-      
-      if (answer) {
-        const totem = answer.totems.find(totem => totem.name === totemName);
-        if (totem) {
-          const likedBy = totem.likedBy || [];
-          if (likedBy.includes(currentUserId)) {
-            console.log('PostTotemClient - User has already liked this totem (post data check)');
-            setError("You've already liked this totem!");
-            setIsLiking(false);
-            return;
-          }
-        }
-      }
-      
       // If we've passed all checks, add to our caches before making the API call
       // This prevents race conditions where the user clicks multiple times before the API responds
       likedTotemsRef.current.add(totemName);
@@ -147,14 +115,23 @@ export function PostTotemClient({ initialPost, totemName }: PostTotemClientProps
         globalLikedTotemsCache[currentUserId].add(totemName);
       }
       
-      await updateTotemLikes(postId, totemName);
-      console.log('PostTotemClient - updateTotemLikes completed successfully');
+      const result = await updateTotemLikes(postId, totemName);
+      console.log('PostTotemClient - updateTotemLikes completed successfully:', result);
       
-      // Fetch the updated post to get the correct crispness and like count
-      const updatedPost = await getPost(postId);
-      if (updatedPost) {
-        console.log('PostTotemClient - Received updated post:', updatedPost);
-        setPost(updatedPost);
+      // If this was a re-like (indicated by action === 'relike'), store the original timestamp
+      if (result && result.action === 'relike' && result.originalTimestamp) {
+        setOriginalLikeTimestamp(result.originalTimestamp);
+      }
+      
+      // Update the local state with the updated post
+      if (result && result.post) {
+        setPost(result.post);
+      } else {
+        // Fallback to fetching the post if the result doesn't include it
+        const updatedPost = await getPost(postId);
+        if (updatedPost) {
+          setPost(updatedPost);
+        }
       }
     } catch (err) {
       console.error("Error liking totem:", err);
@@ -170,10 +147,67 @@ export function PostTotemClient({ initialPost, totemName }: PostTotemClientProps
       setIsLiking(false);
     }
   };
+  
+  const handleUnlikeTotem = async (postId: string, totemName: string) => {
+    // Prevent multiple clicks
+    if (isLiking) {
+      console.log('PostTotemClient - Already processing an unlike request');
+      return;
+    }
+    
+    setIsLiking(true);
+    setError(null);
+    
+    console.log('PostTotemClient - handleUnlikeTotem called with:', postId, totemName);
+    
+    try {
+      // Check if user is logged in
+      if (!currentUserId) {
+        setError("You must be logged in to unlike a totem");
+        setIsLiking(false);
+        return;
+      }
+      
+      // Remove from our caches before making the API call
+      likedTotemsRef.current.delete(totemName);
+      if (globalLikedTotemsCache[currentUserId]) {
+        globalLikedTotemsCache[currentUserId].delete(totemName);
+      }
+      
+      // Clear the original timestamp since it's no longer relevant
+      setOriginalLikeTimestamp(undefined);
+      
+      const result = await unlikeTotem(postId, totemName);
+      console.log('PostTotemClient - unlikeTotem completed successfully:', result);
+      
+      // Update the local state with the updated post
+      if (result && result.post) {
+        setPost(result.post);
+      } else {
+        // Fallback to fetching the post if the result doesn't include it
+        const updatedPost = await getPost(postId);
+        if (updatedPost) {
+          setPost(updatedPost);
+        }
+      }
+    } catch (err) {
+      console.error("Error unliking totem:", err);
+      setError(err instanceof Error ? err.message : "Failed to unlike totem");
+      
+      // If there was an error, put the totem back in our caches
+      likedTotemsRef.current.add(totemName);
+      if (currentUserId && globalLikedTotemsCache[currentUserId]) {
+        globalLikedTotemsCache[currentUserId].add(totemName);
+      }
+    } finally {
+      setIsLiking(false);
+    }
+  };
 
   const handleRefreshTotem = async (postId: string, totemName: string) => {
     setError(null);
     try {
+      // This is for general totem refresh (updating crispness)
       const updatedTotem = await refreshTotem(postId, totemName);
       if (!updatedTotem) {
         setError("Failed to refresh totem");
@@ -190,6 +224,32 @@ export function PostTotemClient({ initialPost, totemName }: PostTotemClientProps
       setError(err instanceof Error ? err.message : "Failed to refresh totem");
     }
   };
+  
+  const handleRefreshUserLike = async (postId: string, totemName: string) => {
+    setError(null);
+    try {
+      // This is specifically for refreshing a user's like timestamp
+      const result = await refreshUserLike(postId, totemName);
+      console.log('PostTotemClient - refreshUserLike completed successfully:', result);
+      
+      // Update the original timestamp to now since we've refreshed
+      setOriginalLikeTimestamp(Date.now());
+      
+      // Update the local state with the updated post
+      if (result && result.post) {
+        setPost(result.post);
+      } else {
+        // Fallback to fetching the post if the result doesn't include it
+        const updatedPost = await getPost(postId);
+        if (updatedPost) {
+          setPost(updatedPost);
+        }
+      }
+    } catch (err) {
+      console.error("Error refreshing user like:", err);
+      setError(err instanceof Error ? err.message : "Failed to refresh like");
+    }
+  };
 
   return (
     <>
@@ -202,7 +262,10 @@ export function PostTotemClient({ initialPost, totemName }: PostTotemClientProps
         totemName={totemName}
         posts={[post]}
         onLikeTotem={handleLikeTotem}
+        onUnlikeTotem={handleUnlikeTotem}
         onRefreshTotem={handleRefreshTotem}
+        onRefreshUserLike={handleRefreshUserLike}
+        originalLikeTimestamp={originalLikeTimestamp}
       />
     </>
   );

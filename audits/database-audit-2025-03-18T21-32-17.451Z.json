@@ -1,0 +1,432 @@
+{
+  "summary": {
+    "auditDate": "2025-03-18T21:32:17.451Z",
+    "collectionsAudited": [
+      "users",
+      "posts",
+      "totems"
+    ],
+    "totalCollections": 3
+  },
+  "collections": {
+    "users": {
+      "documentCount": 3,
+      "fields": {
+        "createdAt": {
+          "count": 3,
+          "types": {
+            "string": 2,
+            "Firestore Timestamp": 1
+          },
+          "examples": [
+            "2025-03-02T04:48:21.845Z",
+            "{\"seconds\":1741570919,\"nanoseconds\":951000000}",
+            "2025-03-02T03:48:34.527Z"
+          ],
+          "prevalence": 100
+        },
+        "verified": {
+          "count": 2,
+          "types": {
+            "boolean": 2
+          },
+          "examples": [
+            "true",
+            "false"
+          ],
+          "prevalence": 67
+        },
+        "userId": {
+          "count": 2,
+          "types": {
+            "null": 1,
+            "string": 1
+          },
+          "examples": [
+            "KyleNowak"
+          ],
+          "prevalence": 67
+        },
+        "firebaseUid": {
+          "count": 3,
+          "types": {
+            "string": 3
+          },
+          "examples": [
+            "87m5IWrx3pUplWg2eKVyg76bM5g1",
+            "KyleNowak",
+            "clyjW75O4zX5U1Bt4NondWlKQvu1"
+          ],
+          "prevalence": 100
+        },
+        "userID": {
+          "count": 2,
+          "types": {
+            "null": 2
+          },
+          "examples": [],
+          "prevalence": 67
+        },
+        "username": {
+          "count": 3,
+          "types": {
+            "string": 3
+          },
+          "examples": [
+            "KyleNowak",
+            "KyleNowak",
+            "user_clyjW75O"
+          ],
+          "prevalence": 100
+        },
+        "handle": {
+          "count": 2,
+          "types": {
+            "string": 2
+          },
+          "examples": [
+            "user87m5IWrx",
+            "userclyjW75O"
+          ],
+          "prevalence": 67
+        },
+        "verificationStatus": {
+          "count": 1,
+          "types": {
+            "string": 1
+          },
+          "examples": [
+            "email_verified"
+          ],
+          "prevalence": 33
+        },
+        "email": {
+          "count": 2,
+          "types": {
+            "string": 2
+          },
+          "examples": [
+            "knowak0924@gmail.com",
+            "test@example.com"
+          ],
+          "prevalence": 67
+        },
+        "name": {
+          "count": 3,
+          "types": {
+            "string": 3
+          },
+          "examples": [
+            "Kyle Nowak",
+            "KyleNowak",
+            "Default User"
+          ],
+          "prevalence": 100
+        },
+        "bio": {
+          "count": 1,
+          "types": {
+            "string": 1
+          },
+          "examples": [
+            ""
+          ],
+          "prevalence": 33
+        },
+        "following": {
+          "count": 2,
+          "types": {
+            "empty array": 2
+          },
+          "examples": [
+            "",
+            ""
+          ],
+          "prevalence": 67
+        },
+        "displayName": {
+          "count": 1,
+          "types": {
+            "string": 1
+          },
+          "examples": [
+            "KyleN"
+          ],
+          "prevalence": 33
+        },
+        "followers": {
+          "count": 1,
+          "types": {
+            "empty array": 1
+          },
+          "examples": [
+            ""
+          ],
+          "prevalence": 33
+        }
+      }
+    },
+    "posts": {
+      "documentCount": 17,
+      "fields": {
+        "answers": {
+          "count": 17,
+          "types": {
+            "array of object": 16,
+            "empty array": 1
+          },
+          "examples": [
+            "[object Object],[object Object],[object Object],[object Object]",
+            "[object Object],[object Object],[object Object],[object Object],[object Object],[object Object],[obj",
+            "[object Object]"
+          ],
+          "prevalence": 100
+        },
+        "question": {
+          "count": 17,
+          "types": {
+            "string": 17
+          },
+          "examples": [
+            "How do I live in the moment?",
+            "What is up:",
+            "What is happening in America today?"
+          ],
+          "prevalence": 100
+        },
+        "lastEngagement": {
+          "count": 6,
+          "types": {
+            "string": 1,
+            "Firestore Timestamp": 3,
+            "number": 2
+          },
+          "examples": [
+            "2025-03-12T05:35:57.868Z",
+            "{\"seconds\":1741844629,\"nanoseconds\":536000000}",
+            "1742186756915"
+          ],
+          "prevalence": 35
+        },
+        "answerUserIds": {
+          "count": 15,
+          "types": {
+            "array of string": 15
+          },
+          "examples": [
+            "87m5IWrx3pUplWg2eKVyg76bM5g1,87m5IWrx3pUplWg2eKVyg76bM5g1,87m5IWrx3pUplWg2eKVyg76bM5g1,87m5IWrx3pUpl",
+            "87m5IWrx3pUplWg2eKVyg76bM5g1,87m5IWrx3pUplWg2eKVyg76bM5g1,87m5IWrx3pUplWg2eKVyg76bM5g1,87m5IWrx3pUpl",
+            "87m5IWrx3pUplWg2eKVyg76bM5g1"
+          ],
+          "prevalence": 88
+        },
+        "name": {
+          "count": 16,
+          "types": {
+            "string": 16
+          },
+          "examples": [
+            "KyleNowak",
+            "user_clyjW75O",
+            "KyleNowak"
+          ],
+          "prevalence": 94
+        },
+        "answerUsernames": {
+          "count": 15,
+          "types": {
+            "array of string": 15
+          },
+          "examples": [
+            "KyleNowak,KyleNowak,KyleNowak,KyleNowak",
+            "KyleNowak,KyleNowak,KyleNowak,KyleNowak,KyleNowak,KyleNowak,KyleNowak,user_clyjW75O",
+            "KyleNowak"
+          ],
+          "prevalence": 88
+        },
+        "answerFirebaseUids": {
+          "count": 15,
+          "types": {
+            "array of string": 15
+          },
+          "examples": [
+            "87m5IWrx3pUplWg2eKVyg76bM5g1,87m5IWrx3pUplWg2eKVyg76bM5g1,87m5IWrx3pUplWg2eKVyg76bM5g1,87m5IWrx3pUpl",
+            "87m5IWrx3pUplWg2eKVyg76bM5g1,87m5IWrx3pUplWg2eKVyg76bM5g1,87m5IWrx3pUplWg2eKVyg76bM5g1,87m5IWrx3pUpl",
+            "87m5IWrx3pUplWg2eKVyg76bM5g1"
+          ],
+          "prevalence": 88
+        },
+        "createdAt": {
+          "count": 17,
+          "types": {
+            "Firestore Timestamp": 13,
+            "number": 2,
+            "string": 2
+          },
+          "examples": [
+            "{\"seconds\":1741233165,\"nanoseconds\":485000000}",
+            "1741201786349",
+            "{\"seconds\":1741202065,\"nanoseconds\":353000000}"
+          ],
+          "prevalence": 100
+        },
+        "userId": {
+          "count": 16,
+          "types": {
+            "string": 16
+          },
+          "examples": [
+            "87m5IWrx3pUplWg2eKVyg76bM5g1",
+            "clyjW75O4zX5U1Bt4NondWlKQvu1",
+            "87m5IWrx3pUplWg2eKVyg76bM5g1"
+          ],
+          "prevalence": 94
+        },
+        "firebaseUid": {
+          "count": 16,
+          "types": {
+            "string": 16
+          },
+          "examples": [
+            "87m5IWrx3pUplWg2eKVyg76bM5g1",
+            "clyjW75O4zX5U1Bt4NondWlKQvu1",
+            "87m5IWrx3pUplWg2eKVyg76bM5g1"
+          ],
+          "prevalence": 94
+        },
+        "username": {
+          "count": 16,
+          "types": {
+            "string": 16
+          },
+          "examples": [
+            "KyleNowak",
+            "user_clyjW75O",
+            "KyleNowak"
+          ],
+          "prevalence": 94
+        },
+        "timePosted": {
+          "count": 1,
+          "types": {
+            "Firestore Timestamp": 1
+          },
+          "examples": [
+            "{\"seconds\":1740858451,\"nanoseconds\":481000000}"
+          ],
+          "prevalence": 6
+        },
+        "categories": {
+          "count": 3,
+          "types": {
+            "empty array": 3
+          },
+          "examples": [
+            "",
+            "",
+            ""
+          ],
+          "prevalence": 18
+        },
+        "id": {
+          "count": 3,
+          "types": {
+            "string": 3
+          },
+          "examples": [
+            "Yywcbv3se136prlWSPi7",
+            "beNoDQsnIR10mduzSFUO",
+            "khleMdiBWBv2U3Giofor"
+          ],
+          "prevalence": 18
+        },
+        "score": {
+          "count": 3,
+          "types": {
+            "number": 3
+          },
+          "examples": [
+            "0",
+            "0",
+            "0"
+          ],
+          "prevalence": 18
+        },
+        "userName": {
+          "count": 2,
+          "types": {
+            "string": 2
+          },
+          "examples": [
+            "Kyle Nowak",
+            "Kyle Nowak"
+          ],
+          "prevalence": 12
+        },
+        "timestamp": {
+          "count": 1,
+          "types": {
+            "Firestore Timestamp": 1
+          },
+          "examples": [
+            "{\"seconds\":1740809294,\"nanoseconds\":834000000}"
+          ],
+          "prevalence": 6
+        }
+      }
+    },
+    "totems": {
+      "documentCount": 29,
+      "fields": {
+        "lastUsed": {
+          "count": 29,
+          "types": {
+            "Firestore Timestamp": 29
+          },
+          "examples": [
+            "{\"seconds\":1741757758,\"nanoseconds\":444000000}",
+            "{\"seconds\":1741232922,\"nanoseconds\":856000000}",
+            "{\"seconds\":1741232923,\"nanoseconds\":1000000}"
+          ],
+          "prevalence": 100
+        },
+        "answerRefs": {
+          "count": 29,
+          "types": {
+            "array of object": 29
+          },
+          "examples": [
+            "[object Object],[object Object]",
+            "[object Object]",
+            "[object Object]"
+          ],
+          "prevalence": 100
+        },
+        "usageCount": {
+          "count": 29,
+          "types": {
+            "number": 29
+          },
+          "examples": [
+            "2",
+            "1",
+            "1"
+          ],
+          "prevalence": 100
+        },
+        "name": {
+          "count": 29,
+          "types": {
+            "string": 29
+          },
+          "examples": [
+            "Action",
+            "America",
+            "Beauty"
+          ],
+          "prevalence": 100
+        }
+      }
+    }
+  }
+}

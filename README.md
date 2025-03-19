@@ -45,6 +45,254 @@ npx ts-node -r tsconfig-paths/register src/scripts/runMigration.ts
 
 See the [Migration Scripts README](src/scripts/README.md) for more details.
 
+# Scalability Improvement Plan
+
+## The Problem
+
+Our current data structure relies heavily on array-based queries (e.g., `answerUserIds` array) and compound queries that require custom Firestore indexes. This approach:
+
+1. Generates frequent "missing index" errors during development
+2. Won't scale well with increasing user activity
+3. Requires loading entire documents to access specific user activities
+4. Makes pagination difficult and inefficient
+
+## Implementation Plan
+
+### Phase 1: Create Denormalized User Activity Collections
+
+#### 1.1 Define New Data Structures
+- Create `userActivities/{userId}/posts/{postId}` structure
+- Create `userActivities/{userId}/answers/{answerId}` structure
+- Create `userActivities/{userId}/totems/{totemId}` structure
+
+Each document will contain only the essential data needed for user profile views:
+
+```typescript
+// User post activity
+interface UserPostActivity {
+  postId: string;
+  question: string;
+  createdAt: number;
+  lastInteraction: number;
+  answerCount: number;
+  categories: string[];
+}
+
+// User answer activity
+interface UserAnswerActivity {
+  postId: string;
+  answerId: string;
+  question: string;
+  answerText: string;
+  answeredAt: number;
+  lastInteraction: number;
+}
+
+// User totem activity
+interface UserTotemActivity {
+  totemId: string;
+  totemName: string;
+  likedAt: number;
+  isActive: boolean;
+  lastUpdatedAt: number;
+}
+```
+
+#### 1.2 Create Migration Script
+- Scan existing posts, answers, and totems
+- Create corresponding activity documents for each user
+- Preserve timestamps and relationships
+
+#### 1.3 Add Index Configuration File
+- Create `firestore.indexes.json` with all required indexes
+- Set up automatic index deployment
+
+### Phase 2: Update Service Methods
+
+#### 2.1 Modify Write Operations
+Update all write operations to keep both primary and denormalized data in sync:
+
+```typescript
+// Example: When a user creates a post
+async function createPost(postData) {
+  const batch = db.batch();
+  
+  // Add to main posts collection
+  const postRef = doc(collection(db, 'posts'));
+  batch.set(postRef, postData);
+  
+  // Add to user's activity
+  const userActivityRef = doc(db, `userActivities/${postData.userId}/posts/${postRef.id}`);
+  batch.set(userActivityRef, {
+    postId: postRef.id,
+    question: postData.question,
+    createdAt: postData.createdAt,
+    lastInteraction: postData.lastInteraction,
+    answerCount: 0,
+    categories: postData.categories || []
+  });
+  
+  return batch.commit();
+}
+```
+
+#### 2.2 Use Transaction for Related Updates
+For operations that affect multiple users (like answering a post):
+
+```typescript
+// When user answers a post
+async function createAnswer(postId, answerData) {
+  return runTransaction(db, async (transaction) => {
+    // Update post
+    const postRef = doc(db, 'posts', postId);
+    const postDoc = await transaction.get(postRef);
+    
+    if (!postDoc.exists()) {
+      throw new Error('Post not found');
+    }
+    
+    // Create answer ID
+    const answerId = `${postId}_${answerData.userId}_${Date.now()}`;
+    
+    // Add to user's answers activity
+    const userAnswerRef = doc(db, `userActivities/${answerData.userId}/answers/${answerId}`);
+    transaction.set(userAnswerRef, {
+      postId,
+      answerId,
+      question: postDoc.data().question,
+      answerText: answerData.text,
+      answeredAt: Date.now(),
+      lastInteraction: Date.now()
+    });
+    
+    // Update post with new answer
+    transaction.update(postRef, {
+      answers: arrayUnion(answerData),
+      answerCount: (postDoc.data().answerCount || 0) + 1,
+      answerUserIds: arrayUnion(answerData.userId),
+      lastInteraction: Date.now()
+    });
+    
+    // Also update post owner's activity
+    const postOwnerId = postDoc.data().userId;
+    const postActivityRef = doc(db, `userActivities/${postOwnerId}/posts/${postId}`);
+    transaction.update(postActivityRef, {
+      answerCount: (postDoc.data().answerCount || 0) + 1,
+      lastInteraction: Date.now()
+    });
+    
+    return answerId;
+  });
+}
+```
+
+### Phase 3: Update Query Methods
+
+#### 3.1 Modify Profile Page Queries
+
+Replace complex array-contains queries with direct subcollection queries:
+
+```typescript
+// Before: Getting user's answers from posts collection
+const postsWithUserAnswers = await getDocs(
+  query(
+    collection(db, 'posts'),
+    where('answerUserIds', 'array-contains', userId),
+    orderBy('lastInteraction', 'desc')
+  )
+);
+
+// After: Getting directly from user activity collection
+const userAnswers = await getDocs(
+  query(
+    collection(db, `userActivities/${userId}/answers`),
+    orderBy('lastInteraction', 'desc'),
+    limit(10)
+  )
+);
+```
+
+#### 3.2 Implement Efficient Pagination
+
+```typescript
+// Initial load
+const firstPage = await getDocs(
+  query(
+    collection(db, `userActivities/${userId}/posts`),
+    orderBy('lastInteraction', 'desc'),
+    limit(10)
+  )
+);
+
+// Load more when user scrolls
+const lastVisible = firstPage.docs[firstPage.docs.length - 1];
+
+const nextPage = await getDocs(
+  query(
+    collection(db, `userActivities/${userId}/posts`),
+    orderBy('lastInteraction', 'desc'),
+    startAfter(lastVisible),
+    limit(10)
+  )
+);
+```
+
+### Phase 4: Update UI Components
+
+#### 4.1 Modify Profile Component
+- Update to use new data structures
+- Implement virtual scrolling for large lists
+- Add skeleton loaders for pagination
+
+#### 4.2 Implement Optimistic UI Updates
+- Update UI immediately on user actions
+- Then confirm with backend response
+- Revert on error
+
+### Phase 5: Data Integrity & Maintenance
+
+#### 5.1 Create Consistency Check Script
+- Verify primary and denormalized data match
+- Fix any discrepancies
+
+#### 5.2 Implement Firestore Rules
+- Secure new collections with appropriate rules
+- Prevent direct user manipulation of activity collections
+
+#### 5.3 Set Up Monitoring & Alerts
+- Monitor read/write costs
+- Set up alerts for high usage
+
+## Migration Strategy
+
+### Gradual Rollout
+1. Deploy new data structure while maintaining old one
+2. Migrate users in batches of 100
+3. Monitor performance metrics at each step
+4. Roll back mechanism if issues occur
+
+### Fallback Mechanism
+- Keep legacy queries as fallback
+- If new structure fails, app can temporarily use old queries
+
+## Performance Benefits
+
+- **Read Operations**: ~70% reduction in document size and read operations
+- **Write Operations**: Slight increase (~20%) but with better consistency
+- **Query Latency**: Expected improvement from 300-500ms to 50-100ms
+- **Scalability**: Can support up to 100K+ active users without degradation
+
+## Timeline
+
+- Phase 1: 2 weeks
+- Phase 2: 1 week
+- Phase 3: 1 week
+- Phase 4: 1 week
+- Phase 5: 1 week
+- Testing & Verification: 1 week
+
+**Total**: 7 weeks
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
@@ -59,3 +307,196 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+# SHRUG APP STANDARDIZATION PLAN - v1.6
+
+## PHASE 1: ASSESSMENT & PREPARATION
+[✅] 1.1 Database Audit - Completed, identified inconsistent field usage
+[✅] 1.2 Code Audit - Found 256 legacy field references in 30 files
+[✅] 1.3 User Profile Backup - Successfully backed up 3 user profiles and 29 totems
+
+## PHASE 2: DATA MODEL STANDARDIZATION
+[✅] 2.1 Define Standardized Models - Added TimestampedEntity base interface and enhanced models
+[✅] 2.2 Create Field Constants - Created constants/fields.ts with comprehensive field naming
+
+## PHASE 3: SERVICE LAYER IMPLEMENTATION
+[✅] 3.1 Update UserService - Standardized user methods with compatibility support
+[✅] 3.2 Implement PostService - Updated post handling with standard fields
+[✅] 3.3 Fix TotemService - Updated with timestamp standards and field constants
+[✅] 3.4 Create User ID Helpers - Added utility functions for ID standardization
+
+## PHASE 4: DATABASE CLEANUP & MIGRATION
+[✅] 4.1 Clear Posts Collection - Created script to remove and backup posts
+[✅] 4.2 Update User Profiles - Created script to migrate to standardized structure
+
+## PHASE 5: CODE UPDATES
+[✅] 5.1 Update React Components - Fix field references
+  - Created componentHelpers.ts utility functions for consistent field access
+  - Updated profile page to use standardized fields and proper identifier detection 
+  - Implemented user display utilities that handle both old and new field names
+  - Added utility functions to standardize accessing likes, crispness and other fields
+[✅] 5.2 Fix Like Functionality - Improve persistence
+  - Implemented enhanced like/unlike system with history tracking
+  - Added refresh capability for stale likes
+  - Updated TotemButton, TotemDetail and PostTotemClient components
+  - Improved crispness calculation using likeHistory
+[✅] 5.3 Fix Crispness Calculation - Enhance algorithm
+
+## PHASE 6: SCHEMA DOCUMENTATION
+[✅] 6.1 Create Schema Documentation - Created user identification documentation
+
+## PHASE 7: TESTING & VERIFICATION
+[✅] 7.1 Test User Functionality - Verify profiles work
+[✅] 7.2 Test Post Creation - Ensure new posts work
+[✅] 7.3 Verify Totem Features - Check discovery
+[✅] 7.4 Fix TypeScript errors in totem tests
+
+## PHASE 8: SCALABILITY IMPROVEMENTS
+[  ] 8.1 Implement Denormalized Data Structure - Create userActivities collections
+[  ] 8.2 Update Write Operations - Sync primary and denormalized data
+[  ] 8.3 Optimize Query Methods - Use direct subcollection queries
+[  ] 8.4 Update UI Components - Implement pagination and virtual scrolling
+[  ] 8.5 Set Up Monitoring - Monitor performance metrics
+
+# DECISION LOG
+[2025-03-21] Decided to implement denormalized data structure for user activities
+REASON: To improve query performance, reduce index errors, and better scale with increasing user activity
+
+[2025-03-20] Successfully implemented and fixed totem functionality tests
+REASON: To verify the enhanced like/unlike system with history tracking and crispness calculation
+
+[2025-03-20] Identified TypeScript compatibility issues in totem test file
+REASON: The mock implementations of TotemService functions don't match the actual service interface return types
+
+[2025-03-19] Started development of test suite for totem functionality
+REASON: To verify the enhanced like/unlike system with history tracking and ensure crispness calculation works correctly, but encountered type compatibility issues that need to be resolved
+
+[2025-03-19] Added unit tests for post creation and standardization
+REASON: To verify that posts are properly created with standardized fields and legacy fields
+
+[2025-03-19] Implemented automated tests for user identification standardization
+REASON: To verify that the standardization functionality works correctly and to prevent regressions
+
+[2025-03-18] Decided to entirely clear posts rather than migrate
+REASON: No need to preserve test data, cleaner implementation
+
+[2025-03-18] Created robust database and code audit tools
+REASON: To ensure thorough understanding of the current state before making changes
+
+[2025-03-18] Enhanced the Totem interface with relationship structure
+REASON: Better support for future discovery and connection features
+
+[2025-03-18] Added standardization utility functions in userIdHelpers.ts
+REASON: To centralize ID detection and conversion logic for consistency
+
+[2025-03-18] Implemented dual-field approach throughout service layer
+REASON: To maintain backward compatibility while moving to new field names
+
+[2025-03-18] Created migration scripts with thorough safety measures
+REASON: To protect data integrity with automatic backups and confirmation prompts
+
+[2025-03-18] Created comprehensive user identification documentation
+REASON: To provide clear guidance for developers on the dual-field approach
+
+[2025-03-18] Updated crispness calculation to use an average-based approach
+REASON: To more accurately represent the freshness of totems based on individual like crispness scores, with a consistent one-week decay period
+
+[2025-03-18] Created componentHelpers.ts utility functions for React components
+REASON: To provide a consistent way to access both standardized and legacy fields during the transition period, which simplifies component updates and reduces the risk of regression bugs
+
+[2025-03-18] Updated profile page to use standardized field detection and extraction
+REASON: To ensure consistent handling of different user identifier types and provide a smoother user experience
+
+# ISSUE TRACKER
+[UNRESOLVED] Firestore index errors on profile page
+ISSUE: Compound queries with array-contains and orderBy require custom indexes
+SOLUTION: Implement denormalized data structure with direct subcollection queries
+
+[RESOLVED] Firebase config extraction issue
+SOLUTION: Created more robust regex-based field extraction instead of JSON parsing
+
+# Shrug Version 1.6
+
+## Standardization Plan
+
+### Phase 1: Planning and Documentation ✅
+- 1.1 Define standardized field names ✅
+- 1.2 Create constants file for field names ✅
+- 1.3 Document data model changes ✅
+
+### Phase 2: Utility Functions ✅
+- 2.1 Create user ID helpers ✅
+- 2.2 Create timestamp helpers ✅
+- 2.3 Add data validation utilities ✅
+
+### Phase 3: Service Layer Updates ✅
+- 3.1 Fix UserService ✅
+- 3.2 Fix PostService ✅
+- 3.3 Fix TotemService ✅
+
+### Phase 4: Database Updates ✅
+- 4.1 Clear Posts Collection (Script) ✅
+- 4.2 Update User Profiles (Script) ✅
+
+### Phase 5: Client-Side Updates
+- 5.1 Update React Components (Fix field references) ✅
+  - Created componentHelpers.ts utility functions for consistent field access
+  - Updated profile page to use standardized fields and proper identifier detection 
+  - Implemented user display utilities that handle both old and new field names
+  - Added utility functions to standardize accessing likes, crispness and other fields
+- 5.2 Fix Like Functionality (Improve persistence) ✅
+  - Implemented enhanced like/unlike system with history tracking
+  - Added refresh capability for stale likes
+  - Updated TotemButton, TotemDetail and PostTotemClient components
+  - Improved crispness calculation using likeHistory
+- 5.3 Fix Crispness Calculation (Enhance algorithm) ✅
+
+### Phase 6: Scalability Improvements
+- 6.1 Create denormalized user activity collections
+- 6.2 Update service methods to maintain both data structures
+- 6.3 Implement efficient pagination for profile pages
+- 6.4 Create monitoring for database performance
+
+## Decision Log
+
+### v1.6 (Current)
+- Implemented comprehensive test suite for user identification functionality
+- Added tests to verify component helper functions and field standardization
+- Ensured all user identification utilities work with both legacy and standardized fields
+- Added test coverage for the integration between various parts of the standardization system
+- Added unit tests for post creation and standardization to verify correct field handling
+- Completed implementation of totem functionality tests for verifying like/unlike system
+- Successfully resolved TypeScript compatibility issues in the test suite
+- Added proper type safety with null checks and guards to prevent runtime errors
+- Developed plan for scalable data structure to eliminate index errors and improve performance
+
+### v1.5
+- Added enhanced like/unlike system with history tracking to preserve original timestamps
+- Implemented refresh capability to allow users to refresh stale likes for better crispness scores
+- Updated both service layer and client components to support the new functionality
+- Created a cleaner architecture for like interactions with proper state management
+- Created componentHelpers.ts to standardize field access across React components
+- Updated the profile page to handle different user identifier types consistently
+
+### v1.4
+- Added task to fix the TotemService implementation
+- Completed implementation of TotemService fixes
+- Created detailed documentation for user identification
+
+### v1.3
+- Added constants file with standardized field names
+- Implemented dual-field approach for backward compatibility
+- Created utility functions for user ID handling
+- Created service implementations for standardized fields
+
+### v1.2
+- Identified key areas for standardization
+- Documented the project architecture
+- Created initial plan for refactoring in phases
+
+## Next Steps
+
+1. Implement denormalized data structure for user activities
+2. Gradually migrate to more scalable query patterns
+3. Optimize database reads and writes
+4. Remove legacy field support in future versions

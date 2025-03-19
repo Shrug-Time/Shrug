@@ -8,6 +8,8 @@ import { auth } from '@/firebase';
 import Link from 'next/link';
 import { SimilarityService } from '@/services/similarity';
 import { InfiniteScroll } from '@/components/common/InfiniteScroll';
+import { USER_FIELDS } from '@/constants/fields';
+import { getUserDisplayName, getTotemLikes, getTotemCrispness } from '@/utils/componentHelpers';
 
 // Helper function to safely convert various date formats to a Date object
 const toDate = (dateField: any): Date => {
@@ -77,10 +79,12 @@ export function QuestionList({
   }, []);
 
   const getBestTotem = useCallback((answer: Answer) => {
-    if (!answer.totems || answer.totems.length === 0) return null;
-    return answer.totems.reduce((best, current) => 
-      current.likes > best.likes ? current : best
-    );
+    if (!answer.totems?.length) return null;
+    
+    // Find totem with the most likes
+    return answer.totems.reduce((best, current) => {
+      return getTotemLikes(current) > getTotemLikes(best) ? current : best;
+    }, answer.totems[0]);
   }, []);
 
   const renderAnswer = useCallback((post: Post, answer: Answer, index: number, isBestAnswer: boolean = false) => {
@@ -101,8 +105,8 @@ export function QuestionList({
             <TotemButton
               key={bestTotem.name}
               name={bestTotem.name}
-              likes={bestTotem.likes}
-              crispness={bestTotem.crispness}
+              likes={getTotemLikes(bestTotem)}
+              crispness={getTotemCrispness(bestTotem)}
               onLike={() => handleInteraction(() => onLikeTotem(post, index, bestTotem.name))}
               onRefresh={() => handleInteraction(() => onRefreshTotem(post, index, bestTotem.name))}
               postId={post.id}
@@ -115,7 +119,7 @@ export function QuestionList({
           </div>
           
           <div className="text-sm text-gray-500">
-            {formatDistanceToNow(answer.createdAt, { addSuffix: true })} by {answer.userName || 'Anonymous'}
+            {formatDistanceToNow(answer.createdAt, { addSuffix: true })} by {getUserDisplayName(answer)}
           </div>
         </div>
       </div>
@@ -177,8 +181,8 @@ export function QuestionList({
                         <TotemButton
                           key={bestTotem.name}
                           name={bestTotem.name}
-                          likes={bestTotem.likes}
-                          crispness={bestTotem.crispness}
+                          likes={getTotemLikes(bestTotem)}
+                          crispness={getTotemCrispness(bestTotem)}
                           onLike={() => handleInteraction(() => onLikeTotem(post, index, bestTotem.name))}
                           onRefresh={() => handleInteraction(() => onRefreshTotem(post, index, bestTotem.name))}
                           postId={post.id}
@@ -193,7 +197,7 @@ export function QuestionList({
                   </div>
                   
                   <div className="text-sm text-gray-500">
-                    {formatDistanceToNow(answer.createdAt, { addSuffix: true })} by {answer.userName || 'Anonymous'}
+                    {formatDistanceToNow(answer.createdAt, { addSuffix: true })} by {getUserDisplayName(answer)}
                   </div>
                 </div>
               </div>
@@ -240,8 +244,8 @@ export function QuestionList({
                       <TotemButton
                         key={bestTotem.name}
                         name={bestTotem.name}
-                        likes={bestTotem.likes}
-                        crispness={bestTotem.crispness}
+                        likes={getTotemLikes(bestTotem)}
+                        crispness={getTotemCrispness(bestTotem)}
                         onLike={() => handleInteraction(() => onLikeTotem(post, bestAnswer.index, bestTotem.name))}
                         onRefresh={() => handleInteraction(() => onRefreshTotem(post, bestAnswer.index, bestTotem.name))}
                         postId={post.id}
@@ -266,7 +270,7 @@ export function QuestionList({
           </div>
           
           <div className="text-sm text-gray-500">
-            {formatDistanceToNow(toDate(post.createdAt), { addSuffix: true })} by {post.userName || 'Anonymous'}
+            {formatDistanceToNow(toDate(post.createdAt), { addSuffix: true })} by {getUserDisplayName(post)}
           </div>
         </div>
       </div>

@@ -51,9 +51,13 @@ export async function getPostsForTotem(totemName: string): Promise<Post[]> {
 /**
  * Update the likes for a totem in a post
  */
-export async function updateTotemLikes(postId: string, totemName: string) {
+export async function updateTotemLikes(
+  postId: string, 
+  totemName: string,
+  isUnlike: boolean = false
+) {
   try {
-    console.log('updateTotemLikes - Starting with postId:', postId, 'totemName:', totemName);
+    console.log(`updateTotemLikes - Starting ${isUnlike ? 'unlike' : 'like'} operation with postId:`, postId, 'totemName:', totemName);
     
     // Get the post document
     const postDoc = await getDoc(doc(db, 'posts', postId));
@@ -62,47 +66,104 @@ export async function updateTotemLikes(postId: string, totemName: string) {
       throw new Error('Post not found');
     }
     
-    const post = postDoc.data() as Post;
+    const post = { id: postId, ...postDoc.data() } as Post;
     console.log('updateTotemLikes - Post retrieved:', JSON.stringify({
       id: post.id,
       question: post.question,
       answersCount: post.answers.length
     }));
     
-    // Get the current user
+    // Ensure user is logged in
     const currentUser = auth.currentUser;
     if (!currentUser) {
       console.error('updateTotemLikes - User not logged in');
       throw new Error('You must be logged in to like a totem');
     }
-    console.log('updateTotemLikes - Current user:', currentUser.uid);
     
-    // Find the answer with the totem
+    // Find the answer containing the totem
     const answerIndex = post.answers.findIndex(answer => 
-      answer.totems.some(totem => totem.name === totemName)
+      answer.totems?.some(totem => totem.name === totemName)
     );
     
     if (answerIndex === -1) {
       console.error('updateTotemLikes - Totem not found in any answer');
-      throw new Error('Totem not found in any answer');
+      throw new Error('Totem not found in post');
     }
+    
     console.log('updateTotemLikes - Found totem in answer index:', answerIndex);
     
-    // Check if the totem exists in the answer
-    const totem = post.answers[answerIndex].totems.find(t => t.name === totemName);
+    // Find the totem in the answer
+    const answer = post.answers[answerIndex];
+    const totem = answer.totems.find(totem => totem.name === totemName);
+    
     console.log('updateTotemLikes - Totem before update:', JSON.stringify(totem));
     
-    // Update the totem likes
-    await TotemService.handleTotemLike(post, answerIndex, totemName, currentUser.uid);
-    console.log('updateTotemLikes - Successfully updated totem likes');
+    // Call the TotemService to handle the like/unlike
+    const result = await TotemService.handleTotemLike(post, answerIndex, totemName, currentUser.uid, isUnlike);
+    console.log(`updateTotemLikes - Successfully ${isUnlike ? 'unliked' : 'liked'} totem`);
     
-    return { success: true };
+    return result;
+    
   } catch (error) {
     console.error('Error updating totem likes:', error);
     throw error;
   }
 }
 
+/**
+ * Unlike a totem in a post
+ */
+export async function unlikeTotem(postId: string, totemName: string) {
+  return updateTotemLikes(postId, totemName, true);
+}
+
+/**
+ * Refresh a user's like on a totem
+ */
+export async function refreshUserLike(postId: string, totemName: string) {
+  try {
+    console.log('refreshUserLike - Starting with postId:', postId, 'totemName:', totemName);
+    
+    // Get the post document
+    const postDoc = await getDoc(doc(db, 'posts', postId));
+    if (!postDoc.exists()) {
+      console.error('refreshUserLike - Post not found');
+      throw new Error('Post not found');
+    }
+    
+    const post = { id: postId, ...postDoc.data() } as Post;
+    
+    // Ensure user is logged in
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      console.error('refreshUserLike - User not logged in');
+      throw new Error('You must be logged in to refresh a like');
+    }
+    
+    // Find the answer containing the totem
+    const answerIndex = post.answers.findIndex(answer => 
+      answer.totems?.some(totem => totem.name === totemName)
+    );
+    
+    if (answerIndex === -1) {
+      console.error('refreshUserLike - Totem not found in any answer');
+      throw new Error('Totem not found in post');
+    }
+    
+    // Call the TotemService to handle the refresh
+    const result = await TotemService.refreshUserLike(post, answerIndex, totemName, currentUser.uid);
+    console.log('refreshUserLike - Successfully refreshed like');
+    
+    return result;
+  } catch (error) {
+    console.error('Error refreshing user like:', error);
+    throw error;
+  }
+}
+
+/**
+ * Refresh a totem's crispness based on all its likes
+ */
 export async function refreshTotem(postId: string, totemName: string): Promise<{ crispness: number } | null> {
   try {
     console.log('refreshTotem - Starting with postId:', postId, 'totemName:', totemName);
@@ -175,11 +236,46 @@ export async function refreshTotem(postId: string, totemName: string): Promise<{
     });
     
     // Recalculate crispness based on like history
-    const newCrispness = TotemService.calculateCrispness(
-      likeValues,
-      likeTimes,
-      totem.decayModel
-    );
+    let newCrispness = 0;
+    
+    if (totem.likeHistory && totem.likeHistory.length > 0) {
+      // If totem has the new likeHistory array, use it to calculate crispness
+      // This will be calculated by filtering active likes and using their original timestamps
+      const activeLikes = totem.likeHistory.filter(like => like.isActive);
+      if (activeLikes.length > 0) {
+        // Calculate based on original timestamps of active likes
+        const now = Date.now();
+        const decayPeriod = 7 * 24 * 60 * 60 * 1000; // 1 week (FAST)
+        
+        // Calculate individual crispness values
+        const individualCrispnessValues = activeLikes.map(like => {
+          const timeSinceLike = now - like.originalTimestamp;
+          return Math.max(0, 100 * (1 - (timeSinceLike / decayPeriod)));
+        });
+        
+        // Calculate average crispness
+        const totalCrispness = individualCrispnessValues.reduce((sum, val) => sum + val, 0);
+        newCrispness = parseFloat((totalCrispness / activeLikes.length).toFixed(2));
+      }
+    } else if (likeTimes.length > 0 && likeValues.length > 0) {
+      // Legacy calculation if the new likeHistory is not available
+      // This will use the existing likeTimes and likeValues arrays
+      const now = Date.now();
+      const decayPeriod = 7 * 24 * 60 * 60 * 1000; // 1 week (FAST)
+      
+      // Calculate individual crispness values
+      const individualCrispnessValues = likeTimes.map(timestamp => {
+        const likeTime = typeof timestamp === 'string' 
+          ? new Date(timestamp).getTime() 
+          : timestamp;
+        const timeSinceLike = now - likeTime;
+        return Math.max(0, 100 * (1 - (timeSinceLike / decayPeriod)));
+      });
+      
+      // Calculate average crispness
+      const totalCrispness = individualCrispnessValues.reduce((sum, val) => sum + val, 0);
+      newCrispness = parseFloat((totalCrispness / individualCrispnessValues.length).toFixed(2));
+    }
     
     console.log('refreshTotem - New crispness calculated:', newCrispness);
     
