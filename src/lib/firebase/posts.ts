@@ -59,6 +59,11 @@ export async function updateTotemLikes(
   try {
     console.log(`updateTotemLikes - Starting ${isUnlike ? 'unlike' : 'like'} operation with postId:`, postId, 'totemName:', totemName);
     
+    if (!postId || !totemName) {
+      console.error('updateTotemLikes - Invalid postId or totemName', { postId, totemName });
+      throw new Error('Invalid postId or totemName');
+    }
+    
     // Get the post document
     const postDoc = await getDoc(doc(db, 'posts', postId));
     if (!postDoc.exists()) {
@@ -70,7 +75,7 @@ export async function updateTotemLikes(
     console.log('updateTotemLikes - Post retrieved:', JSON.stringify({
       id: post.id,
       question: post.question,
-      answersCount: post.answers.length
+      answersCount: post.answers?.length || 0
     }));
     
     // Ensure user is logged in
@@ -78,6 +83,12 @@ export async function updateTotemLikes(
     if (!currentUser) {
       console.error('updateTotemLikes - User not logged in');
       throw new Error('You must be logged in to like a totem');
+    }
+    
+    // Validate post structure
+    if (!post.answers || !Array.isArray(post.answers)) {
+      console.error('updateTotemLikes - Post has no answers array');
+      throw new Error('Post has invalid structure');
     }
     
     // Find the answer containing the totem
@@ -94,13 +105,30 @@ export async function updateTotemLikes(
     
     // Find the totem in the answer
     const answer = post.answers[answerIndex];
-    const totem = answer.totems.find(totem => totem.name === totemName);
+    if (!answer.totems || !Array.isArray(answer.totems)) {
+      console.error('updateTotemLikes - Answer has no totems array');
+      throw new Error('Answer has invalid structure');
+    }
     
-    console.log('updateTotemLikes - Totem before update:', JSON.stringify(totem));
+    const totem = answer.totems.find(totem => totem.name === totemName);
+    if (!totem) {
+      console.error('updateTotemLikes - Totem not found in answer');
+      throw new Error('Totem not found in answer');
+    }
+    
+    console.log('updateTotemLikes - Totem before update:', JSON.stringify({
+      name: totem.name,
+      likes: totem.likes,
+      likedBy: totem.likedBy?.length || 0,
+      likeHistory: totem.likeHistory?.length || 0
+    }));
     
     // Call the TotemService to handle the like/unlike
     const result = await TotemService.handleTotemLike(post, answerIndex, totemName, currentUser.uid, isUnlike);
-    console.log(`updateTotemLikes - Successfully ${isUnlike ? 'unliked' : 'liked'} totem`);
+    console.log(`updateTotemLikes - Successfully ${isUnlike ? 'unliked' : 'liked'} totem. Result:`, {
+      success: result.success,
+      action: result.action
+    });
     
     return result;
     
@@ -114,7 +142,18 @@ export async function updateTotemLikes(
  * Unlike a totem in a post
  */
 export async function unlikeTotem(postId: string, totemName: string) {
-  return updateTotemLikes(postId, totemName, true);
+  console.log(`unlikeTotem - Starting for postId: ${postId}, totemName: ${totemName}`);
+  console.log(`unlikeTotem - About to call updateTotemLikes with isUnlike=true`);
+  
+  try {
+    // Call updateTotemLikes with isUnlike set to true
+    const result = await updateTotemLikes(postId, totemName, true);
+    console.log(`unlikeTotem - Result from updateTotemLikes:`, result);
+    return result;
+  } catch (error) {
+    console.error(`unlikeTotem - Error from updateTotemLikes:`, error);
+    throw error;
+  }
 }
 
 /**

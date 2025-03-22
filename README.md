@@ -352,6 +352,7 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 [✅] 7.4 Fix TypeScript errors in totem tests
 
 ## PHASE 8: SCALABILITY IMPROVEMENTS
+[  ] 8.0 Complete Legacy Field Removal - Execute v2.0 plan to remove dual-field approach
 [  ] 8.1 Implement Denormalized Data Structure - Create userActivities collections
 [  ] 8.2 Update Write Operations - Sync primary and denormalized data
 [  ] 8.3 Optimize Query Methods - Use direct subcollection queries
@@ -359,6 +360,21 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 [  ] 8.5 Set Up Monitoring - Monitor performance metrics
 
 # DECISION LOG
+[2025-03-29] Identified significant implementation issues and reordered priorities
+REASON: To focus on fixing critical functionality problems before adding new features
+
+[2025-03-28] Decided to implement a structured development workflow with communication templates
+REASON: To maintain focus on goals, streamline communication, and ensure critical decisions are properly documented and validated
+
+[2025-03-27] Decided to add cross-user content saving to the organization system
+REASON: To enable users to curate collections containing their own and others' content, creating a discovery mechanism and building community connections
+
+[2025-03-26] Decided to implement user content organization system with collections and folders
+REASON: To fulfill section 4.3 of the product spec, enabling users to organize content in hierarchical structures and prepare for future monetization features
+
+[2025-03-25] Decided to completely remove legacy field support before implementing scalability improvements
+REASON: To simplify the codebase, improve maintainability, and create a clean foundation for denormalized data structure
+
 [2025-03-21] Decided to implement denormalized data structure for user activities
 REASON: To improve query performance, reduce index errors, and better scale with increasing user activity
 
@@ -406,6 +422,69 @@ REASON: To provide a consistent way to access both standardized and legacy field
 
 [2025-03-18] Updated profile page to use standardized field detection and extraction
 REASON: To ensure consistent handling of different user identifier types and provide a smoother user experience
+
+[2025-03-28] **Added Checkpoint Decision Points to User Content Organization Plan**:
+Checkpoints will be added to verify the implementation direction with product owners at critical decision points.
+- REASON: Ensure alignment with product vision throughout the development process.
+
+[2025-03-29] **Prioritized Implementation Issues Over New Features**:
+Critical implementation issues in the current codebase must be addressed before adding new features.
+- REASON: Foundational problems need to be fixed to ensure a stable platform for future features.
+
+[2025-03-30] **Established Database Security as Top Priority**:
+Implementation of comprehensive Firestore security rules has been made the highest priority task.
+- REASON: Proper security rules are essential for data integrity, user privacy, and prevent potential data corruption or unauthorized access as the application scales.
+
+# IMPLEMENTATION STATUS AND PRIORITIES
+
+## Current Issues
+
+⚠️ **IMPLEMENTATION ISSUES DETECTED**: The current implementation has significant issues that need to be addressed. While the standardization plan has made progress, there are fundamental problems with the implementation that require focused attention.
+
+Detailed analysis of these issues will be conducted separately, but the following areas require immediate attention:
+- Core functionality implementation issues
+- Data consistency problems
+- Performance bottlenecks
+- Structural code organization
+- Database security vulnerabilities
+
+## Priority Order
+
+To ensure the project progresses effectively, the following priority order should be strictly followed:
+
+1. **Implement Database Security Rules** - Establish comprehensive Firestore security rules to protect data integrity and user privacy
+2. **Fix Implementation Issues** - Address core functionality bugs and implementation problems
+3. **Complete Legacy Field Removal** - Clean up the codebase by removing dual-field approach
+4. **Implement Scalability Improvements** - Add denormalized data structure to improve performance
+5. **Add User Content Organization** - Enable folder-based content organization for users
+
+## Implementation Approach
+
+For each priority area:
+1. Start with a comprehensive audit
+2. Document findings using the established templates
+3. Create a detailed plan with clear decision points
+4. Execute in small, testable increments
+5. Validate against clear completion criteria
+
+## Timeline Adjustments
+
+Due to the implementation issues, the previously estimated timelines may need adjustment. As we assess the extent of the problems, we should:
+1. Be realistic about required fixes
+2. Focus on quality over speed
+3. Build proper test coverage alongside fixes
+4. Document lessons learned to prevent similar issues
+
+### v1.6 (Current)
+- Implemented comprehensive test suite for user identification functionality
+- Added tests to verify component helper functions and field standardization
+- Ensured all user identification utilities work with both legacy and standardized fields
+- Added test coverage for the integration between various parts of the standardization system
+- Added unit tests for post creation and standardization to verify correct field handling
+- Completed implementation of totem functionality tests for verifying like/unlike system
+- Successfully resolved TypeScript compatibility issues in the test suite
+- Added proper type safety with null checks and guards to prevent runtime errors
+- Developed plan for scalable data structure to eliminate index errors and improve performance
 
 # ISSUE TRACKER
 [UNRESOLVED] Firestore index errors on profile page
@@ -500,3 +579,654 @@ SOLUTION: Created more robust regex-based field extraction instead of JSON parsi
 2. Gradually migrate to more scalable query patterns
 3. Optimize database reads and writes
 4. Remove legacy field support in future versions
+
+
+# LEGACY FIELD REMOVAL PLAN - v2.0
+
+This plan outlines the process to completely remove all legacy field support from the codebase, creating a cleaner foundation for scalability improvements.
+
+## PHASE LR1: PREPARATION (0.5 DAYS)
+[ ] 1.1 Generate Updated Audit Report - Use existing `src/scripts/codeAudit.js` to identify all legacy field usage
+[ ] 1.2 Create Backup - Leverage `src/scripts/updateUserProfiles.js` backup functionality for safety
+
+## PHASE LR2: SERVICE LAYER CLEANUP (1.5 DAYS)
+[ ] 2.1 Clean UserService - Remove legacy field handling from `standardizeUserData()`
+[ ] 2.2 Update TotemService - Remove dual-field support in all totem functions
+[ ] 2.3 Fix PostService - Remove legacy field support in post handling
+[ ] 2.4 Update Firebase Functions - Simplify all firebase functions to use only standardized fields
+
+## PHASE LR3: COMPONENT UPDATES (1.5 DAYS)
+[ ] 3.1 Simplify Component Helpers - Remove all fallbacks to legacy fields in `componentHelpers.ts`
+[ ] 3.2 Clean UI Components - Update all totem-related components to use standardized fields only
+[ ] 3.3 Simplify Client Components - Remove legacy field handling in client components
+
+## PHASE LR4: DATABASE RESET (0.5 DAYS)
+[ ] 4.1 Clear Database Collections - Reuse existing scripts to clear collections
+[ ] 4.2 Remove Legacy Fields From Schema - Update all interfaces and type definitions
+
+## PHASE LR5: TESTING & DOCUMENTATION (1 DAY)
+[ ] 5.1 Update Test Suite - Remove tests for legacy field compatibility
+[ ] 5.2 Update Documentation - Remove mentions of legacy fields from docs
+[ ] 5.3 Final Verification - Verify all functionality works with standardized fields only
+
+## EXECUTION PLAN
+1. Focus on one phase at a time
+2. Commit changes after each phase is complete
+3. Run tests after each component change
+4. Use existing backup mechanisms for safety
+
+## INTEGRATION WITH PHASE 8
+The legacy field removal plan will be executed before Phase 8 (Scalability Improvements), creating a clean foundation for the denormalized data structure.
+
+# DEVELOPMENT WORKFLOW
+
+This section defines our structured approach to development and communication to maintain focus on goals and maximize productivity.
+
+## COMMUNICATION PROTOCOL
+
+### Goal-Oriented Communication
+```
+GOAL: [One-line description of current objective]
+
+Context: Brief background if needed
+Specific question or task I need help with
+
+1. First subtask or decision
+2. Second subtask or decision
+```
+
+### Decision Making Framework
+```
+DECISION NEEDED:
+- Options: [List alternatives]
+- Preferences: [Any preferred direction]
+- Constraints: [Technical, time, or resource limitations]
+- Deadline: [When decision is needed by]
+```
+
+### Implementation Checkpoints
+Each implementation task should include:
+- ⚠️ DECISION POINT markers for critical design choices
+- ✅ COMPLETION CRITERIA that define when the task is done
+- ⏱️ TIME ESTIMATE for planning purposes
+
+## DEVELOPMENT CADENCE
+
+### Planning Phase
+1. Start with a clear goal statement
+2. Break into well-defined tasks (1-2 days each)
+3. Identify decision points before starting implementation
+4. Document schema and API design decisions
+
+### Implementation Phase
+1. Work on one focused task at a time
+2. Update README with decisions made
+3. Commit code after each logical unit of work
+4. Document any deviations from the original plan
+
+### Review Phase
+1. Validate against completion criteria
+2. Update documentation to reflect actual implementation
+3. Record lessons learned
+4. Set specific goals for the next phase
+
+## DOCUMENTATION STANDARDS
+
+### Code Documentation
+- All services must have JSDoc comments
+- Public interfaces need parameter and return type documentation
+- Complex logic requires explanatory comments
+
+### README Updates
+- Decision log entries for all significant choices
+- Updated timeline estimates after each phase
+- New sections for emerging feature areas
+- Implementation notes for technical dependencies
+
+## PRODUCTIVITY MAXIMIZERS
+
+1. **Stay Goal-Focused**: Begin communications by restating the current goal
+2. **Use Structured Formats**: Follow the templates above for consistency
+3. **Explicit Context Switching**: Clearly indicate when changing topics or goals
+4. **Regular Summarization**: Periodically summarize progress and decisions
+5. **Checkpoint Decision Points**: Pause at decision points for confirmation
+
+# DATABASE SECURITY PLAN - v1.0
+
+This plan outlines the implementation of comprehensive security rules for Firestore to ensure data integrity, user privacy, and proper access controls as the application scales.
+
+## PHASE DS1: SECURITY AUDIT (0.5 DAYS)
+[✅] 1.1 Audit Current Rules - Document existing security rules and identify gaps
+[✅] 1.2 Review Access Patterns - Map all read/write operations against user roles and permissions
+[✅] 1.3 Identify Vulnerabilities - Check for unauthorized access, data leakage, and validation issues
+[✅] 1.4 Create Security Assessment Document - Share findings with stakeholders ✋ **APPROVAL CHECKPOINT**: Review security audit findings before proceeding
+
+## PHASE DS2: RULE DEVELOPMENT (1 DAY)
+[✅] 2.1 Core Collection Rules - Design rules for users, posts, and totems collections
+[✅] 2.2 Validation Logic - Design data validation to ensure field requirements and types
+[✅] 2.3 User Authentication Rules - Design authentication rules for sensitive operations
+[✅] 2.4 Permission Functions - Create reusable security functions for common checks
+[✅] 2.5 Present Rule Design Document ✋ **APPROVAL CHECKPOINT**: Get explicit approval on rule designs before implementation
+
+### Example User Collection Rules
+```
+match /users/{userId} {
+  // Anyone can read basic user profile data
+  allow read;
+  
+  // Only the user can edit their own data
+  allow write: if request.auth.uid == userId;
+  
+  // Users can only update specific fields (not admin fields)
+  allow update: if request.auth.uid == userId
+    && request.resource.data.diff(resource.data).affectedKeys()
+       .hasOnly(['name', 'bio', 'photoURL', 'username']);
+}
+```
+
+### Example Posts Collection Rules
+```
+match /posts/{postId} {
+  // Anyone can read posts
+  allow read;
+  
+  // Only authenticated users can create posts
+  allow create: if request.auth.uid != null
+    && request.resource.data.firebaseUid == request.auth.uid;
+    
+  // Only the post creator can update or delete
+  allow update, delete: if request.auth.uid == resource.data.firebaseUid;
+}
+```
+
+## PHASE DS3: RULE IMPLEMENTATION & EXPANSION PLANNING (1 DAY)
+[✅] 3.1 User Activities Rules - Secure the denormalized userActivities subcollections
+[✅] 3.2 Content Organization Rules - Implement rules for the user collection system
+[✅] 3.3 Cross-User Permissions - Define rules for content sharing and saving
+[✅] 3.4 Document Extension Points - Identify areas for future security expansion
+[  ] 3.5 Present Implementation Plan ✋ **APPROVAL CHECKPOINT**: Review implementation details and extension points
+
+### Example User Activities Rules
+```
+match /userActivities/{userId}/{type}/{itemId} {
+  // Users can read their own activity data
+  allow read: if request.auth.uid == userId;
+  
+  // Only the system can write to these collections (via server functions)
+  allow write: if false; // Direct client writes not allowed
+}
+```
+
+## PHASE DS4: FUTURE-PROOFING & EXPANSION (0.5 DAYS)
+[  ] 4.1 Create Extension Framework - Design a modular approach to security rules
+[  ] 4.2 Document Future Requirements - List anticipated security needs for planned features
+[  ] 4.3 Create Security Roadmap - Align security implementation with feature roadmap
+[  ] 4.4 Review Expansion Strategy ✋ **APPROVAL CHECKPOINT**: Confirm approach for future security extensions
+
+## PHASE DS5: TESTING & VALIDATION (1 DAY)
+[✅] 5.1 Unit Tests - Create test suite for individual security rules
+[✅] 5.2 Integration Tests - Test rules across related collections
+[✅] 5.3 Scenario Testing - Test common user workflows against security rules
+[  ] 5.4 Performance Testing - Ensure rules don't create bottlenecks
+[  ] 5.5 Present Test Results ✋ **APPROVAL CHECKPOINT**: Review test results before deployment
+
+## PHASE DS6: DEPLOYMENT & MONITORING (0.5 DAYS)
+[  ] 6.1 Staged Deployment Plan - Create phased rollout strategy
+[  ] 6.2 Monitoring Setup - Establish alerts for rule rejections and security events
+[  ] 6.3 Documentation - Create detailed security documentation
+[  ] 6.4 Final Pre-Deployment Review ✋ **APPROVAL CHECKPOINT**: Final go/no-go decision before deployment
+
+## TOTAL TIMELINE
+- Security Audit: 0.5 days
+- Rule Development: 1 day
+- Implementation & Expansion Planning: 1 day
+- Future-Proofing: 0.5 days
+- Testing & Validation: 1 day
+- Deployment & Monitoring: 0.5 days
+- Total: 4.5 days (+ time for approval checkpoints)
+
+## IMPLEMENTATION STRATEGY
+1. **Checkpoint-Driven Development**:
+   - No security rule changes will be implemented without explicit approval
+   - Each phase includes a formal approval checkpoint ✋ with documentation
+   - Implementation will pause at each checkpoint until approval is received
+
+2. **Phased Implementation**:
+   - Critical collections first (users, posts)
+   - Secondary collections next (user activities, totems)
+   - Special case handling last (cross-user content)
+
+3. **Flexible Architecture**:
+   - Rules will be structured to allow easy modification
+   - Security framework will include extension points for future features
+   - Documentation will include a "future considerations" section
+
+4. **Monitoring & Adaptation**:
+   - Security rules will be continuously monitored
+   - Regular reviews will be scheduled to adapt to new feature requirements
+   - Security enhancements will be proposed as application evolves
+
+## DECISION POINTS & APPROVAL PROCESS
+For each ✋ **APPROVAL CHECKPOINT**:
+1. A summary document will be prepared with:
+   - Current status and findings
+   - Proposed approach with alternatives
+   - Implications for future development
+   - Specific questions requiring decisions
+
+2. The document will be shared for review with:
+   - Product owner
+   - Technical lead
+   - Security stakeholders
+
+3. Explicit approval will be required before proceeding, including:
+   - Sign-off on proposed approach
+   - Answers to any decision questions
+   - Confirmation of alignment with future plans
+
+## BENEFITS
+1. **Data Integrity**: Ensures data can only be modified by authorized users
+2. **Protection Against Abuse**: Prevents malicious manipulation of the database
+3. **Scalability Support**: Proper rules are essential for a scalable system
+4. **Privacy Protection**: Controls who can access sensitive user information
+5. **Reduced Backend Load**: Many validations can happen at the database level
+6. **Future-Proof Design**: Structured to accommodate future feature expansions
+7. **Stakeholder Alignment**: Regular checkpoints ensure security meets business needs
+
+# UPDATED PHASE 8: SCALABILITY IMPROVEMENTS
+
+## PHASE 8.1: FOUNDATION (0.5 DAYS)
+[  ] 8.1.1 Clean Database Schema - Complete legacy field removal (see Legacy Field Removal Plan)
+[  ] 8.1.2 Design Denormalized Schema - Finalize structure for userActivities collections
+
+## PHASE 8.2: IMPLEMENTING DENORMALIZED DATA STRUCTURE (2 DAYS)
+[  ] 8.2.1 Create Basic Collections - Implement userActivities/{userId}/posts/{postId}
+[  ] 8.2.2 Implement Answer Tracking - Create userActivities/{userId}/answers/{answerId}
+[  ] 8.2.3 Add Totem Records - Create userActivities/{userId}/totems/{totemId}
+
+## PHASE 8.3: SERVICE UPDATES (2 DAYS)
+[  ] 8.3.1 Update Write Operations - Sync primary and denormalized data for all create operations
+[  ] 8.3.2 Update Update Operations - Maintain consistency for all update operations
+[  ] 8.3.3 Handle Deletion - Implement cascading delete operations across collections
+
+## PHASE 8.4: QUERY OPTIMIZATION (1.5 DAYS)
+[  ] 8.4.1 Update Profile Page Queries - Use direct subcollection queries
+[  ] 8.4.2 Implement Pagination - Add efficient pagination for all list views
+[  ] 8.4.3 Add Caching - Implement strategic caching for frequent queries
+
+## PHASE 8.5: UI UPDATES (1.5 DAYS)
+[  ] 8.5.1 Update Profile Components - Modify to use new data structures
+[  ] 8.5.2 Add Virtual Scrolling - Implement for better performance with large lists
+[  ] 8.5.3 Add Loading States - Implement skeleton loaders and pagination indicators
+
+## PHASE 8.6: PERFORMANCE MONITORING (0.5 DAYS)
+[  ] 8.6.1 Set Up Metrics - Monitor database read/write operations
+[  ] 8.6.2 Implement Alerts - Set up alerts for high usage or errors
+[  ] 8.6.3 Create Dashboard - Build monitoring dashboard for performance metrics
+
+## TOTAL TIMELINE
+- Legacy Field Removal: 5 days
+- Phase 8 Scalability Improvements: 8 days
+- Total: 13 days (less if executed concurrently with shared resources)
+
+## EXPECTED OUTCOMES
+1. Simplified codebase with no legacy field handling
+2. Significantly improved query performance
+3. Better scalability with increasing user activity
+4. Reduced database costs through optimized reads/writes
+5. Enhanced user experience with faster loading times
+6. Foundation for future feature development
+
+
+# USER CONTENT ORGANIZATION PLAN - v1.0
+
+This plan outlines how to implement the profile content organization system described in section 4.3 of the product specification, enabling users to organize their posts, answers, and totems in customizable hierarchies.
+
+⚠️ **IMPLEMENTATION PRIORITY NOTE**: This feature will be implemented after addressing existing implementation issues, completing legacy field removal, and implementing scalability improvements as outlined in the IMPLEMENTATION STATUS AND PRIORITIES section.
+
+## PHASE UCO1: DATA MODEL (1 DAY)
+[  ] 1.1 Define Collection Schema - Create `userCollections/{userId}/collections/{collectionId}` structure
+[  ] 1.2 Define Folder Schema - Design nested folder structure with ordering capabilities
+[  ] 1.3 Define Item Reference Schema - Create flexible item reference system for posts/answers/totems
+[  ] 1.4 Add Content Ownership Tracking - Track original creator of each referenced item ⚠️ DECISION POINT: Confirm approach for handling other users' content
+
+Example Collection Schema:
+```typescript
+interface UserCollection {
+  id: string;
+  name: string;
+  description: string;
+  isPublic: boolean;
+  createdAt: number;
+  updatedAt: number;
+  itemCount: number;
+  folders: UserFolder[];
+  displayOrder: number;  // For user-defined ordering
+}
+
+interface UserFolder {
+  id: string;
+  name: string;
+  description: string;
+  items: CollectionItem[];
+  subfolders: UserFolder[];  // Nested folders
+  displayOrder: number;  // For user-defined ordering
+}
+
+interface CollectionItem {
+  id: string;
+  type: 'post' | 'answer' | 'totem';
+  referenceId: string;  // ID of the referenced item
+  originalCreatorId: string;  // ID of the content creator (could be different from collection owner)
+  displayOrder: number;  // For user-defined ordering
+  addedAt: number;
+  notes: string;  // Optional user notes about this item
+}
+```
+
+## PHASE UCO2: SERVICE IMPLEMENTATION (2 DAYS)
+[  ] 2.1 Create CollectionService - Implement CRUD operations for collections and folders
+[  ] 2.2 Add Item Management - Methods to add/remove/move items between collections and folders
+[  ] 2.3 Implement Ordering - Support for reordering items and folders
+[  ] 2.4 Handle References - Ensure item references update when source items change
+[  ] 2.5 Implement Cross-User Reference System - Allow saving other users' content ⚠️ DECISION POINT: Confirm permissions model for content sharing
+
+## PHASE UCO3: INTEGRATION WITH PHASE 8 (1 DAY)
+[  ] 3.1 Add Collection References to User Activities - Link userActivities to collections
+[  ] 3.2 Update Queries - Support efficient loading of organized content
+[  ] 3.3 Implement Change Propagation - Update collections when referenced items change
+[  ] 3.4 Add Visibility Controls - Determine who can see saved content ⚠️ DECISION POINT: Confirm privacy model for collections containing others' content
+
+## PHASE UCO4: UI FOUNDATION (2 DAYS)
+[  ] 4.1 Design Profile Organization UI Components - Create reusable components for collections
+[  ] 4.2 Implement Drag-and-Drop - Support intuitive content organization
+[  ] 4.3 Add Inline Editing - Enable quick renaming and restructuring
+[  ] 4.4 Create Discovery Interface - UI for finding and saving others' content ⚠️ DECISION POINT: Confirm user experience for content discovery and saving
+
+## PHASE UCO5: CROSS-USER FEATURES (1.5 DAYS)
+[  ] 5.1 Implement Save Action - Allow users to save any content to their collections
+[  ] 5.2 Add Attribution - Clearly show content ownership in collections
+[  ] 5.3 Create Notification System - Alert users when their content is saved (optional)
+[  ] 5.4 Add Analytics - Track which content is most frequently saved ⚠️ DECISION POINT: Confirm metrics and privacy considerations
+
+## TOTAL TIMELINE
+- Data Model & Schema: 1 day
+- Service Implementation: 2 days
+- Integration with Phase 8: 1 day
+- UI Foundation: 2 days
+- Cross-User Features: 1.5 days
+- Total: 7.5 days
+
+## DECISION POINTS EXPLAINED
+The ⚠️ DECISION POINT markers indicate places where we'll pause implementation to consult with you about:
+
+1. **Content Ownership Model**: How to track original creators and what metadata to retain
+2. **Permissions System**: Who can save what content and any limitations
+3. **Privacy Controls**: How to manage visibility of collections with others' content
+4. **Discovery Experience**: How users find and save content from others
+5. **Metrics Collection**: What analytics to gather about saved content
+
+Each decision point allows skipping or modifying the feature based on your feedback.
+
+## EXECUTION STRATEGY
+1. Implement this plan in parallel with the Legacy Field Removal Plan
+2. Complete this before Phase 8.4 and 8.5 (Query Optimization and UI Updates)
+3. Use the denormalized data structure from Phase 8 to support efficient content organization
+4. Pause at each decision point for consultation
+
+## BENEFITS
+1. Users can create personalized knowledge bases
+2. Content can be organized in meaningful hierarchies
+3. Supports the "folder hierarchy control" feature from section 4.3
+4. Enables future monetization of premium content organization
+5. Provides foundation for expert knowledge showcase
+6. Creates a discovery system through user curation
+7. Builds community connections through content sharing
+
+Shrug Product Specification
+Version 1.0
+
+1. Executive Summary
+
+Shrug reimagines how we handle question-and-answer dynamics on social platforms. The core insight is that traditional Q&A platforms lack sophisticated organizational structures - they essentially create long lists of answers sorted by votes. We're approaching this differently by introducing two key innovations: a user-defined categorization system we call "totems," and a temporal relevance mechanism called "crispness." These work together to surface and maintain high-quality answers while adapting to how knowledge evolves over time.
+
+2. Product Goals
+
+The fundamental problems we're solving:
+• Current Q&A platforms struggle with answer organization - we solve this through the totem system
+• Vote-based sorting creates stagnant content - our crispness system addresses this
+• Anonymous answers reduce credibility - we're building on verified identity
+• Knowledge hierarchies are typically flat - we enable nested organization
+• Expert knowledge is often buried - we provide tools for experts to surface and monetize their contributions
+
+3. Core Features
+
+3.1 Authentication & Identity
+
+The platform is built on verified identity, which serves multiple purposes. It adds credibility to answers, enables expert recognition, and provides the foundation for our monetization strategy. The system works in tiers:
+• Identity verification required for posting (think Medium's authentication, but mandatory)
+• Social graph integration (optional, but adds context to expertise)
+• Membership levels:
+    - Free: Read-only access to public content
+    - Basic: Adds voting capabilities
+    - Premium: Full posting and organizational capabilities
+
+3.2 The Totem System
+
+This is our core innovation for content organization. Think of totems as dynamic, user-generated taxonomies that emerge organically from answers. Here's the mechanics:
+• When liking content, users define their answer's category via totem selection
+• Totems automatically group similar answers, creating emergent knowledge structures
+• Multiple totem assignment enables cross-categorization
+• The system learns from totem usage patterns to suggest relevant categories
+
+3.3 Content Relevance ("Crispness")
+
+Crispness solves the problem of temporal relevance in knowledge systems. It's a decay function that operates at different rates depending on the content type:
+• Decay models:
+    - 1-week: High-velocity topics (breaking news, current events)
+    - 1-year: Medium-term knowledge (technology trends, evolving fields)
+    - No decay: Foundational knowledge (mathematical concepts, historical events)
+• Reset mechanism: 5 daily refreshes per user (prevents gaming while enabling maintenance)
+• Premium refresh allocation (monetization opportunity for high-activity users)
+
+4. Interface Architecture
+
+4.1 Home Page Implementation
+
+The home page serves as the primary interaction point, implementing a dynamic content discovery system:
+• Question input interface: Prominent search-style bar optimized for question entry
+• Content feed: Algorithm-driven question display incorporating:
+    - User interaction history
+    - Totem preferences
+    - Crispness scores
+• Per-question display:
+    - Top three totems with expandable view
+    - Totem-specific answer rankings
+    - Direct posting capability
+• Real-time crispness indicators providing temporal context
+
+4.2 Navigation System
+
+The navigation architecture balances discoverability with organization:
+• Persistent action bar:
+    - Question entry
+    - Post creation
+    - Account access
+• Contextual sidebar:
+    - User-specific totem collections
+    - Trending totems
+    - Following feed
+• Resource framework:
+    - Content guidelines
+    - Privacy controls
+    - Platform documentation
+    - Support access
+
+4.3 Profile System
+
+Profiles serve dual purposes as identity verification and content organization mechanisms:
+
+Public Interface:
+• Identity verification indicators
+• Biographical context
+• Content showcase:
+    - Featured answers
+    - Organized knowledge bases
+    - External credibility links
+• Premium content available for purchase/subscription
+
+Management Interface:
+• Content organization toolset
+• Folder hierarchy control
+• Monetization settings
+• Notification management
+• Security controls
+
+5. Content Architecture
+
+5.1 Post Creation Framework
+
+The post creation flow is designed to optimize for both organization and discovery:
+1. Question context selection
+2. Content composition
+3. Totem taxonomy assignment
+4. Organizational placement
+5. Access level definition
+6. Publication verification
+
+5.2 Content Governance
+
+Content quality is maintained through a multi-layered approach:
+• Clear policy framework
+• Community-driven reporting
+• Administrative review system
+• Machine learning
+• Violation handling protocol
+
+6. Monetization Framework
+
+6.1 Platform Evolution
+
+Phase 1 - Growth:
+• Full-feature access
+• Ad-supported model
+• Clear temporary status messaging
+• User behavior analysis
+
+Phase 2 - Monetization:
+• Tiered access implementation
+• Premium feature deployment
+• Granular monetization options
+• Creator economy enablement
+
+6.2 Creator Economics
+
+The creator monetization system enables multiple revenue streams:
+• Premium content gating
+• Organizational access control
+• Custom pricing frameworks
+• Automated revenue distribution
+
+7. Technical Architecture
+
+7.1 Security Framework
+
+Security is implemented through multiple layers:
+• Identity verification system
+• Data protection protocols
+• Payment processing security
+• Access control management
+• Privacy compliance framework
+• Regular security auditing
+
+7.2 Performance Architecture
+
+The system is designed for scale with focus on:
+• Real-time crispness computations
+• Dynamic content organization
+• Efficient hierarchy management
+• Search optimization
+• Response time targets
+• Cache strategy
+
+8. Deployment Strategy
+
+The rollout follows a measured approach:
+1. Beta release with core functionality
+2. Iterative feature deployment
+3. Monetization layer introduction
+4. Creator tools activation
+5. Marketplace evolution
+
+9. Success Metrics
+
+Key performance indicators:
+• Member growth
+• Traffic (pageviews or screenviews per month)
+• Identity verification completion rates
+• Content engagement patterns
+• Premium conversion metrics
+• Creator retention analysis
+• Content quality measurements
+• User satisfaction indices
+
+# DEBUGGING NOTES - TOTEM LIKE/UNLIKE FUNCTIONALITY
+
+## Current Issues
+
+The totem like/unlike functionality has been experiencing several issues:
+
+1. **Persistence Problems:** Liked states are not being saved between refreshes, causing users to lose track of what they've liked.
+2. **Multiple Increments:** When unliking and re-liking a totem, the like count sometimes increases by 2 instead of 1.
+3. **Already Liked Errors:** Users occasionally receive "You've already liked this totem" errors even after unliking.
+4. **Refresh Issues:** On page refresh, all totems appear as "unliked" regardless of their previous state.
+
+## Root Causes Identified
+
+1. **Lack of Persistent Storage:** The like state was only being maintained in component-level state, not persisted to localStorage or any other storage mechanism.
+2. **Component State Inconsistencies:** Multiple components (QuestionList, TotemDetail, TotemPageClient) each maintained their own separate liked state.
+3. **Incorrect Handler Binding:** The `onUnlike` handler was sometimes not being properly passed to the TotemButton component.
+4. **Backend State Management:** The TotemService was handling the like/unlike operations but had some edge cases where the state wasn't properly updated.
+
+## Implemented Fixes
+
+1. **Persistent Storage:**
+   - Created a new utility file `src/utils/likedTotems.ts` with localStorage persistence for liked totems
+   - Implemented a custom React hook `useLikedTotems` that synchronizes component state with localStorage
+   - Added helper functions to check, add, and remove liked totems
+
+2. **Unified Like/Unlike Handling:**
+   - Updated the handleTotemLike function in `src/utils/totem.ts` to properly handle the isUnlike parameter
+   - Made sure the unlikeTotem function properly sets the like state to inactive instead of removing it
+   - Added appropriate logging to track the like/unlike flow
+
+3. **Authentication Handling:**
+   - Improved the authentication handling to store liked state per user
+   - Enhanced error messages to be more descriptive about why an operation failed
+
+4. **Component Updates:**
+   - Updated QuestionList component to use the new likedTotems utility
+   - Ensured proper type definitions for handlers to fix TypeScript errors
+
+## Known Issues to Monitor
+
+1. **Multiple Accounts:** If a user switches between accounts, we need to ensure the liked states are kept separate
+2. **Performance:** The current localStorage implementation works but may need optimization if a user likes many totems
+3. **Backend Synchronization:** We should monitor if the backend state stays in sync with the client
+
+## Debugging Steps for Future Issues
+
+If similar issues arise in the future:
+
+1. Check browser console logs for any errors related to like/unlike operations
+2. Verify if localStorage contains the expected liked totem entries (check under "shrug_liked_totems_[userId]")
+3. Check if the TotemButton component is receiving both onLike and onUnlike handlers
+4. Monitor network requests to see if the backend is responding as expected
+5. Verify that the isUnlike parameter is being correctly passed through all layers
+
+## Future Improvements
+
+1. **Server-Side State Sync:** Implement a more robust server-side state management for likes
+2. **Offline Support:** Add offline capability to queue like/unlike operations when offline
+3. **Batch Operations:** Implement batch updates for better performance with multiple operations
+4. **Analytics:** Add analytics to track like/unlike patterns and identify potential issues

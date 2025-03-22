@@ -10,6 +10,7 @@ import { SimilarityService } from '@/services/similarity';
 import { InfiniteScroll } from '@/components/common/InfiniteScroll';
 import { USER_FIELDS } from '@/constants/fields';
 import { getUserDisplayName, getTotemLikes, getTotemCrispness } from '@/utils/componentHelpers';
+import { useLikedTotems, addLikedTotem, removeLikedTotem, isTotemLiked as checkTotemLiked } from '@/utils/likedTotems';
 
 // Helper function to safely convert various date formats to a Date object
 const toDate = (dateField: any): Date => {
@@ -31,7 +32,7 @@ const toDate = (dateField: any): Date => {
 export interface QuestionListProps {
   posts: Post[];
   onSelectQuestion: (post: Post) => void;
-  onLikeTotem: (post: Post, answerIdx: number, totemName: string) => Promise<void>;
+  onLikeTotem: (post: Post, answerIdx: number, totemName: string, isUnlike?: boolean) => Promise<void>;
   onRefreshTotem: (post: Post, answerIdx: number, totemName: string) => Promise<void>;
   showAllTotems?: boolean;
   hasNextPage?: boolean;
@@ -50,15 +51,17 @@ export function QuestionList({
   onLoadMore = () => {},
 }: QuestionListProps) {
   const router = useRouter();
-  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  // Get current user
+  const [currentUser, setCurrentUser] = useState(auth.currentUser);
+  
+  // Use the likedTotems hook which handles localStorage persistence
+  const { likedTotems, setLikedTotems } = useLikedTotems(currentUser?.uid || null);
 
-  const handleInteraction = useCallback((action: () => void) => {
-    if (!auth.currentUser) {
-      setShowLoginPrompt(true);
-      setTimeout(() => setShowLoginPrompt(false), 3000);
-      return;
-    }
-    action();
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      setCurrentUser(user);
+    });
+    return () => unsubscribe();
   }, []);
 
   const getBestAnswer = useCallback((post: Post) => {
@@ -78,20 +81,83 @@ export function QuestionList({
     }, { answer: post.answers[0], index: 0 });
   }, []);
 
-  const getBestTotem = useCallback((answer: Answer) => {
-    if (!answer.totems?.length) return null;
+  // Get the best totem for an answer
+  const getBestTotem = useCallback((answer: Answer): Totem | null => {
+    if (!answer.totems || !Array.isArray(answer.totems) || answer.totems.length === 0) {
+      return null;
+    }
     
-    // Find totem with the most likes
-    return answer.totems.reduce((best, current) => {
-      return getTotemLikes(current) > getTotemLikes(best) ? current : best;
-    }, answer.totems[0]);
+    // Sort by likes descending and get the highest liked
+    return [...answer.totems].sort((a, b) => (b.likes || 0) - (a.likes || 0))[0];
   }, []);
+
+  // Helper to get totem key
+  const getTotemKey = useCallback((postId: string, totemName: string) => {
+    return `${postId}-${totemName}`;
+  }, []);
+
+  // Check if a totem is liked by the current user
+  const isTotemLiked = useCallback((post: Post, totemName: string) => {
+    const key = getTotemKey(post.id, totemName);
+    return likedTotems[key] === true;
+  }, [likedTotems, getTotemKey]);
+
+  // Handle authentication and interactions
+  const handleInteraction = useCallback((callback: () => Promise<void>) => {
+    if (!currentUser) {
+      router.push('/login');
+      return Promise.resolve();
+    }
+    return callback();
+  }, [currentUser, router]);
+
+  // Handle like action with local state update and persistence
+  const handleLike = useCallback((post: Post, answerIdx: number, totemName: string): Promise<void> => {
+    const key = getTotemKey(post.id, totemName);
+    
+    // Update local state (which also persists to localStorage via our hook)
+    setLikedTotems(prev => ({
+      ...prev,
+      [key]: true
+    }));
+
+    // If current user is available, also add to persistent storage directly
+    if (currentUser?.uid) {
+      addLikedTotem(currentUser.uid, post.id, totemName);
+    }
+    
+    // Call the onLikeTotem handler
+    return onLikeTotem(post, answerIdx, totemName);
+  }, [currentUser, onLikeTotem, setLikedTotems, getTotemKey]);
+
+  // Handle unlike action with local state update and persistence
+  const handleUnlike = useCallback((post: Post, answerIdx: number, totemName: string): Promise<void> => {
+    const key = getTotemKey(post.id, totemName);
+    
+    // Update local state (which also persists to localStorage via our hook)
+    setLikedTotems(prev => {
+      const newState = { ...prev };
+      delete newState[key];
+      return newState;
+    });
+
+    // If current user is available, also remove from persistent storage directly
+    if (currentUser?.uid) {
+      removeLikedTotem(currentUser.uid, post.id, totemName);
+    }
+    
+    // Call the onLikeTotem handler with isUnlike=true to indicate this is an unlike operation
+    // This is needed because the backend API expects a boolean flag to indicate an unlike operation
+    return onLikeTotem(post, answerIdx, totemName, true);
+  }, [currentUser, onLikeTotem, setLikedTotems, getTotemKey]);
 
   const renderAnswer = useCallback((post: Post, answer: Answer, index: number, isBestAnswer: boolean = false) => {
     // Get only the highest-liked totem for this answer
     const bestTotem = getBestTotem(answer);
 
     if (!bestTotem) return null;
+    
+    const isLiked = isTotemLiked(post, bestTotem.name);
 
     return (
       <div key={`${post.id}-${answer.text}`} 
@@ -107,7 +173,9 @@ export function QuestionList({
               name={bestTotem.name}
               likes={getTotemLikes(bestTotem)}
               crispness={getTotemCrispness(bestTotem)}
-              onLike={() => handleInteraction(() => onLikeTotem(post, index, bestTotem.name))}
+              isLiked={isLiked}
+              onLike={() => handleInteraction(() => handleLike(post, index, bestTotem.name))}
+              onUnlike={() => handleInteraction(() => handleUnlike(post, index, bestTotem.name))}
               onRefresh={() => handleInteraction(() => onRefreshTotem(post, index, bestTotem.name))}
               postId={post.id}
             />
@@ -124,7 +192,7 @@ export function QuestionList({
         </div>
       </div>
     );
-  }, [handleInteraction, onLikeTotem, onRefreshTotem, getBestTotem]);
+  }, [handleInteraction, handleLike, handleUnlike, onRefreshTotem, getBestTotem, isTotemLiked]);
 
   const renderQuestion = useCallback((post: Post) => {
     const bestAnswer = getBestAnswer(post);
@@ -166,6 +234,7 @@ export function QuestionList({
           {sortedBestAnswers.map(({ answer, index }) => {
             const bestTotem = getBestTotem(answer);
             const totalAnswersWithTotem = answersByTotem[bestTotem?.name || ''].length;
+            const isLiked = bestTotem ? isTotemLiked(post, bestTotem.name) : false;
             
             return (
               <div key={`${post.id}-${answer.text}`} 
@@ -183,7 +252,9 @@ export function QuestionList({
                           name={bestTotem.name}
                           likes={getTotemLikes(bestTotem)}
                           crispness={getTotemCrispness(bestTotem)}
-                          onLike={() => handleInteraction(() => onLikeTotem(post, index, bestTotem.name))}
+                          isLiked={isLiked}
+                          onLike={() => handleInteraction(() => handleLike(post, index, bestTotem.name))}
+                          onUnlike={() => handleInteraction(() => handleUnlike(post, index, bestTotem.name))}
                           onRefresh={() => handleInteraction(() => onRefreshTotem(post, index, bestTotem.name))}
                           postId={post.id}
                         />
@@ -239,14 +310,20 @@ export function QuestionList({
               <>
                 {(() => {
                   const bestTotem = getBestTotem(bestAnswer.answer);
-                  return bestTotem && (
+                  if (!bestTotem) return null;
+                  
+                  const isLiked = isTotemLiked(post, bestTotem.name);
+                  
+                  return (
                     <>
                       <TotemButton
                         key={bestTotem.name}
                         name={bestTotem.name}
                         likes={getTotemLikes(bestTotem)}
                         crispness={getTotemCrispness(bestTotem)}
-                        onLike={() => handleInteraction(() => onLikeTotem(post, bestAnswer.index, bestTotem.name))}
+                        isLiked={isLiked}
+                        onLike={() => handleInteraction(() => handleLike(post, bestAnswer.index, bestTotem.name))}
+                        onUnlike={() => handleInteraction(() => handleUnlike(post, bestAnswer.index, bestTotem.name))}
                         onRefresh={() => handleInteraction(() => onRefreshTotem(post, bestAnswer.index, bestTotem.name))}
                         postId={post.id}
                       />
@@ -275,7 +352,7 @@ export function QuestionList({
         </div>
       </div>
     );
-  }, [onLikeTotem, onRefreshTotem, onSelectQuestion, handleInteraction, getBestAnswer, getBestTotem]);
+  }, [onRefreshTotem, onSelectQuestion, handleInteraction, getBestAnswer, getBestTotem, handleLike, handleUnlike, isTotemLiked, showAllTotems]);
 
   if (!posts.length && !isLoading) {
     return (
@@ -289,11 +366,6 @@ export function QuestionList({
 
   return (
     <div className="relative">
-      {showLoginPrompt && (
-        <div className="fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg animate-fade-in">
-          Please log in to interact with posts
-        </div>
-      )}
       <InfiniteScroll
         hasNextPage={hasNextPage}
         isLoading={isLoading}

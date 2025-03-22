@@ -2,6 +2,7 @@ import { updateDoc, doc } from 'firebase/firestore';
 import { db } from '@/firebase';
 import type { Post, Answer } from '@/types/models';
 import { TotemService } from '@/services/totem';
+import { unlikeTotem, updateTotemLikes } from "@/lib/firebase/posts";
 
 export const calculateCrispness = (likes: number[], timestamps: string[]) => {
   if (!likes.length || !timestamps.length) return 0;
@@ -29,11 +30,20 @@ export async function handleTotemLike(
   post: Post,
   answerIdx: number,
   totemName: string,
-  userId: string
+  userId: string,
+  isUnlike: boolean = false
 ) {
-  const timestamp = new Date().toISOString();
-  const updatedAnswers = await TotemService.updateTotemStats(post.answers, answerIdx, totemName, userId, timestamp);
-  await updateDoc(doc(db, "posts", post.id), { answers: updatedAnswers });
+  console.log(`handleTotemLike - Operation type: ${isUnlike ? 'Unlike' : 'Like'}`);
+  
+  if (isUnlike) {
+    // If we're unliking, use the unlikeTotem function which sets isUnlike=true
+    console.log(`handleTotemLike - Calling unlikeTotem for post ID: ${post.id}, totem: ${totemName}`);
+    await unlikeTotem(post.id, totemName);
+  } else {
+    // For regular like operations
+    console.log(`handleTotemLike - Calling updateTotemLikes for post ID: ${post.id}, totem: ${totemName}`);
+    await updateTotemLikes(post.id, totemName, false); // Explicitly set isUnlike=false
+  }
 }
 
 export async function handleTotemRefresh(
@@ -44,7 +54,11 @@ export async function handleTotemRefresh(
 ): Promise<boolean> {
   if (refreshCount <= 0) return false;
   try {
-    const timestamp = new Date().toISOString();
+    // For refresh operations, we need to directly call TotemService methods
+    // This is a different operation than like/unlike, so we keep it separate
+    const timestamp = Date.now(); // Use number timestamp instead of string
+    
+    // @ts-ignore - We need to use the private method for this special case
     const updatedAnswers = await TotemService.updateTotemStats(post.answers, answerIdx, totemName, post.answers[answerIdx].userId, timestamp);
     await updateDoc(doc(db, "posts", post.id), { answers: updatedAnswers });
     return true;

@@ -229,11 +229,12 @@ export default function Home() {
     staleTime: 0, // Disable stale time since we're using real-time updates
   });
 
-  const handleTotemLikeClick = async (post: Post, answerIdx: number, totemName: string) => {
+  const handleTotemLikeClick = async (post: Post, answerIdx: number, totemName: string, isUnlike: boolean = false) => {
     if (!user) return;
 
     try {
-      await handleTotemLike(post, answerIdx, totemName, user.uid);
+      console.log(`handleTotemLikeClick - Operation: ${isUnlike ? 'Unlike' : 'Like'} for totem: ${totemName}`);
+      await handleTotemLike(post, answerIdx, totemName, user.uid, isUnlike);
       queryClient.invalidateQueries({ queryKey: ['posts'] });
     } catch (error) {
       if (error instanceof Error) {

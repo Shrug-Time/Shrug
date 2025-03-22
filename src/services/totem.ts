@@ -39,37 +39,70 @@ export class TotemService {
     isUnlike: boolean = false
   ) {
     try {
-      const answer = post.answers[answerIdx];
-      const totem = answer.totems.find(t => t.name === totemName);
+      console.log(`TotemService.handleTotemLike - Starting with isUnlike=${isUnlike}`);
       
-      if (!totem) throw new Error('Totem not found');
+      // Validate input parameters
+      if (!post) {
+        throw new Error('Post is required');
+      }
+      
+      if (userId === null || userId === undefined || userId === '') {
+        throw new Error('User ID is required');
+      }
+      
+      if (!totemName) {
+        throw new Error('Totem name is required');
+      }
+      
+      // Check if post.answers exists and has the specified index
+      if (!post.answers || !Array.isArray(post.answers) || answerIdx < 0 || answerIdx >= post.answers.length) {
+        throw new Error(`Invalid answer index: ${answerIdx}`);
+      }
+      
+      const answer = post.answers[answerIdx];
+      
+      // Validate the answer has totems
+      if (!answer.totems || !Array.isArray(answer.totems)) {
+        throw new Error('Answer doesn\'t have totems array');
+      }
+      
+      const totem = answer.totems.find(t => t?.name === totemName);
+      
+      if (!totem) {
+        throw new Error(`Totem with name "${totemName}" not found`);
+      }
       
       console.log(`TotemService.handleTotemLike - Initial totem state (${isUnlike ? 'unlike' : 'like'} operation):`, JSON.stringify(totem));
       console.log('TotemService.handleTotemLike - userId:', userId);
+      console.log('TotemService.handleTotemLike - isUnlike:', isUnlike);
       
-      // Initialize likeHistory if it doesn't exist
-      if (!totem.likeHistory) {
-        console.log('TotemService.handleTotemLike - likeHistory is undefined, initializing as empty array');
+      // Initialize likeHistory if it doesn't exist or isn't an array
+      if (!totem.likeHistory || !Array.isArray(totem.likeHistory)) {
+        console.log('TotemService.handleTotemLike - likeHistory is undefined or not an array, initializing as empty array');
         totem.likeHistory = [];
       }
       
       // Also initialize legacy likedBy for backward compatibility
-      if (!totem.likedBy) {
-        console.log('TotemService.handleTotemLike - likedBy array is undefined, initializing as empty array');
+      if (!totem.likedBy || !Array.isArray(totem.likedBy)) {
+        console.log('TotemService.handleTotemLike - likedBy array is undefined or not an array, initializing as empty array');
         totem.likedBy = [];
       }
       
-      // Find existing like in history
-      const existingLikeIndex = totem.likeHistory.findIndex(like => like.userId === userId);
+      // Find existing like in history - ensure we don't access undefined properties
+      const existingLikeIndex = totem.likeHistory.findIndex(like => like && like.userId === userId);
       const existingLike = existingLikeIndex !== -1 ? totem.likeHistory[existingLikeIndex] : null;
       
       // For backward compatibility, also check the legacy likedBy array
-      const hasLegacyLike = totem.likedBy.includes(userId);
+      const hasLegacyLike = Array.isArray(totem.likedBy) && totem.likedBy.includes(userId);
       
       const now = Date.now();
       
       // Handle unlike operation
       if (isUnlike) {
+        console.log('TotemService.handleTotemLike - Processing UNLIKE operation');
+        console.log('TotemService.handleTotemLike - existingLike:', existingLike);
+        console.log('TotemService.handleTotemLike - hasLegacyLike:', hasLegacyLike);
+        
         // Check if user has liked this totem
         if (!existingLike && !hasLegacyLike) {
           console.error('TotemService.handleTotemLike - User has not liked this totem, cannot unlike');
@@ -77,7 +110,7 @@ export class TotemService {
         }
         
         // Update like history if it exists
-        if (existingLike) {
+        if (existingLike && existingLikeIndex !== -1) {
           // Mark the like as inactive
           existingLike.isActive = false;
           existingLike.lastUpdatedAt = now;
@@ -86,19 +119,38 @@ export class TotemService {
         
         // Update legacy likedBy for backward compatibility
         if (hasLegacyLike) {
-          totem.likedBy = totem.likedBy.filter(id => id !== userId);
+          totem.likedBy = Array.isArray(totem.likedBy) 
+            ? totem.likedBy.filter(id => id !== userId) 
+            : [];
         }
         
-        // Decrement likes count
-        totem.likes = Math.max(0, (totem.likes || 1) - 1);
+        // Decrement likes count (safely)
+        totem.likes = typeof totem.likes === 'number' 
+          ? Math.max(0, totem.likes - 1) 
+          : 0;
         
         const updatedAnswers = this.updateTotemStatsAfterUnlike(post.answers, answerIdx, totemName, userId, now);
         
-        // Update totem relationships based on similar answers
-        const { groups } = SimilarityService.groupSimilarAnswers(updatedAnswers);
-        const updatedTotems = SimilarityService.updateTotemRelationships(updatedAnswers, groups);
+        if (!updatedAnswers) {
+          throw new Error('Failed to update totem stats');
+        }
         
-        // Update the post with new answers and totem relationships
+        // Update totem relationships based on similar answers - with null checks
+        const groupResult = SimilarityService.groupSimilarAnswers(updatedAnswers);
+        if (!groupResult || !groupResult.groups) {
+          throw new Error('Failed to group similar answers');
+        }
+        
+        const updatedTotems = SimilarityService.updateTotemRelationships(updatedAnswers, groupResult.groups);
+        if (!updatedTotems || !Array.isArray(updatedTotems)) {
+          throw new Error('Failed to update totem relationships');
+        }
+        
+        // Update the post with new answers and totem relationships - validate post ID
+        if (!post.id) {
+          throw new Error('Post ID is required');
+        }
+        
         await updateDoc(doc(db, "posts", post.id), { 
           answers: this.updateTotemRelationships(updatedAnswers, updatedTotems),
           [COMMON_FIELDS.LAST_INTERACTION]: now,
@@ -117,33 +169,58 @@ export class TotemService {
       // Handle like operation
       
       // If user already has an active like
-      if ((existingLike && existingLike.isActive) || hasLegacyLike) {
+      if ((existingLike && existingLike.isActive === true) || hasLegacyLike) {
         console.error('TotemService.handleTotemLike - User has already liked this totem');
         throw new Error("You've already liked this totem!");
       }
       
       // If user previously liked but then unliked, reactivate the like
-      if (existingLike && !existingLike.isActive) {
+      if (existingLike && existingLike.isActive === false) {
         // Reactivate the like
         existingLike.isActive = true;
         existingLike.lastUpdatedAt = now;
-        totem.likeHistory[existingLikeIndex] = existingLike;
+        
+        // Ensure index is valid before updating array
+        if (existingLikeIndex >= 0 && existingLikeIndex < totem.likeHistory.length) {
+          totem.likeHistory[existingLikeIndex] = existingLike;
+        } else {
+          console.error('TotemService.handleTotemLike - Invalid existingLikeIndex:', existingLikeIndex);
+          // Add it as a new entry if index is invalid
+          totem.likeHistory.push(existingLike);
+        }
         
         // For backward compatibility, add back to legacy likedBy
-        if (!totem.likedBy.includes(userId)) {
+        if (Array.isArray(totem.likedBy) && !totem.likedBy.includes(userId)) {
           totem.likedBy.push(userId);
         }
         
-        // Update likes count
-        totem.likes = (totem.likes || 0) + 1;
+        // Update likes count (safely)
+        totem.likes = typeof totem.likes === 'number' 
+          ? totem.likes + 1 
+          : 1;
         
         const updatedAnswers = this.updateTotemStatsAfterReLike(post.answers, answerIdx, totemName, userId, now);
         
-        // Update totem relationships based on similar answers
-        const { groups } = SimilarityService.groupSimilarAnswers(updatedAnswers);
-        const updatedTotems = SimilarityService.updateTotemRelationships(updatedAnswers, groups);
+        if (!updatedAnswers) {
+          throw new Error('Failed to update totem stats after re-like');
+        }
         
-        // Update the post with new answers and totem relationships
+        // Update totem relationships based on similar answers - with null checks
+        const groupResult = SimilarityService.groupSimilarAnswers(updatedAnswers);
+        if (!groupResult || !groupResult.groups) {
+          throw new Error('Failed to group similar answers');
+        }
+        
+        const updatedTotems = SimilarityService.updateTotemRelationships(updatedAnswers, groupResult.groups);
+        if (!updatedTotems || !Array.isArray(updatedTotems)) {
+          throw new Error('Failed to update totem relationships');
+        }
+        
+        // Update the post with new answers and totem relationships - validate post ID
+        if (!post.id) {
+          throw new Error('Post ID is required');
+        }
+        
         await updateDoc(doc(db, "posts", post.id), { 
           answers: this.updateTotemRelationships(updatedAnswers, updatedTotems),
           [COMMON_FIELDS.LAST_INTERACTION]: now,
@@ -170,21 +247,41 @@ export class TotemService {
         value: 1
       };
       
-      // Add to like history
+      // Add to like history (ensure it's an array first)
+      if (!Array.isArray(totem.likeHistory)) {
+        totem.likeHistory = [];
+      }
       totem.likeHistory.push(newLike);
       
       // For backward compatibility, add to legacy likedBy
+      if (!Array.isArray(totem.likedBy)) {
+        totem.likedBy = [];
+      }
       if (!totem.likedBy.includes(userId)) {
         totem.likedBy.push(userId);
       }
       
       const updatedAnswers = this.updateTotemStats(post.answers, answerIdx, totemName, userId, now);
+      if (!updatedAnswers) {
+        throw new Error('Failed to update totem stats');
+      }
       
-      // Update totem relationships based on similar answers
-      const { groups } = SimilarityService.groupSimilarAnswers(updatedAnswers);
-      const updatedTotems = SimilarityService.updateTotemRelationships(updatedAnswers, groups);
+      // Update totem relationships based on similar answers - with null checks
+      const groupResult = SimilarityService.groupSimilarAnswers(updatedAnswers);
+      if (!groupResult || !groupResult.groups) {
+        throw new Error('Failed to group similar answers');
+      }
       
-      // Update the post with new answers and totem relationships
+      const updatedTotems = SimilarityService.updateTotemRelationships(updatedAnswers, groupResult.groups);
+      if (!updatedTotems || !Array.isArray(updatedTotems)) {
+        throw new Error('Failed to update totem relationships');
+      }
+      
+      // Update the post with new answers and totem relationships - validate post ID
+      if (!post.id) {
+        throw new Error('Post ID is required');
+      }
+      
       await updateDoc(doc(db, "posts", post.id), { 
         answers: this.updateTotemRelationships(updatedAnswers, updatedTotems),
         [COMMON_FIELDS.LAST_INTERACTION]: now,
@@ -200,7 +297,12 @@ export class TotemService {
       };
     } catch (error) {
       console.error('Error handling totem like/unlike:', error);
-      throw error;
+      // Return a more informative error with specific cause
+      if (error instanceof Error) {
+        throw new Error(`TotemService.handleTotemLike failed: ${error.message}`);
+      } else {
+        throw new Error('TotemService.handleTotemLike failed with unknown error');
+      }
     }
   }
 
@@ -209,11 +311,46 @@ export class TotemService {
    */
   private static async getUpdatedPost(postId: string): Promise<Post | null> {
     try {
-      const postDoc = await getDoc(doc(db, "posts", postId));
-      if (!postDoc.exists()) return null;
-      return { id: postId, ...postDoc.data() } as Post;
+      // Validate input
+      if (!postId) {
+        console.error('TotemService.getUpdatedPost - Missing post ID');
+        return null;
+      }
+      
+      const postRef = doc(db, "posts", postId);
+      if (!postRef) {
+        console.error('TotemService.getUpdatedPost - Failed to create document reference');
+        return null;
+      }
+      
+      const postDoc = await getDoc(postRef);
+      
+      if (!postDoc.exists()) {
+        console.log(`TotemService.getUpdatedPost - Post with ID ${postId} doesn't exist`);
+        return null;
+      }
+      
+      const postData = postDoc.data();
+      if (!postData) {
+        console.error(`TotemService.getUpdatedPost - Post with ID ${postId} exists but has no data`);
+        return null;
+      }
+      
+      // Validate the post data
+      if (!Array.isArray(postData.answers)) {
+        console.error(`TotemService.getUpdatedPost - Post with ID ${postId} has invalid answers property`);
+        postData.answers = [];
+      }
+      
+      return { 
+        id: postId, 
+        ...postData 
+      } as Post;
     } catch (error) {
       console.error('Error getting updated post:', error);
+      if (error instanceof Error) {
+        console.error(`TotemService.getUpdatedPost - Error details: ${error.message}`);
+      }
       return null;
     }
   }
@@ -228,19 +365,45 @@ export class TotemService {
     userId: string
   ) {
     try {
+      // Validate input parameters
+      if (!post) {
+        throw new Error('Post is required');
+      }
+      
+      if (userId === null || userId === undefined || userId === '') {
+        throw new Error('User ID is required');
+      }
+      
+      if (!totemName) {
+        throw new Error('Totem name is required');
+      }
+      
+      // Check if post.answers exists and has the specified index
+      if (!post.answers || !Array.isArray(post.answers) || answerIdx < 0 || answerIdx >= post.answers.length) {
+        throw new Error(`Invalid answer index: ${answerIdx}`);
+      }
+      
       const answer = post.answers[answerIdx];
-      const totem = answer.totems.find(t => t.name === totemName);
       
-      if (!totem) throw new Error('Totem not found');
+      // Validate the answer has totems
+      if (!answer.totems || !Array.isArray(answer.totems)) {
+        throw new Error('Answer doesn\'t have totems array');
+      }
       
-      // Initialize likeHistory if it doesn't exist
-      if (!totem.likeHistory) {
-        console.log('TotemService.refreshUserLike - likeHistory is undefined, cannot refresh');
+      const totem = answer.totems.find(t => t?.name === totemName);
+      
+      if (!totem) {
+        throw new Error(`Totem with name "${totemName}" not found`);
+      }
+      
+      // Initialize likeHistory if it doesn't exist or isn't an array
+      if (!totem.likeHistory || !Array.isArray(totem.likeHistory)) {
+        console.log('TotemService.refreshUserLike - likeHistory is undefined or not an array, cannot refresh');
         throw new Error("No like history found for this totem");
       }
       
-      // Find existing like in history
-      const existingLikeIndex = totem.likeHistory.findIndex(like => like.userId === userId);
+      // Find existing like in history - ensure we don't access undefined properties
+      const existingLikeIndex = totem.likeHistory.findIndex(like => like && like.userId === userId);
       
       if (existingLikeIndex === -1) {
         console.error('TotemService.refreshUserLike - User has not liked this totem');
@@ -249,7 +412,7 @@ export class TotemService {
       
       const existingLike = totem.likeHistory[existingLikeIndex];
       
-      if (!existingLike.isActive) {
+      if (!existingLike || existingLike.isActive !== true) {
         console.error('TotemService.refreshUserLike - Cannot refresh an inactive like');
         throw new Error("Cannot refresh an inactive like. Please like the totem first.");
       }
@@ -259,13 +422,26 @@ export class TotemService {
       // Update the originalTimestamp to now
       existingLike.originalTimestamp = now;
       existingLike.lastUpdatedAt = now;
-      totem.likeHistory[existingLikeIndex] = existingLike;
+      
+      // Ensure index is valid before updating array
+      if (existingLikeIndex >= 0 && existingLikeIndex < totem.likeHistory.length) {
+        totem.likeHistory[existingLikeIndex] = existingLike;
+      } else {
+        console.error('TotemService.refreshUserLike - Invalid existingLikeIndex:', existingLikeIndex);
+        // This shouldn't happen since we checked existingLikeIndex !== -1 above, but just in case
+        throw new Error("Error refreshing like: Invalid like index");
+      }
       
       // Update the lastLike timestamp
       totem.lastLike = now;
       
       // Recalculate crispness
       totem.crispness = this.calculateCrispnessFromLikeHistory(totem.likeHistory);
+      
+      // Validate post ID before updating
+      if (!post.id) {
+        throw new Error('Post ID is required');
+      }
       
       // Update the document
       await updateDoc(doc(db, "posts", post.id), { 
@@ -282,7 +458,12 @@ export class TotemService {
       };
     } catch (error) {
       console.error('Error refreshing user like:', error);
-      throw error;
+      // Return a more informative error with specific cause
+      if (error instanceof Error) {
+        throw new Error(`TotemService.refreshUserLike failed: ${error.message}`);
+      } else {
+        throw new Error('TotemService.refreshUserLike failed with unknown error');
+      }
     }
   }
 
@@ -458,9 +639,11 @@ export class TotemService {
    */
   private static calculateCrispnessFromLikeHistory(likeHistory: TotemLike[]): number {
     // Filter to only active likes
-    const activeLikes = likeHistory.filter(like => like.isActive);
+    const activeLikes = likeHistory.filter(like => like && like.isActive === true);
     
-    if (activeLikes.length === 0) {
+    console.log('calculateCrispnessFromLikeHistory - activeLikes:', activeLikes.length);
+    
+    if (!activeLikes || activeLikes.length === 0) {
       return 0;
     }
     
@@ -475,11 +658,34 @@ export class TotemService {
     const individualCrispnessValues: number[] = [];
     
     activeLikes.forEach(like => {
-      const timeSinceLike = now - like.originalTimestamp;
+      if (!like) {
+        console.warn('TotemService.calculateCrispnessFromLikeHistory - Invalid like');
+        return; // Skip this like
+      }
+      
+      // Convert originalTimestamp to number if it's a string
+      let timestamp: number;
+      if (typeof like.originalTimestamp === 'string') {
+        console.log('TotemService.calculateCrispnessFromLikeHistory - Converting string timestamp to number:', like.originalTimestamp);
+        timestamp = new Date(like.originalTimestamp).getTime();
+      } else if (typeof like.originalTimestamp === 'number') {
+        timestamp = like.originalTimestamp;
+      } else {
+        console.warn('TotemService.calculateCrispnessFromLikeHistory - Invalid timestamp format:', like.originalTimestamp);
+        return; // Skip this like
+      }
+      
+      const timeSinceLike = now - timestamp;
       // Calculate crispness based on original timestamp
       const likeCrispness = Math.max(0, 100 * (1 - (timeSinceLike / decayPeriod)));
       individualCrispnessValues.push(likeCrispness);
     });
+    
+    // If we have no valid likes with timestamps, return default crispness
+    if (individualCrispnessValues.length === 0) {
+      console.warn('TotemService.calculateCrispnessFromLikeHistory - No valid likes with timestamps');
+      return 100;
+    }
     
     // Calculate the average crispness across all active likes
     const totalCrispness = individualCrispnessValues.reduce((sum, val) => sum + val, 0);
@@ -487,6 +693,12 @@ export class TotemService {
     
     // Ensure crispness is between 0 and 100
     const boundedCrispness = Math.min(100, Math.max(0, averageCrispness));
+    
+    // Check for NaN and return a default if needed
+    if (isNaN(boundedCrispness)) {
+      console.error('TotemService.calculateCrispnessFromLikeHistory - Calculated NaN crispness, returning default 100');
+      return 100;
+    }
     
     return parseFloat(boundedCrispness.toFixed(2));
   }

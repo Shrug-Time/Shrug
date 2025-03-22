@@ -4,15 +4,15 @@ import { MouseEvent, memo, useCallback, useMemo, useState, useEffect } from 'rea
 import { auth } from '@/firebase';
 import { useRouter } from 'next/navigation';
 
-interface TotemButtonProps {
+export interface TotemButtonProps {
   name: string;
   likes: number;
-  crispness?: number;
-  onLike?: (e: MouseEvent<HTMLButtonElement>) => Promise<void> | void;
-  onUnlike?: (e: MouseEvent<HTMLButtonElement>) => Promise<void> | void;
-  onRefresh?: (e: MouseEvent<HTMLButtonElement>) => Promise<void> | void;
-  postId?: string;
+  crispness: number;
   isLiked?: boolean;
+  onLike?: (e?: any) => void | Promise<void>;
+  onUnlike?: (e?: any) => void | Promise<void>;
+  onRefresh?: (e?: any) => void | Promise<void>;
+  postId?: string;
   originalLikeTimestamp?: number;
 }
 
@@ -28,14 +28,32 @@ function TotemButtonBase({
   originalLikeTimestamp
 }: TotemButtonProps) {
   const router = useRouter();
-  const [isLikeDisabled, setIsLikeDisabled] = useState(isLiked);
-  const [showRefreshPrompt, setShowRefreshPrompt] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showRefreshPrompt, setShowRefreshPrompt] = useState(false);
+  // Track the local like state to prevent accidental multiple likes
+  const [localIsLiked, setLocalIsLiked] = useState(isLiked);
   
-  // Update the disabled state when isLiked prop changes
+  // Update local state when the parent prop changes
   useEffect(() => {
-    setIsLikeDisabled(isLiked);
-  }, [isLiked]);
+    console.log(`TotemButton - isLiked prop changed to ${isLiked} for totem ${name}`);
+    setLocalIsLiked(isLiked);
+  }, [isLiked, name]);
+  
+  // Debug props on component mount
+  useEffect(() => {
+    console.log(`TotemButton - Component mounted/updated for ${name}`);
+    console.log(`TotemButton - Initial props for ${name}:`, {
+      onLike: !!onLike,
+      onUnlike: !!onUnlike,
+      isLiked: isLiked,
+      localIsLiked: localIsLiked
+    });
+    
+    // This helps verify if onUnlike is correctly passed in
+    if (isLiked && !onUnlike) {
+      console.warn(`TotemButton - WARN: Totem ${name} is liked but no onUnlike handler is provided!`);
+    }
+  }, [name, onLike, onUnlike, isLiked, localIsLiked]);
   
   // Determine if this is a re-like situation that would benefit from a refresh
   const isReLike = useMemo(() => {
@@ -81,40 +99,83 @@ function TotemButtonBase({
   const handleLikeClick = async (e: MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     
-    if (isLoading) return;
+    console.log(`TotemButton - handleLikeClick STARTED for ${name}`);
+    console.log(`TotemButton - Current localIsLiked state: ${localIsLiked}`);
+    console.log(`TotemButton - isLoading: ${isLoading}`);
+    console.log(`TotemButton - onLike handler available: ${!!onLike}`);
+    console.log(`TotemButton - onUnlike handler available: ${!!onUnlike}`);
+    
+    if (isLoading) {
+      console.log(`TotemButton - Ignoring click because isLoading is true`);
+      return;
+    }
     
     if (!isAuthenticated) {
+      console.log(`TotemButton - User not authenticated, delegating to parent`);
       // Not logged in, handle this in the parent component
       if (onLike) onLike(e);
       return;
     }
     
-    if (isLikeDisabled && onUnlike) {
-      // If already liked and we have an unlike handler, unlike the totem
+    try {
       setIsLoading(true);
-      try {
+      console.log(`TotemButton - Set isLoading to true`);
+      
+      if (localIsLiked) {
+        // If already liked, unlike the totem
+        console.log(`TotemButton - Trying to UNLIKE totem ${name}`);
+        
+        if (!onUnlike) {
+          console.warn(`TotemButton - Cannot unlike: onUnlike handler not provided for ${name}`);
+          console.log(`TotemButton - Available props for ${name}:`, {
+            onLike: !!onLike,
+            onUnlike: !!onUnlike,
+            onRefresh: !!onRefresh,
+            isLiked: isLiked,
+            originalLikeTimestamp: !!originalLikeTimestamp
+          });
+          setIsLoading(false);
+          return;
+        }
+        
+        // Optimistically update UI
+        console.log(`TotemButton - Optimistically setting localIsLiked to false for ${name}`);
+        setLocalIsLiked(false);
+        
+        console.log(`TotemButton - Calling onUnlike handler for ${name}...`);
         await onUnlike(e);
-        setIsLikeDisabled(false);
-      } finally {
-        setIsLoading(false);
-      }
-      return;
-    }
-    
-    if (!isLikeDisabled && onLike) {
-      // If not liked and we have a like handler, like the totem
-      setIsLoading(true);
-      try {
+        console.log(`TotemButton - onUnlike handler completed successfully for ${name}`);
+      } else {
+        // If not liked, like the totem
+        console.log(`TotemButton - Trying to LIKE totem ${name}`);
+        
+        if (!onLike) {
+          console.warn(`TotemButton - Cannot like: onLike handler not provided for ${name}`);
+          setIsLoading(false);
+          return;
+        }
+        
+        // Optimistically update UI
+        console.log(`TotemButton - Optimistically setting localIsLiked to true for ${name}`);
+        setLocalIsLiked(true);
+        
+        console.log(`TotemButton - Calling onLike handler for ${name}...`);
         await onLike(e);
-        setIsLikeDisabled(true);
+        console.log(`TotemButton - onLike handler completed successfully for ${name}`);
         
         // If this is a re-like situation, show the refresh prompt
         if (isReLike) {
+          console.log(`TotemButton - This is a re-like, showing refresh prompt`);
           setShowRefreshPrompt(true);
         }
-      } finally {
-        setIsLoading(false);
       }
+    } catch (error) {
+      console.error(`TotemButton - Error ${localIsLiked ? 'unliking' : 'liking'} totem ${name}:`, error);
+      // Revert on error
+      setLocalIsLiked(!localIsLiked);
+    } finally {
+      console.log(`TotemButton - Setting isLoading back to false`);
+      setIsLoading(false);
     }
   };
 
@@ -140,33 +201,40 @@ function TotemButtonBase({
 
   return (
     <div className="inline-flex flex-col items-center">
-      <button
-        onClick={handleTotemClick}
-        className="flex items-center justify-center px-3 py-1 rounded-xl text-white shadow-sm transition-colors hover:shadow-md"
-        style={{ backgroundColor }}
-      >
-        {name}
+      <div className="flex items-center">
+        <button
+          onClick={handleTotemClick}
+          className="flex items-center justify-center px-3 py-1 rounded-l-xl text-white shadow-sm transition-colors hover:shadow-md"
+          style={{ backgroundColor }}
+        >
+          {name}
+          
+          <span className="ml-2 text-white/90 flex items-center">
+            {likes}
+          </span>
+        </button>
         
-        <span className="ml-2 text-white/90 flex items-center">
-          {likes}
-        </span>
-      </button>
-      
-      <div className="flex items-center mt-1 space-x-2">
+        {/* Like button integrated into the totem button */}
         <button
           onClick={handleLikeClick}
           disabled={isLoading}
-          className={`text-xs flex items-center justify-center w-6 h-6 rounded-full transition-colors ${
-            isLikeDisabled 
-              ? 'bg-red-100 text-red-500 hover:bg-red-200' 
-              : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+          className={`flex items-center justify-center h-full px-2 py-1 rounded-r-xl shadow-sm transition-colors ${
+            localIsLiked 
+              ? 'bg-red-500 text-white hover:bg-red-600' 
+              : 'bg-opacity-80 text-white hover:bg-opacity-100'
           }`}
-          title={!isAuthenticated ? "Log in to interact" : isLikeDisabled ? "Unlike this totem" : "Like this totem"}
+          style={{ backgroundColor: localIsLiked ? undefined : backgroundColor }}
+          title={!isAuthenticated ? "Log in to interact" : localIsLiked ? "Unlike this totem" : "Like this totem"}
+          data-liked={localIsLiked ? "true" : "false"}
+          data-totem-name={name}
+          data-testing-id="totem-like-button"
         >
-          {isLikeDisabled ? '❤️' : '♡'}
+          {localIsLiked ? '❤️' : '♡'}
         </button>
-        
-        {crispness !== undefined && (
+      </div>
+      
+      {crispness !== undefined && (
+        <div className="flex items-center mt-1">
           <button
             onClick={handleRefreshClick}
             disabled={isLoading}
@@ -175,8 +243,8 @@ function TotemButtonBase({
           >
             {Math.round(crispness)}% fresh
           </button>
-        )}
-      </div>
+        </div>
+      )}
       
       {showRefreshPrompt && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

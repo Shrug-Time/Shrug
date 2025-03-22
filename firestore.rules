@@ -1,60 +1,268 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper functions
+    // ==========================================
+    // HELPER FUNCTIONS
+    // ==========================================
+    
+    // === Authentication Helpers ===
+    
+    /**
+     * Checks if the user is authenticated
+     */
     function isAuthenticated() {
       return request.auth != null;
     }
     
+    /**
+     * Checks if the user's email is verified
+     */
     function isEmailVerified() {
       return request.auth.token.email_verified == true;
     }
     
+    /**
+     * Checks if the current user is the specified user
+     */
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return isAuthenticated() && request.auth.uid == userId;
     }
     
-    function isPremiumUser() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.membershipTier == 'premium';
+    /**
+     * Checks if the current user owns the resource by comparing against
+     * the standardized firebaseUid field
+     */
+    function isResourceOwner() {
+      return isAuthenticated() && 
+             (resource.data.firebaseUid == request.auth.uid ||
+              // Legacy field support
+              resource.data.userId == request.auth.uid ||
+              resource.data.userID == request.auth.uid);
     }
-
-    // Users collection
+    
+    /**
+     * Validates that the user can only set themselves as owner when creating resources
+     */
+    function hasValidOwnerFields() {
+      return request.resource.data.firebaseUid == request.auth.uid &&
+             // Also check if the username field exists (doesn't validate if it's the right username)
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             'username' in request.resource.data &&
+             'name' in request.resource.data;
+    }
+    
+    // === User Role/Status Helpers ===
+    
+    /**
+     * Checks if the user has premium membership
+     */
+    function isPremiumUser() {
+      return isAuthenticated() &&
+             existsUser() &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.membershipTier == 'premium';
+    }
+    
+    /**
+     * Checks if the user has at least basic membership
+     */
+    function isBasicUser() {
+      return isAuthenticated() &&
+             existsUser() &&
+             (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.membershipTier == 'basic' ||
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.membershipTier == 'premium');
+    }
+    
+    /**
+     * Checks if a user document exists for the current user
+     */
+    function existsUser() {
+      return isAuthenticated() &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+    
+    // === Data Validation Helpers ===
+    
+    /**
+     * Validates timestamp fields on create
+     */
+    function hasValidTimestamps() {
+      let data = request.resource.data;
+      return 'createdAt' in data && 
+             'updatedAt' in data &&
+             data.createdAt is number &&
+             data.updatedAt is number &&
+             data.createdAt == data.updatedAt &&
+             data.createdAt <= request.time.toMillis();
+    }
+    
+    /**
+     * Validates timestamp fields on update
+     */
+    function hasValidUpdateTimestamps() {
+      let data = request.resource.data;
+      return 'updatedAt' in data &&
+             data.updatedAt is number &&
+             data.updatedAt >= resource.data.updatedAt &&
+             data.updatedAt <= request.time.toMillis() &&
+             data.createdAt == resource.data.createdAt;
+    }
+    
+    // ==========================================
+    // CURRENT COLLECTIONS
+    // ==========================================
+    
+    /**
+     * User Profiles Collection
+     */
     match /users/{userId} {
+      // Anyone can read basic user profile data
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isOwner(userId);
+      
+      // Only the user themselves can create their profile
+      allow create: if isAuthenticated() && 
+                     isOwner(userId) && 
+                     hasValidTimestamps();
+      
+      // Allow users to update their own profiles, with specific field restrictions
       allow update: if isAuthenticated() && (
-        isOwner(userId) || 
-        // Allow updating followers/following arrays
+        // Owner can update most fields
+        (isOwner(userId) && 
+         hasValidUpdateTimestamps() &&
+         // Prevent updating certain fields directly - these require special operations
+         !(request.resource.data.diff(resource.data).affectedKeys()
+           .hasAny(['membershipTier', 'verificationStatus', 'refreshesRemaining', 'createdAt']))
+        ) ||
+        // Allow following/follower updates by other users
         (request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['followers', 'following']))
       );
+      
+      // No direct deletes allowed - must go through a service function
+      allow delete: if false;
     }
-
-    // Posts collection
+    
+    /**
+     * Posts Collection
+     */
     match /posts/{postId} {
+      // Anyone authenticated can read posts
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isEmailVerified();
+      
+      // Create requires email verification and proper fields
+      allow create: if isAuthenticated() && 
+                     isEmailVerified() && 
+                     hasValidOwnerFields() &&
+                     hasValidTimestamps();
+      
+      // Update rules for different operations
       allow update: if isAuthenticated() && (
-        // Allow updating answers array
-        request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['answers', 'totalEngagement', 'score', 'lastEngagement'])
+        // Post owner can update the post content
+        (isResourceOwner() && 
+         hasValidUpdateTimestamps() &&
+         // Can't change the creator/ownership fields
+         !(request.resource.data.diff(resource.data).affectedKeys()
+           .hasAny(['firebaseUid', 'username', 'name', 'createdAt']))
+        ) ||
+        // Anyone can update answers and engagement metrics
+        (request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['answers', 'answerFirebaseUids', 'answerUsernames', 'answerUserIds', 'totalEngagement', 'score', 'lastInteraction']) &&
+         hasValidUpdateTimestamps()
+        ) ||
+        // Anyone can update totem associations
+        (request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['totemAssociations']) &&
+         hasValidUpdateTimestamps()
+        )
       );
+      
+      // Only post owner can delete
+      allow delete: if isAuthenticated() && isResourceOwner();
     }
-
-    // Totems collection
+    
+    /**
+     * Totems Collection
+     */
     match /totems/{totemId} {
+      // Anyone can read totems
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isEmailVerified();
+      
+      // Create requires email verification and proper fields
+      allow create: if isAuthenticated() && 
+                     isEmailVerified() && 
+                     hasValidTimestamps();
+      
+      // Update rules for different operations
       allow update: if isAuthenticated() && (
-        // Allow updating usage stats
-        request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['usageCount', 'lastUsed', 'answerRefs'])
+        // Allow updating usage stats and like information
+        (request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['usageCount', 'lastUsed', 'answerRefs', 'likes', 'likedBy', 'likeTimes', 'likeValues', 'lastLike', 'crispness', 'likeHistory']) &&
+         hasValidUpdateTimestamps()
+        ) ||
+        // Allow updating relationships
+        (request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['relationships']) &&
+         hasValidUpdateTimestamps()
+        )
       );
+      
+      // No direct deletes - must be handled by admin
+      allow delete: if false;
     }
-
-    // Premium features
+    
+    // ==========================================
+    // FUTURE COLLECTIONS (PLANNED)
+    // ==========================================
+    
+    /**
+     * User Activities Collection (Denormalized Data)
+     * Structure: userActivities/{userId}/[posts|answers|totems]/{itemId}
+     */
+    match /userActivities/{userId}/{subcollection}/{itemId} {
+      // Users can read their own activity data
+      allow read: if isAuthenticated() && isOwner(userId);
+      
+      // No direct client writes allowed to maintain data consistency
+      allow write: if false;
+      
+      // In the future, controlled writes may be enabled with strict validation
+    }
+    
+    /**
+     * User Collections (Content Organization)
+     * Structure: userCollections/{userId}/collections/{collectionId}
+     */
+    match /userCollections/{userId}/collections/{collectionId} {
+      // Users can read their own collections
+      allow read: if isAuthenticated() && isOwner(userId);
+      
+      // Public collections can be read by anyone
+      allow read: if isAuthenticated() && 
+                   resource.data.isPublic == true;
+      
+      // Users can create their own collections
+      allow create: if isAuthenticated() && 
+                     isOwner(userId) && 
+                     hasValidTimestamps();
+      
+      // Users can update their own collections
+      allow update: if isAuthenticated() && 
+                     isOwner(userId) && 
+                     hasValidUpdateTimestamps();
+      
+      // Users can delete their own collections
+      allow delete: if isAuthenticated() && isOwner(userId);
+      
+      // Nested folders and items would have similar rules
+    }
+    
+    /**
+     * Premium Features
+     * Future: may be expanded with more granular collections
+     */
     match /premium/{document=**} {
-      allow read, write: if isAuthenticated() && isPremiumUser();
+      // Only premium users can access premium features
+      allow read, write: if isAuthenticated() && 
+                           isPremiumUser();
     }
   }
 } 
