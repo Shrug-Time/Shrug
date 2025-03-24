@@ -234,10 +234,20 @@ export default function Home() {
 
     try {
       console.log(`handleTotemLikeClick - Operation: ${isUnlike ? 'Unlike' : 'Like'} for totem: ${totemName}`);
-      await handleTotemLike(post, answerIdx, totemName, user.uid, isUnlike);
+      const result = await handleTotemLike(post, answerIdx, totemName, user.uid, isUnlike);
+      
+      // If it was a noop operation (already liked/unliked), log but don't show error
+      if (result && result.action === 'noop') {
+        console.log(`handleTotemLikeClick - No operation performed: ${result.message}`);
+        // Don't invalidate queries for noop operations
+        return;
+      }
+      
+      // Only invalidate queries for successful like/unlike operations
       queryClient.invalidateQueries({ queryKey: ['posts'] });
     } catch (error) {
       if (error instanceof Error) {
+        console.error(`handleTotemLikeClick - Error:`, error);
         alert(error.message);
       }
     }

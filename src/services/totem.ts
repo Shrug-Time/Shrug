@@ -105,8 +105,13 @@ export class TotemService {
         
         // Check if user has liked this totem
         if (!existingLike && !hasLegacyLike) {
-          console.error('TotemService.handleTotemLike - User has not liked this totem, cannot unlike');
-          throw new Error("You haven't liked this totem yet!");
+          console.warn('TotemService.handleTotemLike - User has not liked this totem, cannot unlike');
+          // Instead of throwing an error, return gracefully with a warning
+          return { 
+            success: true, 
+            action: 'noop',
+            message: "You haven't liked this totem yet"
+          };
         }
         
         // Update like history if it exists
@@ -170,8 +175,14 @@ export class TotemService {
       
       // If user already has an active like
       if ((existingLike && existingLike.isActive === true) || hasLegacyLike) {
-        console.error('TotemService.handleTotemLike - User has already liked this totem');
-        throw new Error("You've already liked this totem!");
+        console.warn('TotemService.handleTotemLike - User has already liked this totem');
+        // Instead of throwing an error, just return success with a message
+        return { 
+          success: true,
+          action: 'noop',
+          message: "You've already liked this totem",
+          post: null
+        };
       }
       
       // If user previously liked but then unliked, reactivate the like
@@ -566,9 +577,17 @@ export class TotemService {
                 
                 // Find existing like in history
                 const existingLikeIndex = updatedTotem.likeHistory.findIndex(like => like.userId === userId);
+                const existingLike = existingLikeIndex !== -1 ? updatedTotem.likeHistory[existingLikeIndex] : null;
                 
-                // If we found an existing like, mark it as active
+                // Track if we need to increment the likes counter
+                let shouldIncrementLikes = true;
+                
+                // If we found an existing like, check if it was already active
                 if (existingLikeIndex !== -1) {
+                  // Only increment likes if the existing like was NOT active
+                  shouldIncrementLikes = !existingLike?.isActive;
+                  
+                  // Update the existing like
                   updatedTotem.likeHistory[existingLikeIndex] = {
                     ...updatedTotem.likeHistory[existingLikeIndex],
                     isActive: true,
@@ -585,8 +604,14 @@ export class TotemService {
                   });
                 }
                 
-                // Update likes count
-                updatedTotem.likes = (updatedTotem.likes || 0) + 1;
+                // Only update likes count if necessary
+                if (shouldIncrementLikes) {
+                  // Update likes count
+                  updatedTotem.likes = (updatedTotem.likes || 0) + 1;
+                  console.log(`TotemService.updateTotemStatsAfterReLike - Incrementing likes count for ${totemName}`);
+                } else {
+                  console.log(`TotemService.updateTotemStatsAfterReLike - NOT incrementing likes count for ${totemName} as it was already active in UI`);
+                }
                 
                 // Update legacy arrays for backward compatibility
                 if (!updatedTotem.likedBy) {

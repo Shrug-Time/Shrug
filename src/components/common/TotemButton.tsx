@@ -138,13 +138,15 @@ function TotemButtonBase({
           return;
         }
         
-        // Optimistically update UI
-        console.log(`TotemButton - Optimistically setting localIsLiked to false for ${name}`);
-        setLocalIsLiked(false);
+        // Don't optimistically update UI anymore - we'll wait for the actual response
+        // instead to prevent UI getting out of sync with server state
         
         console.log(`TotemButton - Calling onUnlike handler for ${name}...`);
         await onUnlike(e);
         console.log(`TotemButton - onUnlike handler completed successfully for ${name}`);
+        
+        // Now update the UI based on the server response
+        setLocalIsLiked(false);
       } else {
         // If not liked, like the totem
         console.log(`TotemButton - Trying to LIKE totem ${name}`);
@@ -155,13 +157,14 @@ function TotemButtonBase({
           return;
         }
         
-        // Optimistically update UI
-        console.log(`TotemButton - Optimistically setting localIsLiked to true for ${name}`);
-        setLocalIsLiked(true);
+        // Don't optimistically update UI anymore - we'll wait for the actual response
         
         console.log(`TotemButton - Calling onLike handler for ${name}...`);
         await onLike(e);
         console.log(`TotemButton - onLike handler completed successfully for ${name}`);
+        
+        // Now update the UI based on the server response
+        setLocalIsLiked(true);
         
         // If this is a re-like situation, show the refresh prompt
         if (isReLike) {
@@ -171,8 +174,7 @@ function TotemButtonBase({
       }
     } catch (error) {
       console.error(`TotemButton - Error ${localIsLiked ? 'unliking' : 'liking'} totem ${name}:`, error);
-      // Revert on error
-      setLocalIsLiked(!localIsLiked);
+      // If there is an error, don't change the UI state
     } finally {
       console.log(`TotemButton - Setting isLoading back to false`);
       setIsLoading(false);

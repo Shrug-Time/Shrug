@@ -125,6 +125,23 @@ export async function updateTotemLikes(
     
     // Call the TotemService to handle the like/unlike
     const result = await TotemService.handleTotemLike(post, answerIndex, totemName, currentUser.uid, isUnlike);
+    console.log(`updateTotemLikes - Response from handleTotemLike:`, {
+      success: result.success,
+      action: result.action,
+      message: result.message || null
+    });
+    
+    // Handle noop actions (already liked/unliked)
+    if (result.action === 'noop') {
+      console.log(`updateTotemLikes - No operation performed: ${result.message}`);
+      // Return success but with a noop flag so client knows no change occurred
+      return {
+        success: true,
+        action: 'noop',
+        message: result.message
+      };
+    }
+    
     console.log(`updateTotemLikes - Successfully ${isUnlike ? 'unliked' : 'liked'} totem. Result:`, {
       success: result.success,
       action: result.action

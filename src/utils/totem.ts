@@ -35,14 +35,30 @@ export async function handleTotemLike(
 ) {
   console.log(`handleTotemLike - Operation type: ${isUnlike ? 'Unlike' : 'Like'}`);
   
-  if (isUnlike) {
-    // If we're unliking, use the unlikeTotem function which sets isUnlike=true
-    console.log(`handleTotemLike - Calling unlikeTotem for post ID: ${post.id}, totem: ${totemName}`);
-    await unlikeTotem(post.id, totemName);
-  } else {
-    // For regular like operations
-    console.log(`handleTotemLike - Calling updateTotemLikes for post ID: ${post.id}, totem: ${totemName}`);
-    await updateTotemLikes(post.id, totemName, false); // Explicitly set isUnlike=false
+  try {
+    let result;
+    
+    if (isUnlike) {
+      // If we're unliking, use the unlikeTotem function which sets isUnlike=true
+      console.log(`handleTotemLike - Calling unlikeTotem for post ID: ${post.id}, totem: ${totemName}`);
+      result = await unlikeTotem(post.id, totemName);
+    } else {
+      // For regular like operations
+      console.log(`handleTotemLike - Calling updateTotemLikes for post ID: ${post.id}, totem: ${totemName}`);
+      result = await updateTotemLikes(post.id, totemName, false); // Explicitly set isUnlike=false
+    }
+    
+    // Check for noop response (already liked/unliked)
+    if (result && result.action === 'noop') {
+      console.log(`handleTotemLike - No operation performed: ${result.message}`);
+      // Don't throw an error for noop, just return quietly
+      return { success: true, action: 'noop', message: result.message };
+    }
+    
+    return result;
+  } catch (error) {
+    console.error(`handleTotemLike - Error during ${isUnlike ? 'unlike' : 'like'} operation:`, error);
+    throw error;
   }
 }
 

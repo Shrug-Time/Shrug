@@ -54,11 +54,19 @@ export function QuestionList({
   // Get current user
   const [currentUser, setCurrentUser] = useState(auth.currentUser);
   
-  // Use the likedTotems hook which handles localStorage persistence
-  const { likedTotems, setLikedTotems } = useLikedTotems(currentUser?.uid || null);
+  // Use the enhanced likedTotems hook which handles localStorage persistence
+  const { likedTotems, setLikedTotems, isLoaded } = useLikedTotems(currentUser?.uid || null);
+
+  // Add debugging when likedTotems changes
+  useEffect(() => {
+    if (isLoaded) {
+      console.log(`QuestionList: likedTotems state updated, ${Object.keys(likedTotems).length} items`);
+    }
+  }, [likedTotems, isLoaded]);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
+      console.log(`QuestionList: Auth state changed, user ${user ? 'logged in' : 'logged out'}`);
       setCurrentUser(user);
     });
     return () => unsubscribe();
@@ -102,8 +110,8 @@ export function QuestionList({
     return likedTotems[key] === true;
   }, [likedTotems, getTotemKey]);
 
-  // Handle authentication and interactions
-  const handleInteraction = useCallback((callback: () => Promise<void>) => {
+  // Handle interaction ensuring Promise<void> return type
+  const handleInteraction = useCallback((callback: () => Promise<void>): Promise<void> => {
     if (!currentUser) {
       router.push('/login');
       return Promise.resolve();
@@ -115,41 +123,61 @@ export function QuestionList({
   const handleLike = useCallback((post: Post, answerIdx: number, totemName: string): Promise<void> => {
     const key = getTotemKey(post.id, totemName);
     
-    // Update local state (which also persists to localStorage via our hook)
-    setLikedTotems(prev => ({
-      ...prev,
-      [key]: true
-    }));
-
-    // If current user is available, also add to persistent storage directly
-    if (currentUser?.uid) {
-      addLikedTotem(currentUser.uid, post.id, totemName);
-    }
+    console.log(`QuestionList: handleLike called for ${totemName} in post ${post.id}`);
     
-    // Call the onLikeTotem handler
-    return onLikeTotem(post, answerIdx, totemName);
-  }, [currentUser, onLikeTotem, setLikedTotems, getTotemKey]);
+    try {
+      // Update local state (which also persists to localStorage via our hook)
+      setLikedTotems(prev => ({
+        ...prev,
+        [key]: true
+      }));
+
+      // If current user is available, also add to persistent storage directly
+      // This is a fallback in case the hook state update fails
+      if (currentUser?.uid) {
+        const result = addLikedTotem(currentUser.uid, post.id, totemName);
+        if (!result) {
+          console.warn(`QuestionList: Failed to add liked totem to localStorage directly`);
+        }
+      }
+      
+      // Call the onLikeTotem handler
+      return onLikeTotem(post, answerIdx, totemName);
+    } catch (error) {
+      console.error(`QuestionList: Error in handleLike:`, error);
+      return Promise.reject(error);
+    }
+  }, [currentUser, onLikeTotem, setLikedTotems]);
 
   // Handle unlike action with local state update and persistence
   const handleUnlike = useCallback((post: Post, answerIdx: number, totemName: string): Promise<void> => {
     const key = getTotemKey(post.id, totemName);
     
-    // Update local state (which also persists to localStorage via our hook)
-    setLikedTotems(prev => {
-      const newState = { ...prev };
-      delete newState[key];
-      return newState;
-    });
-
-    // If current user is available, also remove from persistent storage directly
-    if (currentUser?.uid) {
-      removeLikedTotem(currentUser.uid, post.id, totemName);
-    }
+    console.log(`QuestionList: handleUnlike called for ${totemName} in post ${post.id}`);
     
-    // Call the onLikeTotem handler with isUnlike=true to indicate this is an unlike operation
-    // This is needed because the backend API expects a boolean flag to indicate an unlike operation
-    return onLikeTotem(post, answerIdx, totemName, true);
-  }, [currentUser, onLikeTotem, setLikedTotems, getTotemKey]);
+    try {
+      // Update local state (which also persists to localStorage via our hook)
+      setLikedTotems(prev => {
+        const newState = { ...prev };
+        delete newState[key];
+        return newState;
+      });
+
+      // If current user is available, also remove from persistent storage directly
+      if (currentUser?.uid) {
+        const result = removeLikedTotem(currentUser.uid, post.id, totemName);
+        if (!result) {
+          console.warn(`QuestionList: Failed to remove liked totem from localStorage directly`);
+        }
+      }
+      
+      // Call the onLikeTotem handler with isUnlike=true to indicate this is an unlike operation
+      return onLikeTotem(post, answerIdx, totemName, true);
+    } catch (error) {
+      console.error(`QuestionList: Error in handleUnlike:`, error);
+      return Promise.reject(error);
+    }
+  }, [currentUser, onLikeTotem, setLikedTotems]);
 
   const renderAnswer = useCallback((post: Post, answer: Answer, index: number, isBestAnswer: boolean = false) => {
     // Get only the highest-liked totem for this answer

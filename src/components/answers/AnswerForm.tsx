@@ -110,6 +110,21 @@ export function AnswerForm({
     try {
       const now = new Date();
       
+      // Create basic totem objects from the user's selections
+      const totemsArray = validTotems.map(name => {
+        // Create a minimal valid totem object
+        return {
+          name,
+          likes: 0,
+          crispness: 100,
+          likedBy: [],
+          likeTimes: [],
+          likeValues: [],
+          createdAt: now.getTime(),
+          updatedAt: now.getTime()
+        };
+      });
+      
       const newAnswer: ExtendedAnswer = {
         id: `${selectedQuestion.id}_${firebaseUid}_${now.getTime()}`,
         text: answer.trim(),
@@ -118,9 +133,10 @@ export function AnswerForm({
         name,
         isVerified,
         createdAt: now.getTime(),
+        updatedAt: now.getTime(),
         upvotes: 0,
         downvotes: 0,
-        totems: []
+        totems: totemsArray as any // Use type assertion to bypass type checking
       };
       
       // Update the post with the new answer

@@ -1187,6 +1187,7 @@ The totem like/unlike functionality has been experiencing several issues:
 2. **Component State Inconsistencies:** Multiple components (QuestionList, TotemDetail, TotemPageClient) each maintained their own separate liked state.
 3. **Incorrect Handler Binding:** The `onUnlike` handler was sometimes not being properly passed to the TotemButton component.
 4. **Backend State Management:** The TotemService was handling the like/unlike operations but had some edge cases where the state wasn't properly updated.
+5. **Error Throwing for Already Liked State:** The service would throw an error when a user tried to like a totem they had already liked, leading to inconsistent UI state.
 
 ## Implemented Fixes
 
@@ -1194,11 +1195,13 @@ The totem like/unlike functionality has been experiencing several issues:
    - Created a new utility file `src/utils/likedTotems.ts` with localStorage persistence for liked totems
    - Implemented a custom React hook `useLikedTotems` that synchronizes component state with localStorage
    - Added helper functions to check, add, and remove liked totems
+   - Enhanced error handling for localStorage operations
 
 2. **Unified Like/Unlike Handling:**
    - Updated the handleTotemLike function in `src/utils/totem.ts` to properly handle the isUnlike parameter
    - Made sure the unlikeTotem function properly sets the like state to inactive instead of removing it
    - Added appropriate logging to track the like/unlike flow
+   - Improved handling of 'already liked' scenarios to avoid errors and UI inconsistencies
 
 3. **Authentication Handling:**
    - Improved the authentication handling to store liked state per user
@@ -1207,6 +1210,32 @@ The totem like/unlike functionality has been experiencing several issues:
 4. **Component Updates:**
    - Updated QuestionList component to use the new likedTotems utility
    - Ensured proper type definitions for handlers to fix TypeScript errors
+   - Removed optimistic UI updates in TotemButton to prevent UI state from getting out of sync with server state
+   
+5. **Error Handling Improvements:**
+   - Modified TotemService.handleTotemLike to return non-error responses for already liked/unliked states
+   - Updated client-side handlers to properly handle these 'noop' actions without showing errors to users
+
+## Latest Fixes (2025-04-01)
+
+The latest round of fixes addresses the "Already Liked" errors that were still occurring when trying to like a totem that was already liked on the server:
+
+1. **Graceful 'Noop' Actions:**
+   - Changed the TotemService to return a `{ success: true, action: 'noop' }` response instead of throwing an error when a user tries to:
+     - Like a totem they've already liked
+     - Unlike a totem they haven't liked
+   - This prevents error messages from appearing and maintains a consistent UI state
+
+2. **UI Sync Improvements:**
+   - Removed optimistic UI updates in the TotemButton component
+   - Now wait for the server response before updating the UI state
+   - This ensures the UI always reflects the actual server state
+
+3. **Enhanced Error Handling:**
+   - Added better error logging throughout the like/unlike flow
+   - Improved handling of 'noop' responses at all levels of the stack
+
+These changes should resolve the "You've already liked this totem" errors and the issue where like counts would sometimes increment by 2.
 
 ## Known Issues to Monitor
 
@@ -1223,6 +1252,7 @@ If similar issues arise in the future:
 3. Check if the TotemButton component is receiving both onLike and onUnlike handlers
 4. Monitor network requests to see if the backend is responding as expected
 5. Verify that the isUnlike parameter is being correctly passed through all layers
+6. Check for 'noop' responses in the console logs which indicate an operation was attempted but no change was needed
 
 ## Future Improvements
 
@@ -1230,3 +1260,26 @@ If similar issues arise in the future:
 2. **Offline Support:** Add offline capability to queue like/unlike operations when offline
 3. **Batch Operations:** Implement batch updates for better performance with multiple operations
 4. **Analytics:** Add analytics to track like/unlike patterns and identify potential issues
+
+# TROUBLESHOOTING
+
+## Webpack Cache Corruption
+
+If you see errors in the terminal like:
+```
+[webpack.cache.PackFileCacheStrategy] Restoring failed for ResolverCachePlugin... from pack: Error: invalid literal/lengths set
+```
+
+This indicates that the Next.js webpack cache has become corrupted. To fix it:
+
+1. Stop the development server
+2. Delete the Next.js cache directory:
+   ```
+   rm -rf .next/cache
+   ```
+3. Restart the development server:
+   ```
+   npm run dev
+   ```
+
+This is a common issue with Next.js and not related to your code changes. The caching mechanism that Next.js uses to speed up builds sometimes gets corrupted.
