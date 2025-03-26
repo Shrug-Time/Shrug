@@ -500,3 +500,205 @@ SOLUTION: Created more robust regex-based field extraction instead of JSON parsi
 2. Gradually migrate to more scalable query patterns
 3. Optimize database reads and writes
 4. Remove legacy field support in future versions
+
+# TotemButton Implementation Plan
+
+## The Problem
+
+The current implementation of the like functionality (TotemButton) has become overly complex with multiple layers of state management:
+
+1. UI Component State (TotemButton internal state)
+2. Parent Component State (QuestionList)
+3. Local Storage State (likedTotems.ts)
+4. Server State (Firebase)
+
+This complexity has led to synchronization issues, where:
+- The like count flashes an update then reverts
+- The like status sometimes disagrees between UI and server
+- Error handling causes additional state confusion
+
+## Lessons Learned
+
+### Pitfalls to Avoid
+- **Over-engineering**: Adding multiple layers of state management made the system fragile
+- **Premature optimization**: Using localStorage for state persistence before ensuring the basic functionality works
+- **Inconsistent source of truth**: Having both localStorage and Firebase as potential sources of truth created conflicts
+
+### Better Approach
+
+A more maintainable and scalable approach should follow these principles:
+
+1. **Single Source of Truth**: The server (Firebase) should be the definitive record of likes
+2. **Simplified State Management**: Use React's state management without additional layers
+3. **Clean Optimistic Updates**: Update UI immediately with clear rollback on failure
+4. **Real-time Capabilities**: Leverage Firebase's real-time features rather than manual syncing
+
+## Implementation Plan
+
+### Phase 1: Simplify the TotemButton Component
+
+```typescript
+// Simple TotemButton component
+function TotemButton({ name, likes, isLiked, postId, onLike, onUnlike }) {
+  // Simple loading state for UX
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const handleClick = async () => {
+    if (isLoading) return;
+    
+    setIsLoading(true);
+    try {
+      if (isLiked) {
+        await onUnlike(postId, name);
+      } else {
+        await onLike(postId, name);
+      }
+    } catch (error) {
+      console.error("Error toggling like:", error);
+      // Error message to user
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  return (
+    <button 
+      onClick={handleClick}
+      disabled={isLoading}
+      className={`totem-button ${isLiked ? 'liked' : ''}`}
+    >
+      <img src={`/totems/${name}.gif`} alt={name} />
+      <span>{likes}</span>
+    </button>
+  );
+}
+```
+
+### Phase 2: Create a Clean TotemService
+
+```typescript
+// TotemService.ts
+export class TotemService {
+  // Toggle like status (handles both like and unlike)
+  static async toggleLike(postId, totemName, userId) {
+    // Get the current post state
+    const postRef = doc(db, "posts", postId);
+    
+    return runTransaction(db, async (transaction) => {
+      const postDoc = await transaction.get(postRef);
+      if (!postDoc.exists()) {
+        throw new Error("Post not found");
+      }
+      
+      const post = postDoc.data();
+      const answer = findAnswerWithTotem(post.answers, totemName);
+      const totem = findTotemInAnswer(answer, totemName);
+      
+      const isCurrentlyLiked = totem.likedBy?.includes(userId) || false;
+      
+      // Update totem
+      if (isCurrentlyLiked) {
+        // Unlike operation
+        totem.likedBy = totem.likedBy.filter(id => id !== userId);
+        totem.likes = Math.max(0, (totem.likes || 0) - 1);
+      } else {
+        // Like operation
+        totem.likedBy = [...(totem.likedBy || []), userId];
+        totem.likes = (totem.likes || 0) + 1;
+      }
+      
+      // Update the post with the modified answer
+      transaction.update(postRef, { answers: post.answers });
+      
+      return {
+        success: true,
+        post: {
+          ...post,
+          id: postId,
+        },
+        isLiked: !isCurrentlyLiked
+      };
+    });
+  }
+}
+```
+
+### Phase 3: Use React Context for Global State
+
+1. Create a TotemContext to manage liked state across components:
+
+```typescript
+const TotemContext = createContext();
+
+export function TotemProvider({ children }) {
+  const [likedTotems, setLikedTotems] = useState({});
+  const { user } = useAuth();
+  
+  // Toggle like with optimistic update
+  const toggleLike = async (postId, totemName) => {
+    if (!user) {
+      // Redirect to login or show modal
+      return;
+    }
+    
+    const key = `${postId}-${totemName}`;
+    const currentlyLiked = likedTotems[key];
+    
+    // Optimistic update
+    setLikedTotems(prev => ({
+      ...prev,
+      [key]: !currentlyLiked
+    }));
+    
+    try {
+      // Server update
+      const result = await TotemService.toggleLike(postId, totemName, user.uid);
+      
+      // Ensure state matches server result
+      if (result.isLiked !== !currentlyLiked) {
+        setLikedTotems(prev => ({
+          ...prev,
+          [key]: result.isLiked
+        }));
+      }
+      
+      return result;
+    } catch (error) {
+      // Revert optimistic update on error
+      setLikedTotems(prev => ({
+        ...prev,
+        [key]: currentlyLiked
+      }));
+      throw error;
+    }
+  };
+  
+  // Value to provide
+  const value = {
+    likedTotems,
+    toggleLike
+  };
+  
+  return (
+    <TotemContext.Provider value={value}>
+      {children}
+    </TotemContext.Provider>
+  );
+}
+
+// Custom hook to use the context
+export function useTotem() {
+  return useContext(TotemContext);
+}
+```
+
+## Migration Plan
+
+1. Create a git branch `feature/simplify-totem-likes`
+2. Revert the complex changes to how we were before
+3. Implement the simplified TotemButton component
+4. Create the TotemService with clean Firebase interactions
+5. Implement the TotemContext provider
+6. Update parent components to use the new context
+7. Test thoroughly with different network conditions
+8. Deploy incrementally
