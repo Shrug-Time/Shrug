@@ -11,7 +11,7 @@ import { Header } from '@/components/common/Header';
 import { AnswerForm } from '@/components/answers/AnswerForm';
 import { CreatePostForm } from '@/components/posts/CreatePostForm';
 import type { Post, UserProfile } from '@/types/models';
-import { handleTotemLike, handleTotemRefresh } from '@/utils/totem';
+import { TotemService } from '@/services/totem';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { UserService } from '@/services/userService';
 import { USER_FIELDS, POST_FIELDS } from '@/constants/fields';
@@ -230,31 +230,26 @@ export default function Home() {
   });
 
   const handleTotemLikeClick = async (post: Post, answerIdx: number, totemName: string) => {
-    if (!user) return;
-
+    if (!user?.uid) return;
     try {
-      await handleTotemLike(post, answerIdx, totemName, user.uid);
-      queryClient.invalidateQueries({ queryKey: ['posts'] });
-    } catch (error) {
-      if (error instanceof Error) {
-        alert(error.message);
-      }
-    }
-  };
-
-  const handleTotemRefreshClick = async (post: Post, answerIdx: number, totemName: string) => {
-    if (!user) return;
-
-    try {
-      const success = await handleTotemRefresh(post, answerIdx, totemName, refreshCount);
-      if (success) {
-        setRefreshCount(prev => prev - 1);
+      const result = await TotemService.handleTotemLike(post, answerIdx, totemName, user.uid);
+      if (result.success) {
         queryClient.invalidateQueries({ queryKey: ['posts'] });
       }
     } catch (error) {
-      if (error instanceof Error) {
-        alert(error.message);
+      console.error('Error liking totem:', error);
+    }
+  };
+
+  const handleTotemUnlikeClick = async (post: Post, answerIdx: number, totemName: string) => {
+    if (!user?.uid) return;
+    try {
+      const result = await TotemService.handleTotemLike(post, answerIdx, totemName, user.uid, true);
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: ['posts'] });
       }
+    } catch (error) {
+      console.error('Error unliking totem:', error);
     }
   };
 
@@ -266,60 +261,55 @@ export default function Home() {
         onLogout={() => auth.signOut()}
         isAuthenticated={!!user}
       />
-
-      <main className="max-w-4xl mx-auto p-6">
-        <div className="mb-6">
-          <div className="flex space-x-1 bg-white rounded-xl shadow p-1">
+      
+      <main className="container mx-auto px-4 py-8">
+        <div className="flex justify-between items-center mb-8">
+          <div className="flex space-x-4">
             <button
               onClick={() => setActiveTab('latest')}
-              className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
-                activeTab === 'latest'
-                  ? 'bg-blue-500 text-white'
-                  : 'text-gray-600 hover:text-gray-900'
+              className={`px-4 py-2 rounded ${
+                activeTab === 'latest' ? 'bg-blue-500 text-white' : 'bg-gray-200'
               }`}
             >
               Latest
             </button>
             <button
-              onClick={() => setActiveTab('for-you')}
-              className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
-                activeTab === 'for-you'
-                  ? 'bg-blue-500 text-white'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              For You
-            </button>
-            <button
               onClick={() => setActiveTab('popular')}
-              className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
-                activeTab === 'popular'
-                  ? 'bg-blue-500 text-white'
-                  : 'text-gray-600 hover:text-gray-900'
+              className={`px-4 py-2 rounded ${
+                activeTab === 'popular' ? 'bg-blue-500 text-white' : 'bg-gray-200'
               }`}
             >
               Popular
             </button>
+            {user && (
+              <button
+                onClick={() => setActiveTab('for-you')}
+                className={`px-4 py-2 rounded ${
+                  activeTab === 'for-you' ? 'bg-blue-500 text-white' : 'bg-gray-200'
+                }`}
+              >
+                For You
+              </button>
+            )}
           </div>
+          <button
+            onClick={() => setShowCreatePost(true)}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Create Post
+          </button>
         </div>
 
-        <div className="mb-6 flex items-center gap-4">
-          <input
-            type="text"
-            placeholder="Search questions..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="flex-1 p-4 border rounded-xl bg-white shadow"
-          />
-          {user && (
-            <button
-              onClick={() => setShowCreatePost(true)}
-              className="px-6 py-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 shadow"
-            >
-              Ask Question
-            </button>
-          )}
-        </div>
+        <QuestionList
+          posts={posts}
+          onSelectQuestion={setSelectedQuestion}
+          onLikeTotem={handleTotemLikeClick}
+          onUnlikeTotem={handleTotemUnlikeClick}
+          currentUserId={user?.uid || null}
+          hasNextPage={false}
+          isLoading={false}
+          onLoadMore={() => {}}
+        />
 
         {showCreatePost && userData && (
           <CreatePostForm
@@ -356,15 +346,7 @@ export default function Home() {
               Back to Questions
             </button>
           </div>
-        ) : (
-          <QuestionList
-            posts={posts}
-            onSelectQuestion={setSelectedQuestion}
-            onLikeTotem={handleTotemLikeClick}
-            onRefreshTotem={handleTotemRefreshClick}
-            showAllTotems={false}
-          />
-        )}
+        ) : null}
       </main>
     </div>
   );

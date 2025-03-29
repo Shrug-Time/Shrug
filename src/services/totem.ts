@@ -44,162 +44,89 @@ export class TotemService {
       
       if (!totem) throw new Error('Totem not found');
       
-      console.log(`TotemService.handleTotemLike - Initial totem state (${isUnlike ? 'unlike' : 'like'} operation):`, JSON.stringify(totem));
-      console.log('TotemService.handleTotemLike - userId:', userId);
-      
       // Initialize likeHistory if it doesn't exist
       if (!totem.likeHistory) {
-        console.log('TotemService.handleTotemLike - likeHistory is undefined, initializing as empty array');
         totem.likeHistory = [];
       }
       
-      // Also initialize legacy likedBy for backward compatibility
-      if (!totem.likedBy) {
-        console.log('TotemService.handleTotemLike - likedBy array is undefined, initializing as empty array');
-        totem.likedBy = [];
-      }
+      const now = Date.now();
       
-      // Find existing like in history
+      // Find existing like
       const existingLikeIndex = totem.likeHistory.findIndex(like => like.userId === userId);
       const existingLike = existingLikeIndex !== -1 ? totem.likeHistory[existingLikeIndex] : null;
       
-      // For backward compatibility, also check the legacy likedBy array
-      const hasLegacyLike = totem.likedBy.includes(userId);
-      
-      const now = Date.now();
-      
       // Handle unlike operation
       if (isUnlike) {
-        // Check if user has liked this totem
-        if (!existingLike && !hasLegacyLike) {
-          console.error('TotemService.handleTotemLike - User has not liked this totem, cannot unlike');
-          throw new Error("You haven't liked this totem yet!");
+        // If there's no existing like or it's already inactive, just return success
+        if (!existingLike || !existingLike.isActive) {
+          return { 
+            success: true, 
+            action: 'unlike',
+            post: await this.getUpdatedPost(post.id)
+          };
         }
         
-        // Update like history if it exists
-        if (existingLike) {
-          // Mark the like as inactive
-          existingLike.isActive = false;
-          existingLike.lastUpdatedAt = now;
-          totem.likeHistory[existingLikeIndex] = existingLike;
-        }
-        
-        // Update legacy likedBy for backward compatibility
-        if (hasLegacyLike) {
-          totem.likedBy = totem.likedBy.filter(id => id !== userId);
-        }
-        
-        // Decrement likes count
-        totem.likes = Math.max(0, (totem.likes || 1) - 1);
-        
-        const updatedAnswers = this.updateTotemStatsAfterUnlike(post.answers, answerIdx, totemName, userId, now);
-        
-        // Update totem relationships based on similar answers
-        const { groups } = SimilarityService.groupSimilarAnswers(updatedAnswers);
-        const updatedTotems = SimilarityService.updateTotemRelationships(updatedAnswers, groups);
-        
-        // Update the post with new answers and totem relationships
-        await updateDoc(doc(db, "posts", post.id), { 
-          answers: this.updateTotemRelationships(updatedAnswers, updatedTotems),
-          [COMMON_FIELDS.LAST_INTERACTION]: now,
-          [COMMON_FIELDS.UPDATED_AT]: now
-        });
-        
-        console.log('TotemService.handleTotemLike - Unlike completed successfully');
-        
-        return { 
-          success: true, 
-          action: 'unlike',
-          post: await this.getUpdatedPost(post.id)
-        };
-      }
-      
-      // Handle like operation
-      
-      // If user already has an active like
-      if ((existingLike && existingLike.isActive) || hasLegacyLike) {
-        console.error('TotemService.handleTotemLike - User has already liked this totem');
-        throw new Error("You've already liked this totem!");
-      }
-      
-      // If user previously liked but then unliked, reactivate the like
-      if (existingLike && !existingLike.isActive) {
-        // Reactivate the like
-        existingLike.isActive = true;
+        // Mark the like as inactive
+        existingLike.isActive = false;
         existingLike.lastUpdatedAt = now;
         totem.likeHistory[existingLikeIndex] = existingLike;
-        
-        // For backward compatibility, add back to legacy likedBy
-        if (!totem.likedBy.includes(userId)) {
-          totem.likedBy.push(userId);
+      } else {
+        // Handle like operation
+        if (existingLike) {
+          if (existingLike.isActive) {
+            throw new Error("You've already liked this totem!");
+          }
+          
+          // Reactivate the like
+          existingLike.isActive = true;
+          existingLike.lastUpdatedAt = now;
+          totem.likeHistory[existingLikeIndex] = existingLike;
+        } else {
+          // Create new like
+          const newLike: TotemLike = {
+            userId,
+            originalTimestamp: now,
+            lastUpdatedAt: now,
+            isActive: true,
+            value: 1
+          };
+          totem.likeHistory.push(newLike);
         }
-        
-        // Update likes count
-        totem.likes = (totem.likes || 0) + 1;
-        
-        const updatedAnswers = this.updateTotemStatsAfterReLike(post.answers, answerIdx, totemName, userId, now);
-        
-        // Update totem relationships based on similar answers
-        const { groups } = SimilarityService.groupSimilarAnswers(updatedAnswers);
-        const updatedTotems = SimilarityService.updateTotemRelationships(updatedAnswers, groups);
-        
-        // Update the post with new answers and totem relationships
-        await updateDoc(doc(db, "posts", post.id), { 
-          answers: this.updateTotemRelationships(updatedAnswers, updatedTotems),
-          [COMMON_FIELDS.LAST_INTERACTION]: now,
-          [COMMON_FIELDS.UPDATED_AT]: now
-        });
-        
-        console.log('TotemService.handleTotemLike - Re-like completed successfully');
-        
-        // Return information about it being a re-like with the original timestamp
-        return { 
-          success: true, 
-          action: 'relike',
-          originalTimestamp: existingLike.originalTimestamp,
-          post: await this.getUpdatedPost(post.id)
-        };
       }
       
-      // This is a brand new like
-      const newLike: TotemLike = {
-        userId,
-        originalTimestamp: now,
-        lastUpdatedAt: now,
-        isActive: true,
-        value: 1
-      };
+      // Calculate new likes count and crispness
+      totem.likes = totem.likeHistory.filter(like => like.isActive).length;
+      totem.crispness = this.calculateCrispnessFromLikeHistory(totem.likeHistory);
       
-      // Add to like history
-      totem.likeHistory.push(newLike);
+      // Update timestamps
+      totem[COMMON_FIELDS.UPDATED_AT] = now;
+      totem[COMMON_FIELDS.LAST_INTERACTION] = now;
       
-      // For backward compatibility, add to legacy likedBy
-      if (!totem.likedBy.includes(userId)) {
-        totem.likedBy.push(userId);
-      }
-      
-      const updatedAnswers = this.updateTotemStats(post.answers, answerIdx, totemName, userId, now);
-      
-      // Update totem relationships based on similar answers
-      const { groups } = SimilarityService.groupSimilarAnswers(updatedAnswers);
-      const updatedTotems = SimilarityService.updateTotemRelationships(updatedAnswers, groups);
-      
-      // Update the post with new answers and totem relationships
+      // Update the post
       await updateDoc(doc(db, "posts", post.id), { 
-        answers: this.updateTotemRelationships(updatedAnswers, updatedTotems),
+        answers: post.answers,
         [COMMON_FIELDS.LAST_INTERACTION]: now,
         [COMMON_FIELDS.UPDATED_AT]: now
       });
       
-      console.log('TotemService.handleTotemLike - New like completed successfully');
+      // Get the updated post with retries
+      const updatedPost = await this.getUpdatedPost(post.id);
+      if (!updatedPost) {
+        console.error('Failed to get updated post after like/unlike operation');
+        return { 
+          success: false, 
+          action: isUnlike ? 'unlike' : 'like',
+          post: null
+        };
+      }
       
       return { 
         success: true, 
-        action: 'like',
-        post: await this.getUpdatedPost(post.id)
+        action: isUnlike ? 'unlike' : 'like',
+        post: updatedPost
       };
     } catch (error) {
-      console.error('Error handling totem like/unlike:', error);
+      console.error('Error in handleTotemLike:', error);
       throw error;
     }
   }
@@ -207,13 +134,32 @@ export class TotemService {
   /**
    * Get updated post after like/unlike operations
    */
-  private static async getUpdatedPost(postId: string): Promise<Post | null> {
+  private static async getUpdatedPost(postId: string, retries = 3): Promise<Post | null> {
     try {
+      // Add a small delay to allow Firestore to update
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       const postDoc = await getDoc(doc(db, "posts", postId));
       if (!postDoc.exists()) return null;
-      return { id: postId, ...postDoc.data() } as Post;
+      
+      const post = { id: postId, ...postDoc.data() } as Post;
+      
+      // Verify the post has the expected structure
+      if (!post.answers || !Array.isArray(post.answers)) {
+        if (retries > 0) {
+          console.log('getUpdatedPost - Retrying due to invalid post structure');
+          return this.getUpdatedPost(postId, retries - 1);
+        }
+        return null;
+      }
+      
+      return post;
     } catch (error) {
       console.error('Error getting updated post:', error);
+      if (retries > 0) {
+        console.log('getUpdatedPost - Retrying due to error');
+        return this.getUpdatedPost(postId, retries - 1);
+      }
       return null;
     }
   }
@@ -302,7 +248,6 @@ export class TotemService {
             ...ans,
             totems: ans.totems.map((t) => {
               if (t.name === totemName) {
-                // Create a copy of the totem to avoid mutating the original
                 const updatedTotem = { ...t };
                 
                 // Initialize likeHistory if it doesn't exist
@@ -310,11 +255,11 @@ export class TotemService {
                   updatedTotem.likeHistory = [];
                 }
                 
-                // Find existing like in history
+                // Find existing like
                 const existingLikeIndex = updatedTotem.likeHistory.findIndex(like => like.userId === userId);
                 
-                // If we found an existing like, mark it as inactive
                 if (existingLikeIndex !== -1) {
+                  // Mark like as inactive
                   updatedTotem.likeHistory[existingLikeIndex] = {
                     ...updatedTotem.likeHistory[existingLikeIndex],
                     isActive: false,
@@ -322,130 +267,20 @@ export class TotemService {
                   };
                 }
                 
-                // Update legacy arrays for backward compatibility
-                updatedTotem.likedBy = (updatedTotem.likedBy || []).filter(id => id !== userId);
+                // Update likes count based on active likes
+                updatedTotem.likes = updatedTotem.likeHistory.filter(like => like.isActive).length;
                 
-                // Calculate the new crispness based on active likes
-                updatedTotem[TOTEM_FIELDS.CRISPNESS] = this.calculateCrispnessFromLikeHistory(updatedTotem.likeHistory);
+                // Calculate crispness
+                updatedTotem.crispness = this.calculateCrispnessFromLikeHistory(updatedTotem.likeHistory);
                 
-                // Also update legacy crispness field for backward compatibility
-                updatedTotem.crispness = updatedTotem[TOTEM_FIELDS.CRISPNESS];
-                
-                // Update standardized timestamps
+                // Update timestamps
                 updatedTotem[COMMON_FIELDS.UPDATED_AT] = timestamp;
                 updatedTotem[COMMON_FIELDS.LAST_INTERACTION] = timestamp;
-                
-                // Also update legacy timestamp fields for backward compatibility
-                updatedTotem.updatedAt = timestamp;
-                updatedTotem.lastInteraction = timestamp;
-                
-                console.log('TotemService.updateTotemStatsAfterUnlike - Updated totem:', {
-                  name: updatedTotem.name,
-                  likes: updatedTotem.likes,
-                  crispness: updatedTotem.crispness,
-                  likeHistoryCount: updatedTotem.likeHistory.length,
-                  activeLikes: updatedTotem.likeHistory.filter(like => like.isActive).length
-                });
                 
                 return updatedTotem;
               }
               return t;
             }),
-            // Update standardized timestamps in the answer
-            [COMMON_FIELDS.UPDATED_AT]: timestamp,
-            [COMMON_FIELDS.LAST_INTERACTION]: timestamp
-          }
-        : ans
-    );
-  }
-
-  /**
-   * Update totem stats after a re-like
-   */
-  private static updateTotemStatsAfterReLike(
-    answers: Answer[],
-    answerIdx: number,
-    totemName: string,
-    userId: string,
-    timestamp: number
-  ) {
-    return answers.map((ans, idx) =>
-      idx === answerIdx
-        ? {
-            ...ans,
-            totems: ans.totems.map((t) => {
-              if (t.name === totemName) {
-                // Create a copy of the totem to avoid mutating the original
-                const updatedTotem = { ...t };
-                
-                // Initialize likeHistory if it doesn't exist
-                if (!updatedTotem.likeHistory) {
-                  updatedTotem.likeHistory = [];
-                }
-                
-                // Find existing like in history
-                const existingLikeIndex = updatedTotem.likeHistory.findIndex(like => like.userId === userId);
-                
-                // If we found an existing like, mark it as active
-                if (existingLikeIndex !== -1) {
-                  updatedTotem.likeHistory[existingLikeIndex] = {
-                    ...updatedTotem.likeHistory[existingLikeIndex],
-                    isActive: true,
-                    lastUpdatedAt: timestamp
-                  };
-                } else {
-                  // If no existing like found (shouldn't happen), create a new one
-                  updatedTotem.likeHistory.push({
-                    userId,
-                    originalTimestamp: timestamp,
-                    lastUpdatedAt: timestamp,
-                    isActive: true,
-                    value: 1
-                  });
-                }
-                
-                // Update likes count
-                updatedTotem.likes = (updatedTotem.likes || 0) + 1;
-                
-                // Update legacy arrays for backward compatibility
-                if (!updatedTotem.likedBy) {
-                  updatedTotem.likedBy = [];
-                }
-                if (!updatedTotem.likedBy.includes(userId)) {
-                  updatedTotem.likedBy.push(userId);
-                }
-                
-                // Calculate the new crispness based on active likes
-                updatedTotem[TOTEM_FIELDS.CRISPNESS] = this.calculateCrispnessFromLikeHistory(updatedTotem.likeHistory);
-                
-                // Also update legacy crispness field for backward compatibility
-                updatedTotem.crispness = updatedTotem[TOTEM_FIELDS.CRISPNESS];
-                
-                // Update the lastLike timestamp
-                updatedTotem[TOTEM_FIELDS.LAST_LIKE] = timestamp;
-                updatedTotem.lastLike = timestamp;
-                
-                // Update standardized timestamps
-                updatedTotem[COMMON_FIELDS.UPDATED_AT] = timestamp;
-                updatedTotem[COMMON_FIELDS.LAST_INTERACTION] = timestamp;
-                
-                // Also update legacy timestamp fields for backward compatibility
-                updatedTotem.updatedAt = timestamp;
-                updatedTotem.lastInteraction = timestamp;
-                
-                console.log('TotemService.updateTotemStatsAfterReLike - Updated totem:', {
-                  name: updatedTotem.name,
-                  likes: updatedTotem.likes,
-                  crispness: updatedTotem.crispness,
-                  likeHistoryCount: updatedTotem.likeHistory.length,
-                  activeLikes: updatedTotem.likeHistory.filter(like => like.isActive).length
-                });
-                
-                return updatedTotem;
-              }
-              return t;
-            }),
-            // Update standardized timestamps in the answer
             [COMMON_FIELDS.UPDATED_AT]: timestamp,
             [COMMON_FIELDS.LAST_INTERACTION]: timestamp
           }
@@ -510,72 +345,46 @@ export class TotemService {
                 // Create a copy of the totem to avoid mutating the original
                 const updatedTotem = { ...t };
                 
-                // Update the likes count
-                updatedTotem[TOTEM_FIELDS.LIKES] = (updatedTotem[TOTEM_FIELDS.LIKES] || 0) + 1;
-                
-                // Update the lastLike timestamp
-                updatedTotem[TOTEM_FIELDS.LAST_LIKE] = timestamp;
-                
                 // Initialize likeHistory if it doesn't exist
-                updatedTotem.likeHistory = updatedTotem.likeHistory || [];
+                if (!updatedTotem.likeHistory) {
+                  updatedTotem.likeHistory = [];
+                }
                 
-                // Add new like to history
-                updatedTotem.likeHistory.push({
-                  userId,
-                  originalTimestamp: timestamp,
-                  lastUpdatedAt: timestamp,
-                  isActive: true,
-                  value: 1
-                });
+                // Find existing like
+                const existingLikeIndex = updatedTotem.likeHistory.findIndex(like => like.userId === userId);
                 
-                // Ensure legacy arrays are initialized for backward compatibility
-                updatedTotem[TOTEM_FIELDS.LIKE_TIMES] = updatedTotem[TOTEM_FIELDS.LIKE_TIMES] || [];
-                updatedTotem[TOTEM_FIELDS.LIKE_VALUES] = updatedTotem[TOTEM_FIELDS.LIKE_VALUES] || [];
-                updatedTotem[TOTEM_FIELDS.LIKED_BY] = updatedTotem[TOTEM_FIELDS.LIKED_BY] || [];
+                if (existingLikeIndex !== -1) {
+                  // Update existing like
+                  updatedTotem.likeHistory[existingLikeIndex] = {
+                    ...updatedTotem.likeHistory[existingLikeIndex],
+                    isActive: true,
+                    lastUpdatedAt: timestamp
+                  };
+                } else {
+                  // Add new like
+                  updatedTotem.likeHistory.push({
+                    userId,
+                    originalTimestamp: timestamp,
+                    lastUpdatedAt: timestamp,
+                    isActive: true,
+                    value: 1
+                  });
+                }
                 
-                // Also ensure legacy arrays are initialized for backward compatibility
-                updatedTotem.likeTimes = updatedTotem.likeTimes || [];
-                updatedTotem.likeValues = updatedTotem.likeValues || [];
-                updatedTotem.likedBy = updatedTotem.likedBy || [];
+                // Update likes count based on active likes
+                updatedTotem.likes = updatedTotem.likeHistory.filter(like => like.isActive).length;
                 
-                // Add the new like data using standardized field names
-                updatedTotem[TOTEM_FIELDS.LIKE_TIMES] = [...updatedTotem[TOTEM_FIELDS.LIKE_TIMES], timestamp];
-                updatedTotem[TOTEM_FIELDS.LIKE_VALUES] = [...updatedTotem[TOTEM_FIELDS.LIKE_VALUES], 1]; // Each like has a value of 1
-                updatedTotem[TOTEM_FIELDS.LIKED_BY] = [...updatedTotem[TOTEM_FIELDS.LIKED_BY], userId];
+                // Calculate crispness
+                updatedTotem.crispness = this.calculateCrispnessFromLikeHistory(updatedTotem.likeHistory);
                 
-                // Also update legacy arrays for backward compatibility
-                updatedTotem.likeTimes = [...updatedTotem.likeTimes, timestamp];
-                updatedTotem.likeValues = [...updatedTotem.likeValues, 1];
-                updatedTotem.likedBy = [...updatedTotem.likedBy, userId];
-                
-                // Calculate the new crispness based on like history
-                updatedTotem[TOTEM_FIELDS.CRISPNESS] = this.calculateCrispnessFromLikeHistory(updatedTotem.likeHistory);
-                
-                // Also update legacy crispness field for backward compatibility
-                updatedTotem.crispness = updatedTotem[TOTEM_FIELDS.CRISPNESS];
-                
-                // Update standardized timestamps
+                // Update timestamps
                 updatedTotem[COMMON_FIELDS.UPDATED_AT] = timestamp;
                 updatedTotem[COMMON_FIELDS.LAST_INTERACTION] = timestamp;
-                
-                // Also update legacy timestamp fields for backward compatibility
-                updatedTotem.updatedAt = timestamp;
-                updatedTotem.lastInteraction = timestamp;
-                
-                // Log updated totem stats for debugging
-                console.log('TotemService.updateTotemStats - Updated totem stats:', {
-                  name: updatedTotem.name,
-                  likes: updatedTotem[TOTEM_FIELDS.LIKES],
-                  crispness: updatedTotem[TOTEM_FIELDS.CRISPNESS],
-                  likeHistoryCount: updatedTotem.likeHistory.length,
-                  activeLikes: updatedTotem.likeHistory.filter(like => like.isActive).length
-                });
                 
                 return updatedTotem;
               }
               return t;
             }),
-            // Update standardized timestamps in the answer
             [COMMON_FIELDS.UPDATED_AT]: timestamp,
             [COMMON_FIELDS.LAST_INTERACTION]: timestamp
           }

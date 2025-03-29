@@ -112,19 +112,29 @@ export function getTotemCrispness(totem: any): number {
  * @returns True if the user has liked the totem, false otherwise
  */
 export function hasUserLikedTotem(totem: any, userId: string): boolean {
-  if (!totem || !userId) return false;
-  
-  // Try standardized fields first
-  const standardLikedBy = totem[TOTEM_FIELDS.LIKED_BY];
-  if (standardLikedBy && Array.isArray(standardLikedBy)) {
-    if (standardLikedBy.includes(userId)) return true;
+  if (!totem || !userId) {
+    console.log('hasUserLikedTotem - Invalid input:', { totem, userId });
+    return false;
   }
   
-  // Then try direct property access for backward compatibility
-  const legacyLikedBy = totem.likedBy;
-  if (legacyLikedBy && Array.isArray(legacyLikedBy)) {
-    if (legacyLikedBy.includes(userId)) return true;
+  // Only use likeHistory, completely ignore likedBy
+  if (totem.likeHistory && Array.isArray(totem.likeHistory)) {
+    const hasActiveLike = totem.likeHistory.some((like: { userId: string; isActive: boolean }) => 
+      like.userId === userId && like.isActive
+    );
+    console.log('hasUserLikedTotem - Checking likeHistory:', {
+      totemName: totem.name,
+      userId,
+      hasActiveLike,
+      likeHistory: totem.likeHistory
+    });
+    return hasActiveLike;
   }
   
+  // If no likeHistory exists, the totem is not liked
+  console.log('hasUserLikedTotem - No likeHistory found, totem not liked:', {
+    totemName: totem.name,
+    userId
+  });
   return false;
 } 

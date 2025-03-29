@@ -79,3 +79,15 @@ A detailed implementation plan is available in the main README.md file under "To
 ## Other Development Notes
 
 (Add other development notes here as needed) 
+
+How to Better Use Me as Your AI Coding Partner
+Start with a Clear Architecture: Before writing lots of code, discuss the overall approach and data flow.
+Address Core Functionality First: Make sure the basic features work reliably before adding optimizations.
+Keep Things Simple: Always prefer simpler solutions even if they're slightly less "clever."
+Test Edge Cases Early: Consider how the code will handle errors, network issues, and rapid user interactions.
+Review Changes Critically: After I propose changes, ask specifically about:
+"What are the potential downsides of this approach?"
+"How will this handle [specific edge case]?"
+"Is there a simpler way to accomplish this?"
+Plan in Smaller Iterations: Break large features into smaller, testable chunks that we can verify before moving on.
+The key lesson is that in software development, complexity is the enemy of reliability. When we try to be too clever or add too many features at once, we often create more problems than we solve.

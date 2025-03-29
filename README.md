@@ -1,3 +1,58 @@
+# Shrug - A Social Platform for Questions and Answers
+
+## Overview
+Shrug is a social platform where users can ask questions and receive answers using a unique "totem" system. Users can like and interact with totems, creating a dynamic community of shared knowledge and perspectives.
+
+## Quick Start
+1. Clone the repository
+2. Install dependencies: `npm install`
+3. Set up environment variables (see `.env.example`)
+4. Run the development server: `npm run dev`
+
+## Tech Stack
+- Next.js 14
+- TypeScript
+- Firebase (Authentication & Firestore)
+- Tailwind CSS
+- React Query
+
+## Project Structure
+```
+src/
+├── app/                 # Next.js app router pages
+├── components/         # React components
+│   ├── common/        # Shared components
+│   ├── questions/     # Question-related components
+│   └── totem/         # Totem-related components
+├── lib/               # Utility functions and configurations
+├── services/          # Business logic and API calls
+└── types/            # TypeScript type definitions
+```
+
+## Key Features
+- User authentication
+- Question creation and management
+- Totem-based answer system
+- Like/unlike functionality
+- Real-time updates
+- Responsive design
+
+## Documentation
+- [Architecture](docs/ARCHITECTURE.md) - System design and data models
+- [Development](docs/DEVELOPMENT.md) - Development guidelines and patterns
+- [Changelog](docs/CHANGELOG.md) - Version history and future plans
+- [Plans](docs/PLANS.md) - Detailed project plans and progress
+
+## Current Progress
+- ✅ Core functionality implemented
+- ✅ Like system fixed and optimized
+- ✅ Component structure standardized
+- 🔄 Performance optimizations in progress
+- 📝 Testing implementation planned
+
+## AI Assistant Directive
+When working on this project, focus on maintaining code quality, preventing duplicate components, and ensuring scalability. Prioritize solutions that are both effective and maintainable. Always consider the user experience and performance implications of any changes. When suggesting improvements, explain the benefits and potential trade-offs clearly.
+
 # Shrug
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
@@ -702,3 +757,37 @@ export function useTotem() {
 6. Update parent components to use the new context
 7. Test thoroughly with different network conditions
 8. Deploy incrementally
+
+# Like/Unlike Fix Plan
+
+## Current Issues
+- Like button sometimes works, sometimes doesn't
+- Unlike button doesn't work at all
+- Two different implementations causing confusion
+
+## Solution Steps
+
+### Step 1: Fix Missing Unlike
+- Add unlike functionality to `TotemPageClient`
+- Use same function that works in `PostTotemClient`
+- Simple, safe change without restructuring
+
+### Step 2: Remove Complex Caching
+- Remove caching system from `PostTotemClient`
+- Use Firebase directly
+- Simplify code and improve reliability
+
+### Step 3: Make Components Consistent
+- Make both components handle likes/unlikes the same way
+- Use same Firebase functions
+- Use same error handling
+
+## Progress
+- [ ] Step 1: Add unlike functionality to `TotemPageClient`
+- [ ] Step 2: Remove complex caching from `PostTotemClient`
+- [ ] Step 3: Make components consistent
+
+## Notes
+- Keep changes minimal and focused
+- Test each step before moving to next
+- Don't overcomplicate with unnecessary changes
