@@ -144,101 +144,13 @@ export function QuestionList({
   const renderQuestion = useCallback((post: Post) => {
     const bestAnswer = getBestAnswer(post);
     
-    // If we're showing all answers (question page view)
-    if (showAllTotems && post.answers.length > 0) {
-      // Group answers by their best totem
-      const answersByTotem = post.answers.reduce((groups, answer, index) => {
-        const bestTotem = getBestTotem(answer);
-        if (!bestTotem) return groups;
-
-        if (!groups[bestTotem.name]) {
-          groups[bestTotem.name] = [];
-        }
-        groups[bestTotem.name].push({ answer, index });
-        return groups;
-      }, {} as Record<string, { answer: Answer; index: number }[]>);
-
-      // For each totem group, get the answer with the highest likes
-      const bestAnswersPerTotem = Object.entries(answersByTotem).map(([totemName, answers]) => {
-        // Sort answers in this group by their totem's likes
-        const sortedAnswers = answers.sort((a, b) => {
-          const aTotem = a.answer.totems?.find(t => t.name === totemName);
-          const bTotem = b.answer.totems?.find(t => t.name === totemName);
-          return (bTotem?.likes || 0) - (aTotem?.likes || 0);
-        });
-        return sortedAnswers[0]; // Return the answer with highest likes for this totem
-      });
-
-      // Sort the best answers by their totem likes
-      const sortedBestAnswers = bestAnswersPerTotem.sort((a, b) => {
-        const aTotem = getBestTotem(a.answer);
-        const bTotem = getBestTotem(b.answer);
-        return (bTotem?.likes || 0) - (aTotem?.likes || 0);
-      });
-
-      return (
-        <div className="space-y-4">
-          {sortedBestAnswers.map(({ answer, index }) => {
-            const bestTotem = getBestTotem(answer);
-            const totalAnswersWithTotem = answersByTotem[bestTotem?.name || ''].length;
-            
-            return (
-              <div key={`${post.id}-${answer.text}`} 
-                   className={`bg-white rounded-xl shadow p-4 hover:shadow-md transition-shadow ${answer === bestAnswer?.answer ? 'border-l-4 border-blue-500' : ''}`}>
-                <div className="text-gray-600 mb-4">
-                  {answer.text}
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    {bestTotem && (
-                      <>
-                        <TotemButton
-                          key={bestTotem.name}
-                          name={bestTotem.name}
-                          likes={getTotemLikes(bestTotem)}
-                          crispness={getTotemCrispness(bestTotem)}
-                          isLiked={currentUserId ? hasUserLikedTotem(bestTotem, currentUserId) : false}
-                          onLike={() => handleInteraction(() => onLikeTotem(post, index, bestTotem.name))}
-                          onUnlike={() => handleInteraction(() => onUnlikeTotem(post, index, bestTotem.name))}
-                          postId={post.id}
-                        />
-                        {totalAnswersWithTotem > 1 && (
-                          <span className="text-sm text-gray-500">
-                            +{totalAnswersWithTotem - 1} more answers with this totem
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </div>
-                  
-                  <div className="text-sm text-gray-500">
-                    {formatDistanceToNow(answer.createdAt, { addSuffix: true })} by {getUserDisplayName(answer)}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      );
-    }
-    
-    // Main page view - show only the best answer
     return (
-      <div className="bg-white rounded-xl shadow p-4 hover:shadow-md transition-shadow">
-        <div className="flex justify-between items-start mb-4">
-          <Link
-            href={`/post/${post.id}`}
-            className="flex-1"
-          >
-            <h2 className="text-xl font-bold mb-2">
+      <div className="bg-white rounded-xl shadow p-6">
+        <div className="flex items-center justify-between mb-4">
+          <Link href={`/post/${post.id}`} className="flex-1">
+            <h2 className="text-xl font-semibold text-gray-900 hover:text-blue-600">
               {post.question}
             </h2>
-            {bestAnswer && (
-              <div className="text-gray-600">
-                {bestAnswer.answer.text}
-              </div>
-            )}
           </Link>
           <button
             onClick={(e) => {

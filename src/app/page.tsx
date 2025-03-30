@@ -16,6 +16,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { UserService } from '@/services/userService';
 import { USER_FIELDS, POST_FIELDS } from '@/constants/fields';
 import { extractUserIdentifier } from '@/utils/userIdHelpers';
+import { AnswerModal } from '@/components/answers/AnswerModal';
 
 type FeedType = 'for-you' | 'popular' | 'latest';
 
@@ -347,22 +348,12 @@ export default function Home() {
           />
         )}
 
-        {selectedQuestion && user && userData ? (
-          <AnswerForm
-            selectedQuestion={selectedQuestion}
-            onAnswerSubmitted={handleAnswerSubmitted}
-          />
-        ) : selectedQuestion ? (
-          <div className="bg-white rounded-xl shadow p-6 text-center">
-            <p className="text-gray-600 mb-4">Please log in to answer questions</p>
-            <button
-              onClick={() => setSelectedQuestion(null)}
-              className="px-4 py-2 text-blue-600 hover:text-blue-700"
-            >
-              Back to Questions
-            </button>
-          </div>
-        ) : null}
+        <AnswerModal
+          isOpen={!!selectedQuestion}
+          onClose={() => setSelectedQuestion(null)}
+          selectedQuestion={selectedQuestion!}
+          onAnswerSubmitted={handleAnswerSubmitted}
+        />
       </main>
     </div>
   );
