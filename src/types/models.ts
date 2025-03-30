@@ -60,6 +60,7 @@ export interface Totem extends TimestampedEntity {
   // Legacy fields for backward compatibility
   userId?: string;
   userName?: string;
+  lastLike?: number;  // Timestamp of the last like
 }
 
 /**
@@ -201,6 +202,7 @@ export interface Post extends TimestampedEntity {
   userId?: string;
   userName?: string;
   answerUserIds?: string[];
+  text?: string;  // Legacy field for post content
 }
 
 /**

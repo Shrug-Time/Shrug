@@ -177,6 +177,7 @@ export default function Home() {
               return {
                 id: doc.id,
                 question: data.question || '',
+                text: data.text || data.question || '',  // Add text field with fallback
                 firebaseUid: data[USER_FIELDS.FIREBASE_UID] || data[USER_FIELDS.LEGACY_USER_ID_LOWERCASE] || '',
                 username: data[USER_FIELDS.USERNAME] || data[USER_FIELDS.LEGACY_USER_ID] || data[USER_FIELDS.LEGACY_USER_NAME] || '',
                 name: data[USER_FIELDS.NAME] || data[USER_FIELDS.LEGACY_USER_NAME] || '',
@@ -255,7 +256,7 @@ export default function Home() {
   const handleTotemLikeClick = async (post: Post, answerIdx: number, totemName: string) => {
     if (!user?.uid) return;
     try {
-      const result = await TotemService.handleTotemLike(post, answerIdx, totemName, user.uid);
+      const result = await TotemService.handleTotemLike(post, answerIdx, totemName, user.uid, false);
       if (result.success) {
         queryClient.invalidateQueries({ queryKey: ['posts'] });
       }

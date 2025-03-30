@@ -412,8 +412,9 @@ export const PostService = {
       username: postData.username || postData.userID || '',
       name: postData.name || postData.userName || '',
       
-      // Post content
-      question: postData.question || '',
+      // Post content - handle both text and question fields
+      question: postData.question || postData.text || '',
+      text: postData.text || postData.question || '',
       
       // Content categorization
       categories: postData.categories || [],
@@ -518,6 +519,18 @@ export const PostService = {
       return { exists: false, error };
     }
   },
+
+  async getPost(postId: string): Promise<Post | null> {
+    try {
+      const postRef = doc(db, 'posts', postId);
+      const postDoc = await getDoc(postRef);
+      if (!postDoc.exists()) return null;
+      return this.standardizePostData({ id: postDoc.id, ...postDoc.data() });
+    } catch (error) {
+      console.error('Error fetching post:', error);
+      throw error;
+    }
+  },
 };
 
 export class UserService {
@@ -564,7 +577,8 @@ export class TotemService {
     post: Post,
     answerIdx: number,
     totemName: string,
-    userId: string
+    userId: string,
+    isUnlike: boolean = false
   ) {
     try {
       const answer = post.answers[answerIdx];

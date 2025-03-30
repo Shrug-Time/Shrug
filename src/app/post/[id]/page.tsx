@@ -62,7 +62,7 @@ export default function PostPage() {
   const postId = params.id as string;
   const queryClient = useQueryClient();
   const [selectedQuestion, setSelectedQuestion] = useState<Post | null>(null);
-  const { profile: userData, isLoadingUserData } = useUser();
+  const { profile: userData, isLoading: isLoadingUserData } = useUser();
   const [showCreatePost, setShowCreatePost] = useState(false);
 
   const { data: post, isLoading } = useQuery({
@@ -92,7 +92,7 @@ export default function PostPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="bg-white rounded-xl shadow p-6 mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-4">{post.text}</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-4">{post.text || post.question}</h1>
         <div className="text-sm text-gray-600">
           Posted by {post.username}
         </div>

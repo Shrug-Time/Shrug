@@ -170,6 +170,12 @@ export function QuestionList({
           </button>
         </div>
 
+        {bestAnswer && (
+          <div className="text-gray-600 mb-4">
+            {bestAnswer.answer.text}
+          </div>
+        )}
+
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             {bestAnswer ? (
