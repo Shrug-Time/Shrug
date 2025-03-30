@@ -17,6 +17,9 @@ import { AnswerModal } from '@/components/answers/AnswerModal';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useUser } from '@/hooks/useUser';
 import { PostService } from '@/services/firebase';
+import { TotemDetail } from '@/components/totem/TotemDetail';
+import Link from 'next/link';
+import { TotemService } from '@/services/totem';
 
 // Helper function to convert timestamps
 function convertTimestamps(obj: any): any {
@@ -81,6 +84,30 @@ export default function PostPage() {
     queryClient.invalidateQueries({ queryKey: ['posts'] });
   };
 
+  const handleTotemLike = async (post: Post, answerIdx: number, totemName: string) => {
+    if (!userData?.firebaseUid) return;
+    try {
+      const result = await TotemService.handleTotemLike(post, answerIdx, totemName, userData.firebaseUid, false);
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: ['post', postId] });
+      }
+    } catch (error) {
+      console.error('Error liking totem:', error);
+    }
+  };
+
+  const handleTotemUnlike = async (post: Post, answerIdx: number, totemName: string) => {
+    if (!userData?.firebaseUid) return;
+    try {
+      const result = await TotemService.handleTotemLike(post, answerIdx, totemName, userData.firebaseUid, true);
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: ['post', postId] });
+      }
+    } catch (error) {
+      console.error('Error unliking totem:', error);
+    }
+  };
+
   if (isLoading) {
     return <div>Loading...</div>;
   }
@@ -92,7 +119,7 @@ export default function PostPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="bg-white rounded-xl shadow p-6 mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-4">{post.text || post.question}</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-4">{post.question}</h1>
         <div className="text-sm text-gray-600">
           Posted by {post.username}
         </div>
@@ -101,15 +128,11 @@ export default function PostPage() {
       <QuestionList
         posts={[post]}
         onWantToAnswer={handleWantToAnswer}
-        onLikeTotem={async (post, answerIdx, totemName) => {
-          // TODO: Implement like functionality
-        }}
-        onUnlikeTotem={async (post, answerIdx, totemName) => {
-          // TODO: Implement unlike functionality
-        }}
+        onLikeTotem={handleTotemLike}
+        onUnlikeTotem={handleTotemUnlike}
         currentUserId={userData?.firebaseUid || null}
         hasNextPage={false}
-        isLoading={isLoading}
+        isLoading={false}
         onLoadMore={() => {}}
         showAllTotems={true}
       />

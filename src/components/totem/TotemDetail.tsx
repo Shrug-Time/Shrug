@@ -68,7 +68,7 @@ export function TotemDetail({
 
     // Filter and sort answers that have this totem
     const sortedAnswers = posts
-      .map(post => {
+      .flatMap(post => {
         console.log('TotemDetail - Processing post:', { 
           postId: post.id, 
           question: post.question,
@@ -78,30 +78,17 @@ export function TotemDetail({
           }))
         });
 
-        const answer = post.answers.find(a => 
-          a.totems.some(t => t.name === totemName)
-        );
+        // Get all answers that have this totem
+        const answersWithTotem = post.answers
+          .map((answer, index) => {
+            const totem = answer.totems.find(t => t.name === totemName);
+            if (!totem) return null;
+            return { post, answer, totem, index };
+          })
+          .filter((item): item is NonNullable<typeof item> => item !== null);
         
-        if (!answer) {
-          console.log('TotemDetail - No answer found with totem:', totemName);
-          return null;
-        }
-        
-        const totem = answer.totems.find(t => t.name === totemName);
-        if (!totem) {
-          console.log('TotemDetail - No totem found with name:', totemName);
-          return null;
-        }
-        
-        console.log('TotemDetail - Found totem:', {
-          totemName: totem.name,
-          likes: totem.likes,
-          likeHistory: totem.likeHistory
-        });
-        
-        return { post, answer, totem };
+        return answersWithTotem;
       })
-      .filter((item): item is NonNullable<typeof item> => item !== null)
       .sort((a, b) => b.totem.likes - a.totem.likes);
 
     if (!sortedAnswers.length && !isLoading) {
@@ -125,7 +112,7 @@ export function TotemDetail({
             href="/post-totem" 
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
-            Post New Totem
+            + Add Answer
           </Link>
         </div>
 
@@ -135,47 +122,41 @@ export function TotemDetail({
           onLoadMore={onLoadMore}
         >
           <div className="space-y-6">
-            {sortedAnswers.map(({ post, answer, totem }) => {
-              const key = `${post.id}-${totem.name}`;
+            {sortedAnswers.map(({ post, answer, totem, index }) => {
+              const key = `${post.id}-${answer.text}-${totem.name}`;
               const isLiked = currentUserId ? hasUserLiked(totem, currentUserId) : false;
-              console.log('TotemDetail - Button props:', { 
-                key, 
-                isLiked, 
-                currentUserId,
-                hasLikeHistory: !!totem.likeHistory
-              });
               
               return (
-                <div key={`${post.id}-${answer.text}`} className="bg-white shadow rounded-lg p-6">
+                <div key={key} className="bg-white shadow rounded-lg p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-xl font-semibold text-gray-900">{post.question}</h2>
                     <span className="text-sm text-gray-500">
                       {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
                     </span>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {answer.totems?.map((totem) => {
-                      const key = `${post.id}-${totem.name}`;
-                      const isLiked = currentUserId ? hasUserLiked(totem, currentUserId) : false;
-                      console.log('TotemDetail - Rendering TotemButton:', {
-                        key,
-                        isLiked,
-                        currentUserId,
-                        hasLikeHistory: !!totem.likeHistory
-                      });
-                      
-                      return (
-                        <TotemButton
-                          key={key}
-                          name={totem.name}
-                          likes={totem.likes}
-                          isLiked={isLiked}
-                          postId={post.id}
-                          onLike={() => onLikeTotem(post.id, totem.name)}
-                          onUnlike={() => onUnlikeTotem(post.id, totem.name)}
-                        />
-                      );
-                    })}
+                  <div className="text-gray-600 mb-4">
+                    {answer.text}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <TotemButton
+                        key={key}
+                        name={totem.name}
+                        likes={totem.likes}
+                        isLiked={isLiked}
+                        postId={post.id}
+                        onLike={() => onLikeTotem(post.id, totem.name)}
+                        onUnlike={() => onUnlikeTotem(post.id, totem.name)}
+                      />
+                      {answer.totems.length > 1 && (
+                        <span className="text-sm text-gray-500">
+                          +{answer.totems.length - 1} more totems
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      by {answer.username || answer.userName}
+                    </div>
                   </div>
                 </div>
               );

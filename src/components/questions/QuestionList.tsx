@@ -154,14 +154,9 @@ export function QuestionList({
           </Link>
           <button
             onClick={(e) => {
-              console.log('Direct button click detected');
               e.preventDefault();
               e.stopPropagation();
-              console.log('Add answer button clicked for post:', post.id);
-              handleInteraction(() => {
-                console.log('handleInteraction called for post:', post.id);
-                onWantToAnswer(post);
-              });
+              handleInteraction(() => onWantToAnswer(post));
             }}
             className="ml-4 w-8 h-8 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-md transition-colors"
             aria-label="Add answer"
@@ -170,56 +165,99 @@ export function QuestionList({
           </button>
         </div>
 
-        {bestAnswer && (
-          <div className="text-gray-600 mb-4">
-            {bestAnswer.answer.text}
-          </div>
-        )}
+        {showAllTotems ? (
+          // Show top answer for each unique totem
+          <div className="space-y-4">
+            {Array.from(new Set(post.answers.flatMap(answer => 
+              answer.totems.map(totem => totem.name)
+            ))).map(totemName => {
+              // Find best answer for this totem
+              const bestAnswerForTotem = post.answers
+                .filter(answer => answer.totems.some(t => t.name === totemName))
+                .sort((a, b) => {
+                  const aTotem = a.totems.find(t => t.name === totemName);
+                  const bTotem = b.totems.find(t => t.name === totemName);
+                  return (bTotem?.likes || 0) - (aTotem?.likes || 0);
+                })[0];
 
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            {bestAnswer ? (
-              <>
-                {(() => {
-                  const bestTotem = getBestTotem(bestAnswer.answer);
-                  return bestTotem && (
-                    <>
+              if (!bestAnswerForTotem) return null;
+
+              const totem = bestAnswerForTotem.totems.find(t => t.name === totemName);
+              if (!totem) return null;
+
+              const answerIndex = post.answers.indexOf(bestAnswerForTotem);
+              const isLiked = currentUserId ? hasUserLikedTotem(totem, currentUserId) : false;
+
+              return (
+                <div key={totemName} className="border-t pt-4 first:border-t-0 first:pt-0">
+                  <div className="text-gray-600 mb-4">
+                    {bestAnswerForTotem.text}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
                       <TotemButton
-                        key={bestTotem.name}
-                        name={bestTotem.name}
-                        likes={getTotemLikes(bestTotem)}
-                        crispness={getTotemCrispness(bestTotem)}
-                        isLiked={currentUserId ? hasUserLikedTotem(bestTotem, currentUserId) : false}
-                        onLike={() => handleInteraction(() => onLikeTotem(post, bestAnswer.index, bestTotem.name))}
-                        onUnlike={() => handleInteraction(() => onUnlikeTotem(post, bestAnswer.index, bestTotem.name))}
+                        name={totem.name}
+                        likes={getTotemLikes(totem)}
+                        crispness={getTotemCrispness(totem)}
+                        isLiked={isLiked}
+                        onLike={() => handleInteraction(() => onLikeTotem(post, answerIndex, totem.name))}
+                        onUnlike={() => handleInteraction(() => onUnlikeTotem(post, answerIndex, totem.name))}
                         postId={post.id}
                       />
-                      {bestAnswer.answer.totems && bestAnswer.answer.totems.length > 1 && (
-                        <span className="text-sm text-gray-500">
-                          +{bestAnswer.answer.totems.length - 1} more totems
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      {formatDistanceToNow(bestAnswerForTotem.createdAt, { addSuffix: true })} by {getUserDisplayName(bestAnswerForTotem)}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          // Show just the best answer (existing behavior)
+          bestAnswer && (
+            <>
+              <div className="text-gray-600 mb-4">
+                {bestAnswer.answer.text}
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  {(() => {
+                    const bestTotem = getBestTotem(bestAnswer.answer);
+                    return bestTotem && (
+                      <>
+                        <TotemButton
+                          key={bestTotem.name}
+                          name={bestTotem.name}
+                          likes={getTotemLikes(bestTotem)}
+                          crispness={getTotemCrispness(bestTotem)}
+                          isLiked={currentUserId ? hasUserLikedTotem(bestTotem, currentUserId) : false}
+                          onLike={() => handleInteraction(() => onLikeTotem(post, bestAnswer.index, bestTotem.name))}
+                          onUnlike={() => handleInteraction(() => onUnlikeTotem(post, bestAnswer.index, bestTotem.name))}
+                          postId={post.id}
+                        />
+                        {bestAnswer.answer.totems && bestAnswer.answer.totems.length > 1 && (
+                          <span className="text-sm text-gray-500">
+                            +{bestAnswer.answer.totems.length - 1} more totems
+                          </span>
+                        )}
+                        <span className="text-sm text-gray-500 ml-2">
+                          {post.answers.length} answers
                         </span>
-                      )}
-                      <span className="text-sm text-gray-500 ml-2">
-                        {post.answers.length} answers
-                      </span>
-                    </>
-                  );
-                })()}
-              </>
-            ) : (
-              <span className="text-sm text-gray-500">
-                No answers yet
-              </span>
-            )}
-          </div>
-          
-          <div className="text-sm text-gray-500">
-            {formatDistanceToNow(toDate(post.createdAt), { addSuffix: true })} by {getUserDisplayName(post)}
-          </div>
-        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+                <div className="text-sm text-gray-500">
+                  {formatDistanceToNow(toDate(post.createdAt), { addSuffix: true })} by {getUserDisplayName(post)}
+                </div>
+              </div>
+            </>
+          )
+        )}
       </div>
     );
-  }, [onLikeTotem, onUnlikeTotem, onWantToAnswer, handleInteraction, getBestAnswer, getBestTotem, currentUserId]);
+  }, [onLikeTotem, onUnlikeTotem, onWantToAnswer, handleInteraction, getBestAnswer, getBestTotem, currentUserId, showAllTotems]);
 
   if (!posts.length && !isLoading) {
     return (
