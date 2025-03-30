@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { TotemDetail } from '@/components/totem/TotemDetail';
-import type { Post } from '@/types/models';
+import type { Post, Totem, TotemLike } from '@/types/models';
 import { updateTotemLikes, unlikeTotem, refreshUserLike, refreshTotem, getPost } from '@/lib/firebase/posts';
 import { auth } from '@/firebase';
+import { onAuthStateChanged, User } from 'firebase/auth';
 import { USER_FIELDS, TOTEM_FIELDS } from '@/constants/fields';
 import { hasUserLikedTotem } from '@/utils/componentHelpers';
 
@@ -22,7 +23,8 @@ export function PostTotemClient({ initialPost, totemName }: PostTotemClientProps
   const [error, setError] = useState<string | null>(null);
   const [isLiking, setIsLiking] = useState(false);
   const [originalLikeTimestamp, setOriginalLikeTimestamp] = useState<number | undefined>(undefined);
-  const currentUserId = auth.currentUser?.uid;
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   
   // Local cache of liked totems for this user and post
   const likedTotemsRef = useRef<Set<string>>(new Set());
@@ -33,6 +35,16 @@ export function PostTotemClient({ initialPost, totemName }: PostTotemClientProps
       globalLikedTotemsCache[currentUserId] = new Set();
     }
   }, [currentUserId]);
+
+  // Set up auth state listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user: User | null) => {
+      setCurrentUserId(user?.uid || null);
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
   
   // Initialize the local cache from the global cache and post data
   useEffect(() => {
@@ -50,10 +62,7 @@ export function PostTotemClient({ initialPost, totemName }: PostTotemClientProps
       if (answer) {
         const totem = answer.totems.find(totem => totem.name === totemName);
         if (totem) {
-          // Check both standardized and legacy liked-by arrays
-          const likedBy = totem[TOTEM_FIELDS.LIKED_BY] || totem.likedBy || [];
-          
-          // Also check the likeHistory if available
+          // Check the likeHistory if available
           if (totem.likeHistory && totem.likeHistory.length > 0) {
             const userLike = totem.likeHistory.find(like => 
               like.userId === currentUserId && like.isActive
@@ -69,11 +78,6 @@ export function PostTotemClient({ initialPost, totemName }: PostTotemClientProps
               
               console.log(`PostTotemClient - User ${currentUserId} has already liked totem ${totemName} (original timestamp: ${new Date(userLike.originalTimestamp).toISOString()})`);
             }
-          } else if (likedBy.includes(currentUserId)) {
-            // Legacy check - if no likeHistory but user is in likedBy
-            likedTotemsRef.current.add(totemName);
-            globalLikedTotemsCache[currentUserId]?.add(totemName);
-            console.log(`PostTotemClient - User ${currentUserId} has already liked totem ${totemName} (from legacy data)`);
           }
         }
       }
@@ -117,11 +121,6 @@ export function PostTotemClient({ initialPost, totemName }: PostTotemClientProps
       
       const result = await updateTotemLikes(postId, totemName);
       console.log('PostTotemClient - updateTotemLikes completed successfully:', result);
-      
-      // If this was a re-like (indicated by action === 'relike'), store the original timestamp
-      if (result && result.action === 'relike' && result.originalTimestamp) {
-        setOriginalLikeTimestamp(result.originalTimestamp);
-      }
       
       // Update the local state with the updated post
       if (result && result.post) {
@@ -251,6 +250,17 @@ export function PostTotemClient({ initialPost, totemName }: PostTotemClientProps
     }
   };
 
+  const hasUserLiked = (totem: Totem, userId: string): boolean => {
+    return totem.likeHistory.some(like => 
+      like.userId === userId && like.isActive
+    );
+  };
+
+  // Don't render anything while checking auth state
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <>
       {error && (
@@ -263,9 +273,7 @@ export function PostTotemClient({ initialPost, totemName }: PostTotemClientProps
         posts={[post]}
         onLikeTotem={handleLikeTotem}
         onUnlikeTotem={handleUnlikeTotem}
-        onRefreshTotem={handleRefreshTotem}
-        onRefreshUserLike={handleRefreshUserLike}
-        originalLikeTimestamp={originalLikeTimestamp}
+        currentUserId={currentUserId}
       />
     </>
   );

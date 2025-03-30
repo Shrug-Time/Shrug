@@ -1,6 +1,6 @@
 "use client";
 
-import { Post, TotemLike } from '@/types/models';
+import { Post, TotemLike, Totem } from '@/types/models';
 import { auth } from '@/firebase';
 import { TotemButton } from '@/components/common/TotemButton';
 import { formatDistanceToNow } from 'date-fns';
@@ -10,6 +10,7 @@ import { useCallback, useEffect, useState, useMemo } from 'react';
 import { TOTEM_FIELDS } from '@/constants/fields';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
+import { useAuth } from '@/contexts/TotemContext';
 
 interface TotemDetailProps {
   totemName: string;
@@ -57,8 +58,7 @@ export function TotemDetail({
           totems: a.totems?.map(t => ({
             name: t.name,
             likes: t.likes,
-            hasLikeHistory: !!t.likeHistory,
-            hasLikedBy: !!t.likedBy
+            hasLikeHistory: !!t.likeHistory
           }))
         }))
       }))
@@ -96,8 +96,7 @@ export function TotemDetail({
         console.log('TotemDetail - Found totem:', {
           totemName: totem.name,
           likes: totem.likes,
-          likeHistory: totem.likeHistory,
-          likedBy: totem.likedBy
+          likeHistory: totem.likeHistory
         });
         
         return { post, answer, totem };
@@ -112,6 +111,11 @@ export function TotemDetail({
         </p>
       );
     }
+
+    // Helper function to check if a user has liked a totem
+    const hasUserLiked = (totem: Totem, userId: string): boolean => {
+      return totem.likeHistory?.some((like: TotemLike) => like.userId === userId && like.isActive) || false;
+    };
 
     return (
       <div className="space-y-8">
@@ -133,13 +137,12 @@ export function TotemDetail({
           <div className="space-y-6">
             {sortedAnswers.map(({ post, answer, totem }) => {
               const key = `${post.id}-${totem.name}`;
-              const isLiked = currentUserId && totem.likedBy ? totem.likedBy.includes(currentUserId) : false;
+              const isLiked = currentUserId ? hasUserLiked(totem, currentUserId) : false;
               console.log('TotemDetail - Button props:', { 
                 key, 
                 isLiked, 
                 currentUserId,
-                hasLikeHistory: !!totem.likeHistory,
-                hasLikedBy: !!totem.likedBy
+                hasLikeHistory: !!totem.likeHistory
               });
               
               return (
@@ -153,13 +156,12 @@ export function TotemDetail({
                   <div className="flex flex-wrap gap-2">
                     {answer.totems?.map((totem) => {
                       const key = `${post.id}-${totem.name}`;
-                      const isLiked = currentUserId && totem.likedBy ? totem.likedBy.includes(currentUserId) : false;
+                      const isLiked = currentUserId ? hasUserLiked(totem, currentUserId) : false;
                       console.log('TotemDetail - Rendering TotemButton:', {
                         key,
                         isLiked,
                         currentUserId,
-                        hasLikeHistory: !!totem.likeHistory,
-                        hasLikedBy: !!totem.likedBy
+                        hasLikeHistory: !!totem.likeHistory
                       });
                       
                       return (

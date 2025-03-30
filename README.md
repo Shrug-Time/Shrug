@@ -50,6 +50,41 @@ src/
 - 🔄 Performance optimizations in progress
 - 📝 Testing implementation planned
 
+## Like Button Fix Plan
+
+### Phase 1: Immediate Fix (1-2 days) ✅
+- ✅ Create centralized auth context for consistent auth state
+- ✅ Create centralized like state context for consistent like state
+- ✅ Update TotemButton to use new contexts
+- ✅ Add proper error handling and user feedback
+
+### Phase 2: Short-term Fix (1 week) ✅
+- ✅ Remove local caching from PostTotemClient
+- ✅ Standardize error handling across components
+- ✅ Add proper loading states
+- ✅ Implement proper rollback mechanisms
+
+### Phase 3: Medium-term Fix (2-3 weeks) 🔄
+- ✅ Complete transition to likeHistory structure
+- 🔄 Remove legacy likedBy array usage (in progress)
+- ✅ Update all components to use new data structure
+- ✅ Add data migration tools
+
+### Phase 4: Long-term Fix (1-2 months) 📝
+- 📝 Implement denormalized data structure
+- 📝 Add proper monitoring and error tracking
+- 📝 Implement proper caching with new architecture
+- 📝 Improve performance and scalability
+
+## Current Status
+The like/unlike functionality is now working correctly with the following improvements:
+- ✅ Proper error handling and user feedback
+- ✅ Consistent auth state management
+- ✅ Optimistic UI updates
+- ✅ Real-time updates
+- ✅ Proper data structure using likeHistory
+- 🔄 Legacy likedBy array removal in progress (maintained for backward compatibility)
+
 ## AI Assistant Directive
 When working on this project, focus on maintaining code quality, preventing duplicate components, and ensuring scalability. Prioritize solutions that are both effective and maintainable. Always consider the user experience and performance implications of any changes. When suggesting improvements, explain the benefits and potential trade-offs clearly.
 

@@ -1,6 +1,6 @@
 import { db } from '@/firebase';
 import { collection, query, where, orderBy, limit, getDocs, doc, getDoc, startAfter, collectionGroup, Timestamp } from 'firebase/firestore';
-import type { Post, Answer } from '@/types/models';
+import type { Post, Answer, Totem } from '@/types/models';
 
 export class PostService {
   static async fetchUserPosts(userID: string, pageSize = 10, lastDoc?: any): Promise<{ items: Post[]; lastDoc: any }> {
@@ -109,6 +109,33 @@ export class PostService {
     } catch (error) {
       console.error('Error fetching user answers:', error);
       throw error;
+    }
+  }
+
+  static async getPost(postId: string): Promise<Post | null> {
+    try {
+      const postRef = doc(db, 'posts', postId);
+      const postSnap = await getDoc(postRef);
+      
+      if (!postSnap.exists()) {
+        return null;
+      }
+
+      const post = postSnap.data() as Post;
+
+      // Ensure all totems have likeHistory initialized
+      post.answers.forEach(answer => {
+        answer.totems.forEach(totem => {
+          if (!totem.likeHistory) {
+            totem.likeHistory = [];
+          }
+        });
+      });
+
+      return post;
+    } catch (error) {
+      console.error('Error fetching post:', error);
+      return null;
     }
   }
 } 

@@ -1,7 +1,7 @@
 'use client';
 
 import { TotemDetail } from '@/components/totem/TotemDetail';
-import { Post } from '@/types/models';
+import { Post, Totem } from '@/types/models';
 import { useState, useEffect } from 'react';
 import { updateTotemLikes, refreshTotem, getPost, unlikeTotem } from '@/lib/firebase/posts';
 import { auth } from '@/firebase';
@@ -32,8 +32,7 @@ export function TotemPageClient({ initialPosts, totemName }: TotemPageClientProp
           totems: a.totems?.map(t => ({
             name: t.name,
             likes: t.likes,
-            hasLikeHistory: !!t.likeHistory,
-            hasLikedBy: !!t.likedBy
+            hasLikeHistory: !!t.likeHistory
           }))
         }))
       }))
@@ -43,6 +42,7 @@ export function TotemPageClient({ initialPosts, totemName }: TotemPageClientProp
     const [error, setError] = useState<string | null>(null);
     const [isLiking, setIsLiking] = useState(false);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
     // Add auth state management
     useEffect(() => {
@@ -53,6 +53,7 @@ export function TotemPageClient({ initialPosts, totemName }: TotemPageClientProp
           hasUser: !!user 
         });
         setCurrentUserId(user?.uid || null);
+        setIsLoading(false);
       });
 
       return () => {
@@ -60,6 +61,11 @@ export function TotemPageClient({ initialPosts, totemName }: TotemPageClientProp
         unsubscribe();
       };
     }, []);
+
+    // Don't render anything while checking auth state
+    if (isLoading) {
+      return <div>Loading...</div>;
+    }
 
     const handleLikeTotem = async (postId: string, totemName: string) => {
       if (isLiking) return;
@@ -134,6 +140,12 @@ export function TotemPageClient({ initialPosts, totemName }: TotemPageClientProp
         console.error("Error refreshing totem:", err);
         setError(err instanceof Error ? err.message : "Failed to refresh totem");
       }
+    };
+
+    const hasUserLiked = (totem: Totem, userId: string): boolean => {
+      return totem.likeHistory.some(like => 
+        like.userId === userId && like.isActive
+      );
     };
 
     return (

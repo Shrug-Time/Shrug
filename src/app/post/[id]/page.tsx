@@ -11,6 +11,11 @@ import { TotemButton } from '@/components/common/TotemButton';
 import { auth } from '@/firebase';
 import { handleTotemLike, handleTotemRefresh } from '@/utils/totem';
 import { QuestionList } from '@/components/questions/QuestionList';
+import { Header } from '@/components/common/Header';
+import { CreatePostForm } from '@/components/posts/CreatePostForm';
+import { AnswerForm } from '@/components/answers/AnswerForm';
+import { useQueryClient } from '@tanstack/react-query';
+import { useUser } from '@/hooks/useUser';
 
 // Helper function to convert timestamps
 function convertTimestamps(obj: any): any {
@@ -51,34 +56,30 @@ interface GroupedAnswer {
   }>;
 }
 
-export default function PostPage({ params }: { params: Promise<{ id: string }> }) {
+export default function PostPage({ params }: { params: { id: string } }) {
   const resolvedParams = use(params);
   const [post, setPost] = useState<Post | null>(null);
   const [refreshCount, setRefreshCount] = useState(5);
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const [showCreatePost, setShowCreatePost] = useState(false);
+  const [selectedQuestion, setSelectedQuestion] = useState<Post | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const { profile: userData, isLoading: isLoadingUserData } = useUser();
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(
-      doc(db, "posts", resolvedParams.id),
-      (doc) => {
-        if (doc.exists()) {
-          const data = doc.data();
-          setPost(convertTimestamps({
-            id: doc.id,
-            ...data
-          }) as Post);
-        } else {
-          router.push('/');
-        }
-      },
-      (error) => {
-        console.error("Error fetching post:", error);
-        router.push('/');
+    if (!resolvedParams.id) return;
+
+    const postRef = doc(db, 'posts', resolvedParams.id);
+    const unsubscribe = onSnapshot(postRef, (doc) => {
+      if (doc.exists()) {
+        const postData = convertTimestamps(doc.data());
+        setPost(postData as Post);
       }
-    );
+    });
 
     return () => unsubscribe();
-  }, [resolvedParams.id, router]);
+  }, [resolvedParams.id]);
 
   const calculateCrispness = (likes: number[], timestamps: string[]) => {
     if (!likes.length || !timestamps.length) return 0;
@@ -129,11 +130,28 @@ export default function PostPage({ params }: { params: Promise<{ id: string }> }
     }
   };
 
+  const handleWantToAnswer = () => {
+    setShowCreatePost(true);
+  };
+
+  const handleTotemLikeClick = async (post: Post, answerIdx: number, totemName: string) => {
+    await onLikeTotem(answerIdx, totemName);
+  };
+
+  const handleTotemUnlikeClick = async (post: Post, answerIdx: number, totemName: string) => {
+    // Implement unlike logic
+  };
+
+  const handleAnswerSubmitted = () => {
+    setSelectedQuestion(null);
+    queryClient.invalidateQueries({ queryKey: ['posts'] });
+  };
+
   if (!post) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6">
-        <div className="max-w-4xl mx-auto">
-          Loading...
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">Loading question...</p>
         </div>
       </div>
     );
@@ -141,38 +159,55 @@ export default function PostPage({ params }: { params: Promise<{ id: string }> }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow">
-        <div className="max-w-4xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold">{post.question}</h1>
-              <p className="text-gray-600 mt-1">
-                {post.answers.length} {post.answers.length === 1 ? 'answer' : 'answers'} • Posted {formatDistanceToNow(post.createdAt, { addSuffix: true })} by {post.userName || 'Anonymous'}
-              </p>
-            </div>
+      <Header 
+        refreshCount={refreshCount}
+        isVerified={userData?.verificationStatus === 'email_verified' || userData?.verificationStatus === 'identity_verified'}
+        onLogout={() => auth.signOut()}
+        isAuthenticated={!!userData}
+      />
+      
+      <main className="container mx-auto px-4 py-8">
+        <QuestionList
+          posts={[post]}
+          onWantToAnswer={handleWantToAnswer}
+          onLikeTotem={handleTotemLikeClick}
+          onUnlikeTotem={handleTotemUnlikeClick}
+          currentUserId={userData?.firebaseUid || null}
+          hasNextPage={false}
+          isLoading={isLoading}
+          onLoadMore={() => {}}
+          showAllTotems={true}
+        />
+
+        {showCreatePost && userData && (
+          <CreatePostForm
+            firebaseUid={userData.firebaseUid}
+            username={userData.username}
+            name={userData.name}
+            onPostCreated={() => {
+              setShowCreatePost(false);
+              queryClient.invalidateQueries({ queryKey: ['posts'] });
+            }}
+            onCancel={() => setShowCreatePost(false)}
+          />
+        )}
+
+        {selectedQuestion && userData ? (
+          <AnswerForm
+            selectedQuestion={selectedQuestion}
+            onAnswerSubmitted={handleAnswerSubmitted}
+          />
+        ) : selectedQuestion ? (
+          <div className="bg-white rounded-xl shadow p-6 text-center">
+            <p className="text-gray-600 mb-4">Please log in to answer questions</p>
             <button
-              onClick={() => router.push('/')}
-              className="text-blue-500 hover:underline"
+              onClick={() => setSelectedQuestion(null)}
+              className="px-4 py-2 text-blue-600 hover:text-blue-700"
             >
               Back to Questions
             </button>
           </div>
-        </div>
-      </div>
-
-      <main className="max-w-4xl mx-auto p-6">
-        <div className="space-y-8">
-          <div className="bg-white rounded-xl shadow p-4">
-            <h2 className="text-lg font-semibold mb-4">All Answers</h2>
-            <QuestionList
-              posts={[post]}
-              onSelectQuestion={() => {}}
-              onLikeTotem={(_post, answerIdx, totemName) => onLikeTotem(answerIdx, totemName)}
-              onRefreshTotem={(_post, answerIdx, totemName) => onRefreshTotem(answerIdx, totemName)}
-              showAllTotems={true}
-            />
-          </div>
-        </div>
+        ) : null}
       </main>
     </div>
   );

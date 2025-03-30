@@ -11,7 +11,9 @@ import {
   setDoc,
   orderBy,
   addDoc,
-  limit
+  limit,
+  arrayUnion,
+  arrayRemove
 } from 'firebase/firestore';
 import type { Post, Answer, Totem, TotemSuggestion, TotemCategory, TotemRelationship, TotemLike } from '@/types/models';
 import { SimilarityService } from './similarity';
@@ -27,56 +29,80 @@ const DECAY_PERIODS = {
 // Similarity threshold for grouping answers
 const SIMILARITY_THRESHOLD = 0.7;
 
+interface LikeResult {
+  success: boolean;
+  error?: string;
+  isLiked: boolean;
+  post: Post | null;
+}
+
 export class TotemService {
   /**
    * Handle totem like/unlike interaction
    */
   static async handleTotemLike(
     post: Post,
-    answerIdx: number,
+    answerIndex: number,
     totemName: string,
     userId: string,
-    isUnlike: boolean = false
-  ) {
+    isUnliking: boolean
+  ): Promise<LikeResult> {
+    if (!post) {
+      return {
+        success: false,
+        error: 'Post not found',
+        isLiked: false,
+        post: null
+      };
+    }
+
     try {
-      const answer = post.answers[answerIdx];
+      const postRef = doc(db, 'posts', post.id);
+      const answer = post.answers[answerIndex];
       const totem = answer.totems.find(t => t.name === totemName);
-      
-      if (!totem) throw new Error('Totem not found');
-      
+
+      if (!totem) {
+        return {
+          success: false,
+          error: 'Totem not found',
+          isLiked: false,
+          post: null
+        };
+      }
+
       // Initialize likeHistory if it doesn't exist
       if (!totem.likeHistory) {
         totem.likeHistory = [];
       }
-      
+
       const now = Date.now();
-      
-      // Find existing like
       const existingLikeIndex = totem.likeHistory.findIndex(like => like.userId === userId);
       const existingLike = existingLikeIndex !== -1 ? totem.likeHistory[existingLikeIndex] : null;
-      
-      // Handle unlike operation
-      if (isUnlike) {
-        // If there's no existing like or it's already inactive, just return success
+
+      if (isUnliking) {
         if (!existingLike || !existingLike.isActive) {
-          return { 
-            success: true, 
-            action: 'unlike',
-            post: await this.getUpdatedPost(post.id)
+          return {
+            success: true,
+            isLiked: false,
+            post
           };
         }
-        
+
         // Mark the like as inactive
         existingLike.isActive = false;
         existingLike.lastUpdatedAt = now;
         totem.likeHistory[existingLikeIndex] = existingLike;
       } else {
-        // Handle like operation
         if (existingLike) {
           if (existingLike.isActive) {
-            throw new Error("You've already liked this totem!");
+            return {
+              success: false,
+              error: "You've already liked this totem!",
+              isLiked: true,
+              post
+            };
           }
-          
+
           // Reactivate the like
           existingLike.isActive = true;
           existingLike.lastUpdatedAt = now;
@@ -93,41 +119,38 @@ export class TotemService {
           totem.likeHistory.push(newLike);
         }
       }
-      
+
       // Calculate new likes count and crispness
       totem.likes = totem.likeHistory.filter(like => like.isActive).length;
       totem.crispness = this.calculateCrispnessFromLikeHistory(totem.likeHistory);
-      
-      // Update timestamps
-      totem[COMMON_FIELDS.UPDATED_AT] = now;
-      totem[COMMON_FIELDS.LAST_INTERACTION] = now;
-      
+      totem.updatedAt = now;
+      totem.lastInteraction = now;
+
       // Update the post
-      await updateDoc(doc(db, "posts", post.id), { 
+      await updateDoc(postRef, {
         answers: post.answers,
-        [COMMON_FIELDS.LAST_INTERACTION]: now,
-        [COMMON_FIELDS.UPDATED_AT]: now
+        lastInteraction: now,
+        updatedAt: now
       });
-      
-      // Get the updated post with retries
-      const updatedPost = await this.getUpdatedPost(post.id);
-      if (!updatedPost) {
-        console.error('Failed to get updated post after like/unlike operation');
-        return { 
-          success: false, 
-          action: isUnlike ? 'unlike' : 'like',
-          post: null
-        };
-      }
-      
-      return { 
-        success: true, 
-        action: isUnlike ? 'unlike' : 'like',
-        post: updatedPost
+
+      return {
+        success: true,
+        isLiked: !isUnliking,
+        post: {
+          ...post,
+          answers: post.answers.map((ans, idx) => 
+            idx === answerIndex ? answer : ans
+          )
+        }
       };
     } catch (error) {
-      console.error('Error in handleTotemLike:', error);
-      throw error;
+      console.error('Error handling totem like:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to update like status',
+        isLiked: isUnliking,
+        post: null
+      };
     }
   }
 
@@ -207,28 +230,29 @@ export class TotemService {
       existingLike.lastUpdatedAt = now;
       totem.likeHistory[existingLikeIndex] = existingLike;
       
-      // Update the lastLike timestamp
-      totem.lastLike = now;
-      
       // Recalculate crispness
       totem.crispness = this.calculateCrispnessFromLikeHistory(totem.likeHistory);
       
       // Update the document
-      await updateDoc(doc(db, "posts", post.id), { 
-        answers: post.answers,
-        [COMMON_FIELDS.LAST_INTERACTION]: now,
-        [COMMON_FIELDS.UPDATED_AT]: now
+      await updateDoc(doc(db, "posts", post.id), {
+        answers: post.answers
       });
-      
-      console.log('TotemService.refreshUserLike - Like refreshed successfully');
-      
-      return { 
+
+      return {
         success: true,
-        post: await this.getUpdatedPost(post.id)
+        post: {
+          ...post,
+          answers: post.answers.map((ans, idx) => 
+            idx === answerIdx ? answer : ans
+          )
+        }
       };
     } catch (error) {
-      console.error('Error refreshing user like:', error);
-      throw error;
+      console.error('Error refreshing like:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to refresh like'
+      };
     }
   }
 
@@ -292,38 +316,22 @@ export class TotemService {
    * Calculate crispness from like history
    */
   private static calculateCrispnessFromLikeHistory(likeHistory: TotemLike[]): number {
-    // Filter to only active likes
+    const now = Date.now();
+    const oneWeek = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+
+    // Filter for active likes only
     const activeLikes = likeHistory.filter(like => like.isActive);
     
-    if (activeLikes.length === 0) {
-      return 0;
-    }
-    
-    if (activeLikes.length === 1) {
-      return 100;
-    }
-    
-    const now = Date.now();
-    const decayPeriod = DECAY_PERIODS.FAST; // Always use 1 week decay
-    
-    // Calculate individual crispness value for each like based on its original timestamp
-    const individualCrispnessValues: number[] = [];
-    
-    activeLikes.forEach(like => {
-      const timeSinceLike = now - like.originalTimestamp;
-      // Calculate crispness based on original timestamp
-      const likeCrispness = Math.max(0, 100 * (1 - (timeSinceLike / decayPeriod)));
-      individualCrispnessValues.push(likeCrispness);
-    });
-    
-    // Calculate the average crispness across all active likes
-    const totalCrispness = individualCrispnessValues.reduce((sum, val) => sum + val, 0);
-    const averageCrispness = totalCrispness / individualCrispnessValues.length;
-    
-    // Ensure crispness is between 0 and 100
-    const boundedCrispness = Math.min(100, Math.max(0, averageCrispness));
-    
-    return parseFloat(boundedCrispness.toFixed(2));
+    if (activeLikes.length === 0) return 0;
+
+    // Calculate average crispness based on last interaction time
+    const totalCrispness = activeLikes.reduce((sum, like) => {
+      const timeSinceLastInteraction = now - like.lastUpdatedAt;
+      const decayFactor = Math.max(0, 1 - (timeSinceLastInteraction / oneWeek));
+      return sum + decayFactor;
+    }, 0);
+
+    return totalCrispness / activeLikes.length;
   }
 
   /**
@@ -527,9 +535,7 @@ export class TotemService {
     const newTotem: Omit<Totem, 'id'> = {
       name,
       likes: 0,
-      likedBy: [],
-      likeTimes: [],
-      likeValues: [],
+      likeHistory: [],
       crispness: 0,
       category,
       decayModel,

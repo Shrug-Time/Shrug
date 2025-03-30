@@ -94,7 +94,7 @@ export default function Home() {
   }, [queryClient]);
 
   // User data query
-  const { data: userData } = useQuery<UserProfile | null>({
+  const { data: userData, isLoading: isLoadingUserData } = useQuery<UserProfile | null>({
     queryKey: ['userData', user?.uid],
     queryFn: async () => {
       if (!user) return null;
@@ -102,8 +102,30 @@ export default function Home() {
       return data as UserProfile;
     },
     enabled: !!user,
-    staleTime: 30000, // Consider data fresh for 30 seconds
+    staleTime: 30000,
   });
+
+  // Simple handler for when user wants to answer
+  const handleWantToAnswer = (post: Post) => {
+    if (!user) {
+      // Show login prompt
+      return;
+    }
+
+    if (!userData) {
+      // User data is still loading
+      return;
+    }
+
+    // Show the answer form
+    setSelectedQuestion(post);
+  };
+
+  // Simple handler for when answer is submitted
+  const handleAnswerSubmitted = () => {
+    setSelectedQuestion(null);
+    queryClient.invalidateQueries({ queryKey: ['posts'] });
+  };
 
   // Posts query
   const { data: posts = [] } = useQuery<Post[]>({
@@ -302,13 +324,14 @@ export default function Home() {
 
         <QuestionList
           posts={posts}
-          onSelectQuestion={setSelectedQuestion}
+          onWantToAnswer={handleWantToAnswer}
           onLikeTotem={handleTotemLikeClick}
           onUnlikeTotem={handleTotemUnlikeClick}
           currentUserId={user?.uid || null}
           hasNextPage={false}
           isLoading={false}
           onLoadMore={() => {}}
+          showAllTotems={false}
         />
 
         {showCreatePost && userData && (
@@ -327,14 +350,7 @@ export default function Home() {
         {selectedQuestion && user && userData ? (
           <AnswerForm
             selectedQuestion={selectedQuestion}
-            firebaseUid={userData.firebaseUid ?? ''}
-            username={userData.username ?? ''}
-            name={userData.name ?? ''}
-            isVerified={userData.verificationStatus === 'email_verified'}
-            onAnswerSubmitted={() => {
-              setSelectedQuestion(null);
-              queryClient.invalidateQueries({ queryKey: ['posts'] });
-            }}
+            onAnswerSubmitted={handleAnswerSubmitted}
           />
         ) : selectedQuestion ? (
           <div className="bg-white rounded-xl shadow p-6 text-center">

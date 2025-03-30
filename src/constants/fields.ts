@@ -127,10 +127,7 @@ export const TOTEM_FIELDS = {
   
   // Interaction metrics
   LIKES: 'likes',
-  LIKED_BY: 'likedBy',
-  LIKE_TIMES: 'likeTimes',
-  LIKE_VALUES: 'likeValues',
-  LAST_LIKE: 'lastLike',
+  LIKE_HISTORY: 'likeHistory',
   CRISPNESS: 'crispness',
   USAGE_COUNT: 'usageCount',
   

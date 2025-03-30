@@ -15,7 +15,7 @@ import {
   serverTimestamp,
   documentId
 } from 'firebase/firestore';
-import type { Post, UserProfile, Answer, TotemAssociation } from '@/types/models';
+import type { Post, UserProfile, Answer, TotemAssociation, Totem, TotemLike } from '@/types/models';
 import { COMMON_FIELDS, USER_FIELDS, POST_FIELDS, ANSWER_FIELDS, TOTEM_ASSOCIATION_FIELDS } from '@/constants/fields';
 
 const POSTS_PER_PAGE = 20;
@@ -345,12 +345,13 @@ export const PostService = {
     if (Array.isArray(postData.totems)) {
       postData.totems.forEach((totem: string) => {
         totemAssociations.push({
+          totemId: totem, // Use totem name as ID for backward compatibility
           totemName: totem,
           relevanceScore: 1.0,
-          userEndorsed: false,
-          aiGenerated: false,
-          createdAt: createdAt || now,
-          updatedAt: createdAt || now
+          appliedBy: postData.firebaseUid || postData.userId || '',
+          appliedAt: createdAt || now,
+          endorsedBy: [],
+          contestedBy: []
         });
       });
     }
@@ -369,7 +370,7 @@ export const PostService = {
     }
     
     // Ensure answers are standardized
-    const standardizedAnswers = (postData.answers || []).map((answer: Record<string, any>) => {
+    const standardizedAnswers = (postData.answers || []).map((answer: Record<string, any>): Answer => {
       const answerCreatedAt = typeof answer.createdAt === 'object' && 'seconds' in answer.createdAt 
         ? answer.createdAt.seconds * 1000 
         : (answer.createdAt || now);
@@ -378,49 +379,55 @@ export const PostService = {
         id: answer.id || `${answer.userId || answer.firebaseUid}_${answerCreatedAt}`,
         text: answer.text || '',
         firebaseUid: answer.firebaseUid || answer.userId || '',
-        userId: answer.userId || answer.firebaseUid || '',
         username: answer.username || answer.userID || '',
         name: answer.name || answer.userName || '',
-        userID: answer.userID || answer.username || '',
-        userName: answer.userName || answer.name || '',
         createdAt: answerCreatedAt,
         updatedAt: answer.updatedAt || answerCreatedAt,
         lastInteraction: answer.lastInteraction || answerCreatedAt,
-        likes: answer.likes || 0,
         totems: answer.totems || []
       };
     });
     
-    // Get unique answer user IDs
-    const answerUserIds = [...new Set(
-      standardizedAnswers.map(answer => answer.firebaseUid || answer.userId).filter(Boolean)
-    )];
+    // Type predicate to ensure string values
+    const isNonEmptyString = (value: unknown): value is string => 
+      typeof value === 'string' && value.length > 0;
     
-    // Extract extracted totems for backward compatibility
-    const extractedTotems = totemAssociations.map(assoc => assoc.totemName);
+    // Get unique answer user IDs and usernames
+    const answerFirebaseUids = [...new Set(
+      standardizedAnswers
+        .map((answer: Answer) => answer.firebaseUid)
+        .filter(isNonEmptyString)
+    )] as string[];
+    
+    const answerUsernames = [...new Set(
+      standardizedAnswers
+        .map((answer: Answer) => answer.username)
+        .filter(isNonEmptyString)
+    )] as string[];
     
     // Return the standardized post
     return {
-      id: postData.id,
-      firebaseUid: postData.firebaseUid || postData.userId || postData.authorId || '',
+      id: postData.id || '',
+      firebaseUid: postData.firebaseUid || postData.userId || '',
       username: postData.username || postData.userID || '',
       name: postData.name || postData.userName || '',
       
       // Post content
       question: postData.question || '',
       
-      // User engagement metrics
-      likes: postData.likes || 0,
-      views: postData.views || 0,
+      // Content categorization
+      categories: postData.categories || [],
       
-      // Totems (both structured and legacy format)
+      // Enhanced totem connection
       totemAssociations,
-      totems: extractedTotems,
+      
+      // Engagement metrics
+      score: postData.score,
       
       // Answers
       answers: standardizedAnswers,
-      answerCount: standardizedAnswers.length,
-      answerUserIds,
+      answerFirebaseUids,
+      answerUsernames,
       
       // Timestamps
       createdAt: createdAt || now,
@@ -428,10 +435,9 @@ export const PostService = {
       lastInteraction: postData.lastInteraction || postData.lastEngagement || createdAt || now,
       
       // Legacy fields for backward compatibility
-      userID: postData.userID || postData.username || '',
-      userId: postData.userId || postData.firebaseUid || postData.authorId || '',
+      userId: postData.userId || postData.firebaseUid || '',
       userName: postData.userName || postData.name || '',
-      authorId: postData.authorId || postData.firebaseUid || postData.userId || ''
+      answerUserIds: answerFirebaseUids
     };
   },
 
@@ -565,7 +571,7 @@ export class TotemService {
       const totem = answer.totems.find(t => t.name === totemName);
       
       if (!totem) throw new Error('Totem not found');
-      if (totem.likedBy.includes(userId)) {
+      if (hasUserLiked(totem, userId)) {
         throw new Error("You've already liked this totem!");
       }
 
@@ -600,14 +606,17 @@ export class TotemService {
                 ? {
                     ...t,
                     likes: t.likes + 1,
-                    likeTimes: [...(t.likeTimes || []).map(Number), timestamp],
-                    likeValues: [...(t.likeValues || []), 1],
-                    lastLike: timestamp,
-                    likedBy: [...t.likedBy, userId],
-                    crispness: this.calculateCrispness(
-                      [...(t.likeValues || []), 1],
-                      [...(t.likeTimes || []).map(Number), timestamp]
-                    )
+                    likeHistory: [
+                      ...(t.likeHistory || []),
+                      {
+                        userId,
+                        originalTimestamp: timestamp,
+                        lastUpdatedAt: timestamp,
+                        isActive: true,
+                        value: 1
+                      }
+                    ],
+                    crispness: this.calculateCrispnessFromLikeHistory(t.likeHistory || [])
                   }
                 : t
             ),
@@ -616,18 +625,21 @@ export class TotemService {
     );
   }
 
-  private static calculateCrispness(likes: number[], timestamps: number[]): number {
+  private static calculateCrispnessFromLikeHistory(likeHistory: TotemLike[]): number {
     const now = Date.now();
     const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
     
+    const activeLikes = likeHistory.filter(like => like.isActive);
+    if (activeLikes.length === 0) return 0;
+
     let totalWeight = 0;
     let weightedSum = 0;
 
-    timestamps.forEach((timestamp, index) => {
-      const timeSinceLike = now - timestamp;
+    activeLikes.forEach(like => {
+      const timeSinceLike = now - like.lastUpdatedAt;
       const weight = Math.max(0, 1 - (timeSinceLike / ONE_WEEK_MS));
       
-      weightedSum += weight * likes[index];
+      weightedSum += weight * like.value;
       totalWeight += weight;
     });
 
@@ -647,4 +659,9 @@ export async function trackUserAnswer(userID: string, postID: string) {
     console.error('Error tracking user answer:', error);
     throw error;
   }
-} 
+}
+
+// Helper function to check if a user has liked a totem
+const hasUserLiked = (totem: Totem, userId: string): boolean => {
+  return totem.likeHistory?.some(like => like.userId === userId && like.isActive) || false;
+}; 

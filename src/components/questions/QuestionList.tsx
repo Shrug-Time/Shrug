@@ -29,37 +29,37 @@ const toDate = (dateField: any): Date => {
   return new Date();
 };
 
-export interface QuestionListProps {
+interface QuestionListProps {
   posts: Post[];
-  onSelectQuestion: (post: Post) => void;
+  onWantToAnswer: (post: Post) => void;
   onLikeTotem: (post: Post, answerIdx: number, totemName: string) => Promise<void>;
   onUnlikeTotem: (post: Post, answerIdx: number, totemName: string) => Promise<void>;
-  showAllTotems?: boolean;
-  hasNextPage?: boolean;
-  isLoading?: boolean;
-  onLoadMore?: () => void;
   currentUserId: string | null;
+  hasNextPage: boolean;
+  isLoading: boolean;
+  onLoadMore: () => void;
+  showAllTotems?: boolean;
 }
 
-export function QuestionList({ 
-  posts, 
-  onSelectQuestion, 
+export function QuestionList({
+  posts,
+  onWantToAnswer,
   onLikeTotem,
   onUnlikeTotem,
-  showAllTotems = false,
-  hasNextPage = false,
-  isLoading = false,
-  onLoadMore = () => {},
-  currentUserId
+  currentUserId,
+  hasNextPage,
+  isLoading,
+  onLoadMore,
+  showAllTotems = false
 }: QuestionListProps) {
   const router = useRouter();
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
 
-  const handleInteraction = useCallback(async (action: () => Promise<void>) => {
+  const handleInteraction = useCallback(async (action: () => void | Promise<void>) => {
     if (!currentUserId) {
       setShowLoginPrompt(true);
-      return Promise.resolve();
+      return;
     }
     try {
       await action();
@@ -241,7 +241,16 @@ export function QuestionList({
             )}
           </Link>
           <button
-            onClick={() => handleInteraction(() => Promise.resolve(onSelectQuestion(post)))}
+            onClick={(e) => {
+              console.log('Direct button click detected');
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('Add answer button clicked for post:', post.id);
+              handleInteraction(() => {
+                console.log('handleInteraction called for post:', post.id);
+                onWantToAnswer(post);
+              });
+            }}
             className="ml-4 w-8 h-8 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-md transition-colors"
             aria-label="Add answer"
           >
@@ -292,7 +301,7 @@ export function QuestionList({
         </div>
       </div>
     );
-  }, [onLikeTotem, onUnlikeTotem, onSelectQuestion, handleInteraction, getBestAnswer, getBestTotem, currentUserId]);
+  }, [onLikeTotem, onUnlikeTotem, onWantToAnswer, handleInteraction, getBestAnswer, getBestTotem, currentUserId]);
 
   if (!posts.length && !isLoading) {
     return (

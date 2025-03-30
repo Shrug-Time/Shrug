@@ -45,23 +45,21 @@ export interface TotemLike {
 export interface Totem extends TimestampedEntity {
   id: string;
   name: string;
+  description?: string;
+  imageUrl?: string;
   likes: number;
-  likedBy: string[];
-  likeTimes: number[]; // Changed from string[] to number[] for timestamp consistency
-  likeValues: number[];
-  lastLike?: number; // Changed from string to number for timestamp consistency
+  likeHistory: TotemLike[];
   crispness: number;
   category: TotemCategory;
   decayModel: DecayModel;
   usageCount: number;
   
   // Enhanced relationship structure
-  relationships: TotemRelationship[];
+  relationships?: TotemRelationship[];
   
-  /**
-   * Detailed like history
-   */
-  likeHistory?: TotemLike[];
+  // Legacy fields for backward compatibility
+  userId?: string;
+  userName?: string;
 }
 
 /**
@@ -210,6 +208,7 @@ export interface Post extends TimestampedEntity {
  */
 export interface TotemAssociation {
   totemId: string;
+  totemName: string;  // Added for backward compatibility
   relevanceScore: number; // 0-100
   appliedBy: string; // user ID who applied this totem
   appliedAt: number; // timestamp
