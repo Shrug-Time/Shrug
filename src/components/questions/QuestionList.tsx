@@ -4,13 +4,12 @@ import type { Post, TotemSuggestion, Answer, Totem } from '@/types/models';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { TotemButton } from '@/components/common/TotemButton';
-import { auth } from '@/firebase';
 import Link from 'next/link';
 import { SimilarityService } from '@/services/similarity';
 import { InfiniteScroll } from '@/components/common/InfiniteScroll';
 import { USER_FIELDS } from '@/constants/fields';
 import { getUserDisplayName, getTotemLikes, getTotemCrispness, hasUserLikedTotem } from '@/utils/componentHelpers';
-import { onAuthStateChanged } from 'firebase/auth';
+import { useAuth } from '@/contexts/TotemContext';
 
 // Helper function to safely convert various date formats to a Date object
 const toDate = (dateField: any): Date => {
@@ -34,7 +33,6 @@ interface QuestionListProps {
   onWantToAnswer: (post: Post) => void;
   onLikeTotem: (post: Post, answerIdx: number, totemName: string) => Promise<void>;
   onUnlikeTotem: (post: Post, answerIdx: number, totemName: string) => Promise<void>;
-  currentUserId: string | null;
   hasNextPage: boolean;
   isLoading: boolean;
   onLoadMore: () => void;
@@ -46,18 +44,18 @@ export function QuestionList({
   onWantToAnswer,
   onLikeTotem,
   onUnlikeTotem,
-  currentUserId,
   hasNextPage,
   isLoading,
   onLoadMore,
   showAllTotems = false
 }: QuestionListProps) {
   const router = useRouter();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
 
   const handleInteraction = useCallback(async (action: () => void | Promise<void>) => {
-    if (!currentUserId) {
+    if (!user) {
       setShowLoginPrompt(true);
       return;
     }
@@ -66,7 +64,7 @@ export function QuestionList({
     } catch (error) {
       console.error('Error handling interaction:', error);
     }
-  }, [currentUserId]);
+  }, [user]);
 
   const getBestAnswer = useCallback((post: Post) => {
     if (!post.answers || post.answers.length === 0) return null;
@@ -99,11 +97,11 @@ export function QuestionList({
 
     if (!bestTotem) return null;
 
-    const isLiked = currentUserId ? hasUserLikedTotem(bestTotem, currentUserId) : false;
+    const isLiked = user ? hasUserLikedTotem(bestTotem, user.uid) : false;
     console.log('QuestionList - Rendering answer:', { 
       totemName: bestTotem.name, 
       isLiked, 
-      currentUserId,
+      currentUserId: user?.uid,
       likeHistory: bestTotem.likeHistory
     });
 
@@ -122,8 +120,28 @@ export function QuestionList({
               likes={getTotemLikes(bestTotem)}
               crispness={getTotemCrispness(bestTotem)}
               isLiked={isLiked}
-              onLike={() => handleInteraction(() => onLikeTotem(post, index, bestTotem.name))}
-              onUnlike={() => handleInteraction(() => onUnlikeTotem(post, index, bestTotem.name))}
+              onLike={async () => {
+                if (!user) {
+                  setShowLoginPrompt(true);
+                  return;
+                }
+                try {
+                  await onLikeTotem(post, index, bestTotem.name);
+                } catch (error) {
+                  console.error('Error liking totem:', error);
+                }
+              }}
+              onUnlike={async () => {
+                if (!user) {
+                  setShowLoginPrompt(true);
+                  return;
+                }
+                try {
+                  await onUnlikeTotem(post, index, bestTotem.name);
+                } catch (error) {
+                  console.error('Error unliking totem:', error);
+                }
+              }}
               postId={post.id}
             />
             {answer.totems && answer.totems.length > 1 && (
@@ -139,7 +157,7 @@ export function QuestionList({
         </div>
       </div>
     );
-  }, [handleInteraction, onLikeTotem, onUnlikeTotem, getBestTotem, currentUserId]);
+  }, [onLikeTotem, onUnlikeTotem, getBestTotem, user]);
 
   const renderQuestion = useCallback((post: Post) => {
     const bestAnswer = getBestAnswer(post);
@@ -186,7 +204,7 @@ export function QuestionList({
               if (!totem) return null;
 
               const answerIndex = post.answers.indexOf(bestAnswerForTotem);
-              const isLiked = currentUserId ? hasUserLikedTotem(totem, currentUserId) : false;
+              const isLiked = user ? hasUserLikedTotem(totem, user.uid) : false;
 
               return (
                 <div key={totemName} className="border-t pt-4 first:border-t-0 first:pt-0">
@@ -200,8 +218,28 @@ export function QuestionList({
                         likes={getTotemLikes(totem)}
                         crispness={getTotemCrispness(totem)}
                         isLiked={isLiked}
-                        onLike={() => handleInteraction(() => onLikeTotem(post, answerIndex, totem.name))}
-                        onUnlike={() => handleInteraction(() => onUnlikeTotem(post, answerIndex, totem.name))}
+                        onLike={async () => {
+                          if (!user) {
+                            setShowLoginPrompt(true);
+                            return;
+                          }
+                          try {
+                            await onLikeTotem(post, answerIndex, totem.name);
+                          } catch (error) {
+                            console.error('Error liking totem:', error);
+                          }
+                        }}
+                        onUnlike={async () => {
+                          if (!user) {
+                            setShowLoginPrompt(true);
+                            return;
+                          }
+                          try {
+                            await onUnlikeTotem(post, answerIndex, totem.name);
+                          } catch (error) {
+                            console.error('Error unliking totem:', error);
+                          }
+                        }}
                         postId={post.id}
                       />
                     </div>
@@ -231,9 +269,29 @@ export function QuestionList({
                           name={bestTotem.name}
                           likes={getTotemLikes(bestTotem)}
                           crispness={getTotemCrispness(bestTotem)}
-                          isLiked={currentUserId ? hasUserLikedTotem(bestTotem, currentUserId) : false}
-                          onLike={() => handleInteraction(() => onLikeTotem(post, bestAnswer.index, bestTotem.name))}
-                          onUnlike={() => handleInteraction(() => onUnlikeTotem(post, bestAnswer.index, bestTotem.name))}
+                          isLiked={user ? hasUserLikedTotem(bestTotem, user.uid) : false}
+                          onLike={async () => {
+                            if (!user) {
+                              setShowLoginPrompt(true);
+                              return;
+                            }
+                            try {
+                              await onLikeTotem(post, bestAnswer.index, bestTotem.name);
+                            } catch (error) {
+                              console.error('Error liking totem:', error);
+                            }
+                          }}
+                          onUnlike={async () => {
+                            if (!user) {
+                              setShowLoginPrompt(true);
+                              return;
+                            }
+                            try {
+                              await onUnlikeTotem(post, bestAnswer.index, bestTotem.name);
+                            } catch (error) {
+                              console.error('Error unliking totem:', error);
+                            }
+                          }}
                           postId={post.id}
                         />
                         {bestAnswer.answer.totems && bestAnswer.answer.totems.length > 1 && (
@@ -257,7 +315,7 @@ export function QuestionList({
         )}
       </div>
     );
-  }, [onLikeTotem, onUnlikeTotem, onWantToAnswer, handleInteraction, getBestAnswer, getBestTotem, currentUserId, showAllTotems]);
+  }, [onLikeTotem, onUnlikeTotem, onWantToAnswer, handleInteraction, getBestAnswer, getBestTotem, user, showAllTotems]);
 
   if (!posts.length && !isLoading) {
     return (

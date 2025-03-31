@@ -4,9 +4,9 @@ import { Timestamp } from 'firebase/firestore';
  * Base interface for all entities that have timestamps
  */
 export interface TimestampedEntity {
-  createdAt: number;
-  updatedAt: number;
-  lastInteraction?: number;
+  createdAt: number | Timestamp;
+  updatedAt: number | Timestamp;
+  lastInteraction?: number | Timestamp;
 }
 
 /**

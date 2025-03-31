@@ -13,7 +13,9 @@ import {
   QueryConstraint,
   setDoc,
   serverTimestamp,
-  documentId
+  documentId,
+  startAfter,
+  runTransaction
 } from 'firebase/firestore';
 import type { Post, UserProfile, Answer, TotemAssociation, Totem, TotemLike } from '@/types/models';
 import { COMMON_FIELDS, USER_FIELDS, POST_FIELDS, ANSWER_FIELDS, TOTEM_ASSOCIATION_FIELDS } from '@/constants/fields';
@@ -271,10 +273,10 @@ export const PostService = {
         lastInteraction: now,
         
         // Ensure both new and legacy fields are set
-        firebaseUid: answer.firebaseUid || answer.userId,
-        userId: answer.userId || answer.firebaseUid,
-        name: answer.name || answer.userName,
-        userName: answer.userName || answer.name
+        firebaseUid: answer.firebaseUid || answer.userId || '',
+        userId: answer.userId || answer.firebaseUid || '',
+        name: answer.name || answer.userName || '',
+        userName: answer.userName || answer.name || ''
       };
 
       // Get existing answerUserIds or initialize as empty array
@@ -456,7 +458,9 @@ export const PostService = {
         
         // Create userAnswers entries for each user
         for (const userId of userIds) {
-          await trackUserAnswer(userId, postId);
+          if (userId) {
+            await trackUserAnswer(userId, postId);
+          }
         }
       }
       
@@ -531,6 +535,35 @@ export const PostService = {
       throw error;
     }
   },
+
+  async getPosts(orderByField: 'createdAt' | 'likes', pageSize = 10, lastDoc?: any): Promise<{ items: Post[]; lastDoc: any }> {
+    try {
+      const postsRef = collection(db, 'posts');
+      let q = query(
+        postsRef,
+        orderBy(orderByField, 'desc'),
+        limit(pageSize)
+      );
+
+      if (lastDoc) {
+        q = query(q, startAfter(lastDoc));
+      }
+
+      const snapshot = await getDocs(q);
+      const posts = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Post[];
+
+      return {
+        items: posts,
+        lastDoc: snapshot.docs[snapshot.docs.length - 1] || null
+      };
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+      throw error;
+    }
+  },
 };
 
 export class UserService {
@@ -574,34 +607,94 @@ export class UserService {
 
 export class TotemService {
   static async handleTotemLike(
-    post: Post,
-    answerIdx: number,
+    postId: string,
     totemName: string,
     userId: string,
     isUnlike: boolean = false
-  ) {
-    try {
-      const answer = post.answers[answerIdx];
-      const totem = answer.totems.find(t => t.name === totemName);
-      
-      if (!totem) throw new Error('Totem not found');
-      if (hasUserLiked(totem, userId)) {
-        throw new Error("You've already liked this totem!");
+  ): Promise<void> {
+    const postRef = doc(db, "posts", postId);
+    
+    return runTransaction(db, async (transaction) => {
+      const postDoc = await transaction.get(postRef);
+      if (!postDoc.exists()) {
+        throw new Error("Post not found");
       }
 
+      const post = postDoc.data();
+      const answer = findAnswerWithTotem(post.answers, totemName);
+      const totem = findTotemInAnswer(answer, totemName);
+
+      // Initialize likeHistory if it doesn't exist
+      totem.likeHistory = totem.likeHistory || [];
+
       const now = Date.now();
-      const updatedAnswers = this.updateTotemStats(post.answers, answerIdx, totemName, userId, now);
-      
-      await updateDoc(doc(db, "posts", post.id), { 
-        answers: updatedAnswers,
-        lastEngagement: Timestamp.now()
+      const existingLike = totem.likeHistory.find(like => like.userId === userId);
+
+      console.log('handleTotemLike - Current state:', {
+        postId,
+        totemName,
+        userId,
+        isUnlike,
+        existingLike,
+        likeHistory: totem.likeHistory
       });
 
-      return updatedAnswers;
-    } catch (error) {
-      console.error('Error handling totem like:', error);
-      throw error;
-    }
+      if (isUnlike) {
+        // Update existing like to inactive
+        if (existingLike) {
+          existingLike.isActive = false;
+          existingLike.lastUpdatedAt = now;
+          console.log('handleTotemLike - Unliking:', {
+            postId,
+            totemName,
+            userId,
+            existingLike
+          });
+        }
+        // Decrement likes count
+        totem.likes = Math.max(0, (totem.likes || 0) - 1);
+      } else {
+        if (existingLike) {
+          // Reactivate existing like
+          existingLike.isActive = true;
+          existingLike.lastUpdatedAt = now;
+          console.log('handleTotemLike - Reactivating like:', {
+            postId,
+            totemName,
+            userId,
+            existingLike
+          });
+        } else {
+          // Create new like
+          const newLike = {
+            userId,
+            originalTimestamp: now,
+            lastUpdatedAt: now,
+            isActive: true,
+            value: 1
+          };
+          totem.likeHistory.push(newLike);
+          console.log('handleTotemLike - Creating new like:', {
+            postId,
+            totemName,
+            userId,
+            newLike
+          });
+        }
+        // Increment likes count
+        totem.likes = (totem.likes || 0) + 1;
+      }
+
+      // Update the post with the modified answer
+      transaction.update(postRef, { answers: post.answers });
+      
+      console.log('handleTotemLike - Final state:', {
+        postId,
+        totemName,
+        userId,
+        likeHistory: totem.likeHistory
+      });
+    });
   }
 
   private static updateTotemStats(
@@ -678,4 +771,23 @@ export async function trackUserAnswer(userID: string, postID: string) {
 // Helper function to check if a user has liked a totem
 const hasUserLiked = (totem: Totem, userId: string): boolean => {
   return totem.likeHistory?.some(like => like.userId === userId && like.isActive) || false;
-}; 
+};
+
+// Helper functions for totem operations
+function findAnswerWithTotem(answers: Answer[], totemName: string): Answer {
+  const answer = answers.find(a => 
+    a.totems.some(t => t.name === totemName)
+  );
+  if (!answer) {
+    throw new Error("Answer with totem not found");
+  }
+  return answer;
+}
+
+function findTotemInAnswer(answer: Answer, totemName: string): Totem {
+  const totem = answer.totems.find(t => t.name === totemName);
+  if (!totem) {
+    throw new Error("Totem not found in answer");
+  }
+  return totem;
+} 

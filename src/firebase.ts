@@ -13,22 +13,31 @@ const firebaseConfig = {
   appId: "1:642784282734:web:f0009191b880335c7f3e7f"
 };
 
-// Enhanced initialization function that works in all contexts
-function getFirebaseApp(): FirebaseApp {
+// Singleton pattern for Firebase initialization
+let firebaseApp: FirebaseApp | null = null;
+let firestore: Firestore | null = null;
+let authInstance: Auth | null = null;
+
+// Initialize Firebase only once
+if (typeof window !== 'undefined') {
   try {
-    return getApp();
+    firebaseApp = getApp();
   } catch (e) {
-    console.log('Initializing Firebase app for the first time');
-    return initializeApp(firebaseConfig);
+    if (!getApps().length) {
+      firebaseApp = initializeApp(firebaseConfig);
+    } else {
+      firebaseApp = getApp();
+    }
   }
+  
+  // Initialize Firestore and Auth only once
+  firestore = getFirestore(firebaseApp);
+  authInstance = getAuth(firebaseApp);
 }
 
-// Initialize Firebase
-const firebaseApp = getFirebaseApp();
-
-// Initialize Firestore and Auth with explicit typing
-export const db: Firestore = getFirestore(firebaseApp);
-export const auth: Auth = getAuth(firebaseApp);
+// Export initialized instances with type assertions
+export const db = firestore as Firestore;
+export const auth = authInstance as Auth;
 
 // Helper functions
 export const checkOrCreateUser = async (user: any) => {

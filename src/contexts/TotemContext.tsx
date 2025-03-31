@@ -1,8 +1,8 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { auth } from '@/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { TotemService } from '@/services/totem';
-import { PostService } from '@/services/PostService';
+import { TotemService } from '@/services/firebase';
+import { PostService } from '@/services/firebase';
 import type { Post } from '@/types/models';
 
 interface AuthContextType {
@@ -47,6 +47,7 @@ export function TotemProvider({ children }: TotemProviderProps) {
   const [likedTotems, setLikedTotems] = useState<Set<string>>(new Set());
   const [isLiking, setIsLiking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
 
   // Auth state management
   useEffect(() => {
@@ -61,89 +62,42 @@ export function TotemProvider({ children }: TotemProviderProps) {
   // Toggle like with optimistic update
   const toggleLike = async (postId: string, totemName: string) => {
     if (!user) {
-      setError("You must be logged in to like a totem");
+      setShowLoginPrompt(true);
       return;
     }
-
-    if (isLiking) {
-      setError("Please wait while we process your previous action");
-      return;
-    }
-
-    const key = `${postId}-${totemName}`;
-    const currentlyLiked = likedTotems.has(key);
-
-    // Optimistic update
-    setLikedTotems(prev => {
-      const newSet = new Set(prev);
-      if (currentlyLiked) {
-        newSet.delete(key);
-      } else {
-        newSet.add(key);
-      }
-      return newSet;
-    });
 
     setIsLiking(true);
     setError(null);
 
     try {
-      // Get the post
+      // Get current like status from the post data
       const post = await PostService.getPost(postId);
       if (!post) {
         throw new Error("Post not found");
       }
 
-      // Find the answer containing the totem
-      const answerIndex = post.answers.findIndex(answer => 
-        answer.totems.some(totem => totem.name === totemName)
+      // Find the totem and check if it's currently liked
+      const answer = post.answers.find(a => 
+        a.totems.some(t => t.name === totemName)
       );
-
-      if (answerIndex === -1) {
-        throw new Error("Totem not found in post");
+      if (!answer) {
+        throw new Error("Answer with totem not found");
       }
 
-      // Server update
-      const result = await TotemService.handleTotemLike(
-        post,
-        answerIndex,
-        totemName,
-        user.uid,
-        currentlyLiked
-      );
-
-      if (!result.success) {
-        throw new Error(result.error || "Failed to update like status");
+      const totem = answer.totems.find(t => t.name === totemName);
+      if (!totem) {
+        throw new Error("Totem not found");
       }
 
-      // If the server state doesn't match our optimistic update,
-      // revert the optimistic update
-      if (result.isLiked !== !currentlyLiked) {
-        setLikedTotems(prev => {
-          const newSet = new Set(prev);
-          if (currentlyLiked) {
-            newSet.add(key);
-          } else {
-            newSet.delete(key);
-          }
-          return newSet;
-        });
-      }
+      const isCurrentlyLiked = totem.likeHistory?.some(
+        like => like.userId === user.uid && like.isActive
+      ) || false;
 
-    } catch (err) {
-      console.error("Error toggling like:", err);
-      setError(err instanceof Error ? err.message : "Failed to update like status");
-      
-      // Revert optimistic update on error
-      setLikedTotems(prev => {
-        const newSet = new Set(prev);
-        if (currentlyLiked) {
-          newSet.add(key);
-        } else {
-          newSet.delete(key);
-        }
-        return newSet;
-      });
+      // Server update with correct toggle state
+      await TotemService.handleTotemLike(postId, totemName, user.uid, isCurrentlyLiked);
+    } catch (error) {
+      console.error('Error toggling like:', error);
+      setError(error instanceof Error ? error.message : "Failed to update like status");
     } finally {
       setIsLiking(false);
     }

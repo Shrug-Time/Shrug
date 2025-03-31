@@ -80,10 +80,53 @@ src/
 The like/unlike functionality is now working correctly with the following improvements:
 - ✅ Proper error handling and user feedback
 - ✅ Consistent auth state management
-- ✅ Optimistic UI updates
+- ✅ Server-side state management (removed optimistic updates)
 - ✅ Real-time updates
 - ✅ Proper data structure using likeHistory
+- ✅ Transaction-based like/unlike operations
+- ✅ Proper error handling and rollback
 - 🔄 Legacy likedBy array removal in progress (maintained for backward compatibility)
+
+## Performance Considerations
+
+### Current Issues
+1. **Firebase Initialization**
+   - Multiple "Initializing Firebase app for the first time" messages in development
+   - Not affecting production but should be optimized
+   - Solution: Implement proper singleton pattern for Firebase initialization
+
+2. **Tailwind Configuration**
+   - Warning about content pattern matching node_modules
+   - Pattern: `./src/**/*.ts`
+   - Solution: Update content configuration to be more specific
+
+3. **Build Performance**
+   - Initial compilation time: ~13.7s
+   - Subsequent compilations: ~2.2s
+   - Hot reloads: ~400-700ms
+   - Solution: Optimize build configuration and implement proper caching
+
+### Optimization Plan
+
+#### Phase 1: Immediate Optimizations (1-2 days)
+- [ ] Fix Firebase initialization to prevent multiple instances
+- [ ] Update Tailwind content configuration
+- [ ] Implement proper build caching
+
+#### Phase 2: Short-term Optimizations (1 week)
+- [ ] Implement proper code splitting
+- [ ] Optimize bundle size
+- [ ] Add performance monitoring
+
+#### Phase 3: Medium-term Optimizations (2-3 weeks)
+- [ ] Implement proper caching strategy
+- [ ] Optimize database queries
+- [ ] Add performance metrics tracking
+
+#### Phase 4: Long-term Optimizations (1-2 months)
+- [ ] Implement proper CDN caching
+- [ ] Optimize image loading
+- [ ] Add comprehensive performance monitoring
 
 ## AI Assistant Directive
 When working on this project, focus on maintaining code quality, preventing duplicate components, and ensuring scalability. Prioritize solutions that are both effective and maintainable. Always consider the user experience and performance implications of any changes. When suggesting improvements, explain the benefits and potential trade-offs clearly.
