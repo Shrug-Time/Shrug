@@ -1,9 +1,8 @@
 {
-  "name": "shrug-scripts",
+  "name": "remove-liked-by",
   "version": "1.0.0",
-  "description": "Scripts for Shrug application",
   "type": "module",
-  "engines": {
-    "node": ">=14.16"
+  "dependencies": {
+    "firebase": "^10.8.0"
   }
 } 
