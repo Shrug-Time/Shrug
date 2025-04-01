@@ -1,6 +1,6 @@
 import { db } from './firebase';
 import { collection, getDocs, query, where, doc, getDoc, updateDoc, arrayUnion, increment, Timestamp } from 'firebase/firestore';
-import { Post } from '@/types/models';
+import { Post, TotemLike, Answer, Totem } from '@/types/models';
 import { auth } from './firebase';
 import { TotemService } from '@/services/totem';
 
@@ -204,35 +204,8 @@ export async function refreshTotem(postId: string, totemName: string): Promise<{
     console.log('refreshTotem - Totem before refresh:', {
       name: totem.name,
       likes: totem.likes,
-      likeTimes: totem.likeTimes?.length || 0,
-      likeValues: totem.likeValues?.length || 0,
-      likedBy: totem.likedBy?.length || 0,
+      likeHistory: totem.likeHistory?.length || 0,
       crispness: totem.crispness
-    });
-    
-    // Ensure arrays are initialized
-    const likeTimes = totem.likeTimes || [];
-    const likeValues = totem.likeValues || [];
-    
-    // Verify that the arrays have the correct length
-    if (likeTimes.length !== likeValues.length) {
-      console.error('refreshTotem - Mismatch between likeTimes and likeValues arrays:', {
-        likeTimesLength: likeTimes.length,
-        likeValuesLength: likeValues.length
-      });
-    }
-    
-    // Verify that the arrays match the likes count
-    if (likeTimes.length !== totem.likes) {
-      console.warn('refreshTotem - Mismatch between likes count and likeTimes array length:', {
-        likesCount: totem.likes,
-        likeTimesLength: likeTimes.length
-      });
-    }
-    
-    console.log('refreshTotem - Like history:', {
-      likeTimes,
-      likeValues
     });
     
     // Recalculate crispness based on like history
@@ -241,7 +214,7 @@ export async function refreshTotem(postId: string, totemName: string): Promise<{
     if (totem.likeHistory && totem.likeHistory.length > 0) {
       // If totem has the new likeHistory array, use it to calculate crispness
       // This will be calculated by filtering active likes and using their original timestamps
-      const activeLikes = totem.likeHistory.filter(like => like.isActive);
+      const activeLikes = totem.likeHistory.filter((like: TotemLike) => like.isActive);
       if (activeLikes.length > 0) {
         // Calculate based on original timestamps of active likes
         const now = Date.now();
@@ -254,27 +227,9 @@ export async function refreshTotem(postId: string, totemName: string): Promise<{
         });
         
         // Calculate average crispness
-        const totalCrispness = individualCrispnessValues.reduce((sum, val) => sum + val, 0);
+        const totalCrispness = individualCrispnessValues.reduce((sum: number, val: number) => sum + val, 0);
         newCrispness = parseFloat((totalCrispness / activeLikes.length).toFixed(2));
       }
-    } else if (likeTimes.length > 0 && likeValues.length > 0) {
-      // Legacy calculation if the new likeHistory is not available
-      // This will use the existing likeTimes and likeValues arrays
-      const now = Date.now();
-      const decayPeriod = 7 * 24 * 60 * 60 * 1000; // 1 week (FAST)
-      
-      // Calculate individual crispness values
-      const individualCrispnessValues = likeTimes.map(timestamp => {
-        const likeTime = typeof timestamp === 'string' 
-          ? new Date(timestamp).getTime() 
-          : timestamp;
-        const timeSinceLike = now - likeTime;
-        return Math.max(0, 100 * (1 - (timeSinceLike / decayPeriod)));
-      });
-      
-      // Calculate average crispness
-      const totalCrispness = individualCrispnessValues.reduce((sum, val) => sum + val, 0);
-      newCrispness = parseFloat((totalCrispness / individualCrispnessValues.length).toFixed(2));
     }
     
     console.log('refreshTotem - New crispness calculated:', newCrispness);
@@ -288,11 +243,7 @@ export async function refreshTotem(postId: string, totemName: string): Promise<{
               t.name === totemName
                 ? { 
                     ...t, 
-                    crispness: newCrispness,
-                    // Ensure arrays are properly initialized
-                    likeTimes: t.likeTimes || [],
-                    likeValues: t.likeValues || [],
-                    likedBy: t.likedBy || []
+                    crispness: newCrispness
                   }
                 : t
             ),
@@ -322,40 +273,78 @@ export async function getPost(postId: string): Promise<Post | null> {
       return null;
     }
 
-    const data = postSnap.data();
+    const data = postSnap.data() as Record<string, any>;
     console.log('getPost - Raw post data retrieved:', {
       id: postSnap.id,
       question: data.question,
       answersCount: data.answers?.length || 0
     });
     
-    // Check if any totems have undefined likedBy arrays
-    const totemsWithUndefinedLikedBy = [];
+    // Ensure all totems have likeHistory initialized and calculate likes
     if (data.answers) {
-      for (const answer of data.answers) {
-        if (answer.totems) {
-          for (const totem of answer.totems) {
-            if (!totem.likedBy) {
-              totemsWithUndefinedLikedBy.push({
-                totemName: totem.name,
-                answerText: answer.text.substring(0, 30) + '...'
-              });
+      data.answers = data.answers.map((answer: Record<string, any>) => {
+        // Convert timestamps in the answer
+        const convertedAnswer = {
+          ...answer,
+          createdAt: answer.createdAt instanceof Timestamp ? answer.createdAt.toMillis() : answer.createdAt,
+          updatedAt: answer.updatedAt instanceof Timestamp ? answer.updatedAt.toMillis() : answer.updatedAt,
+          lastInteraction: answer.lastInteraction instanceof Timestamp ? answer.lastInteraction.toMillis() : answer.lastInteraction,
+          totems: answer.totems?.map((totem: Record<string, any>) => {
+            // Initialize likeHistory if it doesn't exist
+            if (!totem.likeHistory) {
+              totem.likeHistory = [];
             }
-          }
-        }
-      }
+            
+            // Calculate likes from likeHistory
+            const activeLikes = totem.likeHistory.filter((like: Record<string, any>) => like.isActive);
+            const totalLikes = activeLikes.length;
+            
+            // Update likes and activeLikes counts
+            totem.likes = totalLikes;
+            totem.activeLikes = totalLikes;
+            
+            // Convert timestamps in the totem
+            return {
+              ...totem,
+              createdAt: totem.createdAt instanceof Timestamp ? totem.createdAt.toMillis() : totem.createdAt,
+              updatedAt: totem.updatedAt instanceof Timestamp ? totem.updatedAt.toMillis() : totem.updatedAt,
+              lastInteraction: totem.lastInteraction instanceof Timestamp ? totem.lastInteraction.toMillis() : totem.lastInteraction,
+              likeHistory: totem.likeHistory.map((like: Record<string, any>) => ({
+                ...like,
+                originalTimestamp: like.originalTimestamp instanceof Timestamp ? like.originalTimestamp.toMillis() : like.originalTimestamp,
+                lastUpdatedAt: like.lastUpdatedAt instanceof Timestamp ? like.lastUpdatedAt.toMillis() : like.lastUpdatedAt
+              }))
+            };
+          })
+        };
+        
+        return convertedAnswer;
+      });
     }
     
-    if (totemsWithUndefinedLikedBy.length > 0) {
-      console.error('getPost - Found totems with undefined likedBy:', totemsWithUndefinedLikedBy);
-    }
-    
-    const convertedPost = convertTimestamps({
+    // Convert remaining timestamps in the post
+    const convertedPost = {
       id: postSnap.id,
       ...data,
-    }) as Post;
+      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : data.createdAt,
+      updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toMillis() : data.updatedAt,
+      lastInteraction: data.lastInteraction instanceof Timestamp ? data.lastInteraction.toMillis() : data.lastInteraction
+    } as Post;
     
-    console.log('getPost - Converted post data');
+    console.log('getPost - Converted post data:', {
+      id: convertedPost.id,
+      question: convertedPost.question,
+      answersCount: convertedPost.answers?.length || 0,
+      answers: convertedPost.answers?.map(answer => ({
+        text: answer.text,
+        totems: answer.totems?.map(totem => ({
+          name: totem.name,
+          likes: totem.likes,
+          activeLikes: totem.activeLikes,
+          likeHistory: totem.likeHistory
+        }))
+      }))
+    });
     
     return convertedPost;
   } catch (error) {

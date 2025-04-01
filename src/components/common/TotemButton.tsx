@@ -4,6 +4,7 @@ import { MouseEvent, memo, useState, useEffect } from 'react';
 import { auth } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
+import { useTotem } from '@/contexts/TotemContext';
 
 interface TotemButtonProps {
   name: string;
@@ -24,49 +25,32 @@ function TotemButtonBase({
   isLiked,
   postId
 }: TotemButtonProps) {
-  console.log('TotemButton - Props received:', { 
-    name, 
-    likes, 
-    isLiked, 
-    postId,
-    hasOnLike: !!onLike,
-    hasOnUnlike: !!onUnlike
-  });
-
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const { user } = useTotem();
 
-  const handleTotemClick = (e: MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    if (postId) {
-      router.push(`/post/${postId}/totem/${encodeURIComponent(name)}`);
-    } else {
-      router.push(`/totem/${encodeURIComponent(name)}`);
-    }
+  const handleTotemClick = () => {
+    if (!name) return;
+    router.push(`/totem/${encodeURIComponent(name)}`);
   };
 
-  const handleLikeClick = async (e: MouseEvent<HTMLButtonElement>) => {
+  const handleLikeClick = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
-    console.log('TotemButton - Click:', { isLiked, name, postId });
-    
-    if (isLoading) {
-      console.log('TotemButton - Already loading, ignoring click');
+    if (!user || isLoading) {
       return;
     }
-    
+
     setIsLoading(true);
     try {
       if (isLiked) {
-        console.log('TotemButton - Calling onUnlike');
         await onUnlike();
       } else {
-        console.log('TotemButton - Calling onLike');
         await onLike();
       }
     } catch (error) {
-      console.error('TotemButton - Error:', error);
+      console.error('Error handling like click:', error);
     } finally {
       setIsLoading(false);
     }
@@ -94,35 +78,36 @@ function TotemButtonBase({
       <div className="flex items-center">
         <button
           onClick={handleTotemClick}
-          className="flex items-center justify-center px-3 py-1 rounded-xl text-white shadow-sm transition-colors hover:shadow-md"
+          className="flex items-center justify-center px-3 py-1 rounded-l-xl text-white shadow-sm transition-colors hover:shadow-md"
           style={{ backgroundColor }}
         >
           {name}
-          <span className="ml-2 text-white/90 flex items-center">
+        </button>
+        
+        <button
+          onClick={handleLikeClick}
+          disabled={isLoading}
+          className={`flex items-center justify-center px-3 py-1 rounded-r-xl text-white shadow-sm transition-colors hover:shadow-md cursor-pointer ${
+            isLiked 
+              ? 'bg-red-500 hover:bg-red-600' 
+              : 'bg-gray-500 hover:bg-gray-600'
+          } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+          style={{ 
+            backgroundColor: isLiked ? '#EF4444' : '#6B7280',
+            minWidth: '40px',
+            zIndex: 1
+          }}
+        >
+          <span className="text-white/90 flex items-center">
             {likes}
           </span>
         </button>
         
-        <div className="ml-2 flex items-center space-x-2">
-          <button
-            onClick={handleLikeClick}
-            disabled={isLoading}
-            className={`text-xs flex items-center justify-center w-6 h-6 rounded-full transition-colors ${
-              isLiked 
-                ? 'bg-red-100 text-red-500 hover:bg-red-200' 
-                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-            } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-            title={isLiked ? "Unlike this totem" : "Like this totem"}
-          >
-            {isLiked ? '❤️' : '♡'}
-          </button>
-          
-          {crispness !== undefined && (
-            <span className="text-xs flex items-center justify-center bg-gray-100 w-14 h-6 rounded-full text-gray-500">
-              {Math.round(crispness)}% fresh
-            </span>
-          )}
-        </div>
+        {crispness !== undefined && (
+          <span className="ml-2 text-xs flex items-center justify-center bg-gray-100 w-14 h-6 rounded-full text-gray-500">
+            {Math.round(crispness)}% fresh
+          </span>
+        )}
       </div>
     </div>
   );
@@ -135,7 +120,9 @@ function propsAreEqual(prevProps: TotemButtonProps, nextProps: TotemButtonProps)
     prevProps.likes === nextProps.likes &&
     prevProps.crispness === nextProps.crispness &&
     prevProps.isLiked === nextProps.isLiked &&
-    prevProps.postId === nextProps.postId
+    prevProps.postId === nextProps.postId &&
+    prevProps.onLike === nextProps.onLike &&
+    prevProps.onUnlike === nextProps.onUnlike
   );
 }
 

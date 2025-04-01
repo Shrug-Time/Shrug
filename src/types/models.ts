@@ -36,7 +36,7 @@ export interface TotemLike {
   /**
    * Value of the like (typically 1)
    */
-  value: number;
+  value?: number;
 }
 
 /**
@@ -48,6 +48,7 @@ export interface Totem extends TimestampedEntity {
   description?: string;
   imageUrl?: string;
   likes: number;
+  activeLikes: number;  // Number of currently active likes
   likeHistory: TotemLike[];
   crispness: number;
   category: TotemCategory;

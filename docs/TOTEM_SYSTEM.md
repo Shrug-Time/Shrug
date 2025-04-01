@@ -9,6 +9,7 @@ The totem system allows users to add and interact with "totems" on posts. Totems
 - Likes
 - Crispness (freshness score)
 - Like history (who liked it and when)
+- Active likes count
 
 ## Architecture
 
@@ -28,6 +29,7 @@ The totem system allows users to add and interact with "totems" on posts. Totems
      - `handleTotemLike` - Handles liking a totem
      - `updateTotemStats` - Updates totem statistics after a like
      - `calculateCrispness` - Calculates the crispness of a totem
+     - `refreshUserLike` - Refreshes a user's like timestamp
 
 4. **Firebase Functions**
    - `updateTotemLikes` - Wrapper around TotemService.handleTotemLike
@@ -38,6 +40,7 @@ The totem system allows users to add and interact with "totems" on posts. Totems
 All totem interactions require authentication. The user's ID is used to:
 1. Track who has liked a totem
 2. Prevent users from liking the same totem multiple times
+3. Maintain like history with timestamps
 
 ## Best Practices
 
@@ -115,21 +118,18 @@ try {
 await TotemService.handleTotemLike(post, answerIdx, totemName, userId);
 ```
 
-### 5. Fetch Updated Data After Operations
+### 5. Server-First Updates
 
-After a totem operation, fetch the updated data from the database to ensure the UI reflects the current state.
+Always update the server first, then update the local state. This ensures data consistency.
 
 ```typescript
 // GOOD
-await TotemService.handleTotemLike(post, answerIdx, totemName, userId);
-const postRef = doc(db, 'posts', postId);
-const postDoc = await getDoc(postRef);
-if (postDoc.exists()) {
-  setPost(postDoc.data() as Post);
+const result = await TotemService.handleTotemLike(post, answerIdx, totemName, userId);
+if (result.success) {
+  setPost(result.post);
 }
 
-// BAD - Don't optimistically update the UI without fetching the current state
-await TotemService.handleTotemLike(post, answerIdx, totemName, userId);
+// BAD - Don't update local state before server confirmation
 setPost(prevPost => ({
   ...prevPost,
   answers: prevPost.answers.map(answer => ({
@@ -141,20 +141,85 @@ setPost(prevPost => ({
     )
   }))
 }));
+await TotemService.handleTotemLike(post, answerIdx, totemName, userId);
+```
+
+## Data Structure
+
+### Like History
+```typescript
+interface TotemLike {
+  userId: string;
+  originalTimestamp: number;
+  lastUpdatedAt: number;
+  isActive: boolean;
+  value: number;
+}
+```
+
+### Totem Structure
+```typescript
+interface Totem {
+  name: string;
+  likes: number;
+  activeLikes: number;
+  crispness: number;
+  likeHistory: TotemLike[];
+  updatedAt: number;
+  lastInteraction: number;
+}
 ```
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Infinite Liking**
-   - Cause: Not checking if the user has already liked the totem
-   - Solution: Always use TotemService.handleTotemLike which checks the likedBy array
+1. **UI Not Updating Immediately**
+   - Cause: Server-first update strategy requires refresh
+   - Solution: Implement proper state management with server response
 
-2. **Crispness Not Updating**
+2. **Like Count Inconsistency**
+   - Cause: Not using likeHistory for count calculation
+   - Solution: Always calculate likes from likeHistory
+
+3. **Crispness Not Updating**
    - Cause: Not recalculating crispness when likes change
    - Solution: Always use TotemService.handleTotemLike which recalculates crispness
 
-3. **UI Not Reflecting Database State**
-   - Cause: Optimistically updating the UI without fetching the current state
-   - Solution: Fetch the updated data from the database after operations 
+4. **Legacy Data Issues**
+   - Cause: Mixing old likedBy array with new likeHistory
+   - Solution: Use TotemService which handles both formats during transition
+
+## Migration Notes
+
+### From likedBy to likeHistory
+The system is transitioning from a simple likedBy array to a more detailed likeHistory structure:
+
+1. **Old Structure**
+```typescript
+{
+  likedBy: string[],
+  likes: number
+}
+```
+
+2. **New Structure**
+```typescript
+{
+  likeHistory: {
+    userId: string,
+    originalTimestamp: number,
+    lastUpdatedAt: number,
+    isActive: boolean,
+    value: number
+  }[],
+  likes: number,
+  activeLikes: number
+}
+```
+
+During the transition:
+- Both structures are supported
+- New likes use the likeHistory structure
+- Old likes are preserved in the likedBy array
+- TotemService handles both formats

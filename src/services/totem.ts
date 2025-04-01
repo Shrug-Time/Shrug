@@ -122,26 +122,18 @@ export class TotemService {
 
       // Calculate new likes count and crispness
       totem.likes = totem.likeHistory.filter(like => like.isActive).length;
+      totem.activeLikes = totem.likes; // Keep activeLikes in sync with likes
       totem.crispness = this.calculateCrispnessFromLikeHistory(totem.likeHistory);
       totem.updatedAt = now;
       totem.lastInteraction = now;
 
-      // Update the post
-      await updateDoc(postRef, {
-        answers: post.answers,
-        lastInteraction: now,
-        updatedAt: now
-      });
+      // Update the post in Firestore
+      const updatedPost = await this.updatePost(post);
 
       return {
         success: true,
         isLiked: !isUnliking,
-        post: {
-          ...post,
-          answers: post.answers.map((ans, idx) => 
-            idx === answerIndex ? answer : ans
-          )
-        }
+        post: updatedPost
       };
     } catch (error) {
       console.error('Error handling totem like:', error);
@@ -535,6 +527,7 @@ export class TotemService {
     const newTotem: Omit<Totem, 'id'> = {
       name,
       likes: 0,
+      activeLikes: 0,
       likeHistory: [],
       crispness: 0,
       category,
@@ -585,6 +578,73 @@ export class TotemService {
     return {
       ...newCategory,
       id: docRef.id
+    };
+  }
+
+  private static async updatePost(post: Post): Promise<Post> {
+    const postRef = doc(db, 'posts', post.id);
+    
+    // Create a new answers array with the updated answer
+    const updatedAnswers = post.answers.map(answer => {
+      const updatedAnswer = {
+        ...answer,
+        totems: answer.totems.map(totem => {
+          // Preserve the existing values and only set defaults for missing fields
+          const updatedTotem = {
+            id: totem.id || '',
+            name: totem.name,
+            likes: totem.likes, // Preserve the existing likes count
+            activeLikes: totem.activeLikes, // Preserve the existing activeLikes count
+            likeHistory: totem.likeHistory || [], // Preserve the existing likeHistory
+            crispness: totem.crispness || 0,
+            lastLike: totem.lastLike || 0,
+            updatedAt: totem.updatedAt || Date.now(),
+            lastInteraction: totem.lastInteraction || Date.now(),
+            category: {
+              id: totem.category?.id || '',
+              name: totem.category?.name || 'Uncategorized',
+              description: totem.category?.description || '',
+              children: totem.category?.children || [],
+              usageCount: totem.category?.usageCount || 0
+            },
+            decayModel: totem.decayModel || 'MEDIUM',
+            usageCount: totem.usageCount || 0,
+            createdAt: totem.createdAt || Date.now()
+          };
+          
+          return updatedTotem;
+        })
+      };
+      
+      // Only include the fields we expect
+      return {
+        id: answer.id || '',
+        text: answer.text || '',
+        firebaseUid: answer.firebaseUid || '',
+        username: answer.username || '',
+        name: answer.name || '',
+        createdAt: answer.createdAt || Date.now(),
+        updatedAt: answer.updatedAt || Date.now(),
+        lastInteraction: answer.lastInteraction || Date.now(),
+        totems: updatedAnswer.totems
+      };
+    });
+    
+    const postData = {
+      answers: updatedAnswers,
+      lastInteraction: Date.now(),
+      updatedAt: Date.now()
+    };
+    
+    console.log('updatePost - Full post data being written:', JSON.stringify(postData, null, 2));
+    
+    // Update the post with the new answers array
+    await updateDoc(postRef, postData);
+    
+    // Return the updated post
+    return {
+      ...post,
+      answers: updatedAnswers
     };
   }
 } 

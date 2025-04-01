@@ -26,13 +26,13 @@ export function timestampToMillis(timestamp: Timestamp | Date | number | undefin
  * Normalizes a Totem object to ensure all properties exist
  */
 export function normalizeTotem(totem: Partial<Totem>): Totem {
+  const now = Date.now();
   return {
+    id: totem.id || '',
     name: totem.name || '',
     likes: totem.likes || 0,
-    likedBy: totem.likedBy || [],
-    likeTimes: totem.likeTimes || [],
-    likeValues: totem.likeValues || [],
-    lastLike: totem.lastLike || undefined,
+    activeLikes: totem.activeLikes || 0,
+    likeHistory: totem.likeHistory || [],
     crispness: totem.crispness || 0,
     category: totem.category || {
       id: 'general',
@@ -43,7 +43,13 @@ export function normalizeTotem(totem: Partial<Totem>): Totem {
     },
     decayModel: totem.decayModel || 'MEDIUM',
     usageCount: totem.usageCount || 0,
-    relatedTotems: totem.relatedTotems || []
+    relationships: totem.relationships || [],
+    userId: totem.userId,
+    userName: totem.userName,
+    lastLike: totem.lastLike,
+    createdAt: totem.createdAt || now,
+    updatedAt: totem.updatedAt || now,
+    lastInteraction: totem.lastInteraction || now
   };
 }
 
@@ -51,16 +57,23 @@ export function normalizeTotem(totem: Partial<Totem>): Totem {
  * Normalizes an Answer object to ensure all properties exist
  */
 export function normalizeAnswer(answer: Record<string, any>): Answer {
+  const now = Date.now();
   return {
+    id: answer.id || `${answer.firebaseUid || answer.userId}_${now}`,
     text: answer.text || '',
-    userId: answer.userId || '',
-    userName: answer.userName || 'Anonymous',
-    createdAt: typeof answer.createdAt === 'number' ? answer.createdAt : Date.now(),
-    totems: Array.isArray(answer.totems) 
+    firebaseUid: answer.firebaseUid || answer.userId || '',
+    username: answer.username || answer.userName || '',
+    name: answer.name || answer.userName || '',
+    totems: Array.isArray(answer.totems)
       ? answer.totems.map(normalizeTotem)
       : [],
+    createdAt: typeof answer.createdAt === 'number' ? answer.createdAt : now,
+    updatedAt: typeof answer.updatedAt === 'number' ? answer.updatedAt : now,
+    lastInteraction: typeof answer.lastInteraction === 'number' ? answer.lastInteraction : now,
     isVerified: answer.isVerified || false,
-    isPremium: answer.isPremium || false
+    isPremium: answer.isPremium || false,
+    userId: answer.userId || answer.firebaseUid || '',
+    userName: answer.userName || answer.name || ''
   };
 }
 
@@ -68,9 +81,7 @@ export function normalizeAnswer(answer: Record<string, any>): Answer {
  * Normalizes a Post object from Firestore
  */
 export function normalizePost(id: string, data: Record<string, any>): Post {
-  // Ensure createdAt and lastEngagement are numbers
-  const createdAt = timestampToMillis(data.createdAt);
-  const lastEngagement = timestampToMillis(data.lastEngagement) || createdAt;
+  const now = Date.now();
   
   // Normalize answers array
   const answers = Array.isArray(data.answers)
@@ -78,21 +89,30 @@ export function normalizePost(id: string, data: Record<string, any>): Post {
     : [];
   
   // Extract user IDs from answers for easier querying
-  const answerUserIds = answers
-    .map(answer => answer.userId)
-    .filter(Boolean) as string[];
+  const answerFirebaseUids = [...new Set(
+    answers.map(answer => answer.firebaseUid).filter(Boolean)
+  )];
+  
+  const answerUsernames = [...new Set(
+    answers.map(answer => answer.username).filter(Boolean)
+  )];
   
   return {
     id,
     question: data.question || '',
-    userId: data.userId || '',
-    userName: data.userName || 'Anonymous',
-    createdAt,
-    lastEngagement,
+    firebaseUid: data.firebaseUid || data.userId || '',
+    username: data.username || data.userName || '',
+    name: data.name || data.userName || '',
     categories: Array.isArray(data.categories) ? data.categories : [],
+    totemAssociations: Array.isArray(data.totemAssociations) ? data.totemAssociations : [],
+    score: data.score,
     answers,
-    score: data.score || 0,
-    // Add this field for easier querying
-    answerUserIds: [...new Set(answerUserIds)]
+    answerFirebaseUids,
+    answerUsernames,
+    userId: data.userId || data.firebaseUid || '',
+    userName: data.userName || data.name || '',
+    createdAt: typeof data.createdAt === 'number' ? data.createdAt : now,
+    updatedAt: typeof data.updatedAt === 'number' ? data.updatedAt : now,
+    lastInteraction: typeof data.lastInteraction === 'number' ? data.lastInteraction : now
   };
 } 

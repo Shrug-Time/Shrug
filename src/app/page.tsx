@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useAuth, useLike } from '@/contexts/TotemContext';
+import { useTotem } from '@/contexts/TotemContext';
 import { QuestionList } from '@/components/questions/QuestionList';
 import { useRouter } from 'next/navigation';
 import { Post } from '@/types/models';
@@ -29,8 +29,7 @@ const calculatePostScore = (post: Post) => {
 };
 
 export default function Home() {
-  const { user, isLoading: authLoading } = useAuth();
-  const { toggleLike } = useLike();
+  const { user, isLoading: authLoading, toggleLike } = useTotem();
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<FeedType>('latest');
@@ -144,8 +143,6 @@ export default function Home() {
       <QuestionList
         posts={posts}
         onWantToAnswer={handleWantToAnswer}
-        onLikeTotem={handleTotemLikeClick}
-        onUnlikeTotem={handleTotemUnlikeClick}
         hasNextPage={false}
         isLoading={isLoading}
         onLoadMore={() => {}}
