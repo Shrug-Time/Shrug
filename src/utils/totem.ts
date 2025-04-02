@@ -1,6 +1,7 @@
 import { updateDoc, doc } from 'firebase/firestore';
 import { db } from '@/firebase';
-import type { Post } from '@/types/models';
+import type { Post, Answer } from '@/types/models';
+import { TotemService } from '@/services/totem';
 
 export const calculateCrispness = (likes: number[], timestamps: string[]) => {
   if (!likes.length || !timestamps.length) return 0;
@@ -24,85 +25,31 @@ export const calculateCrispness = (likes: number[], timestamps: string[]) => {
   return totalWeight > 0 ? (weightedSum / totalWeight) * 100 : 0;
 };
 
-export const handleTotemLike = async (
+export async function handleTotemLike(
   post: Post,
   answerIdx: number,
   totemName: string,
   userId: string
-) => {
-  const answer = post.answers[answerIdx];
-  const totem = answer.totems.find(t => t.name === totemName);
-  if (!totem) return;
-
-  if (totem.likedBy.includes(userId)) {
-    throw new Error("You've already liked this totem!");
-  }
-
-  const now = new Date().toISOString();
-  const updatedAnswers = post.answers.map((ans, idx) =>
-    idx === answerIdx
-      ? {
-          ...ans,
-          totems: ans.totems.map((t) =>
-            t.name === totemName
-              ? {
-                  ...t,
-                  likes: t.likes + 1,
-                  likeTimes: [...(t.likeTimes || []), now],
-                  likeValues: [...(t.likeValues || []), 1],
-                  lastLike: now,
-                  likedBy: [...t.likedBy, userId],
-                  crispness: calculateCrispness(
-                    [...(t.likeValues || []), 1],
-                    [...(t.likeTimes || []), now]
-                  )
-                }
-              : t
-          ),
-        }
-      : ans
-  );
-
+) {
+  const timestamp = new Date().toISOString();
+  const updatedAnswers = await TotemService.updateTotemStats(post.answers, answerIdx, totemName, userId, timestamp);
   await updateDoc(doc(db, "posts", post.id), { answers: updatedAnswers });
-};
+}
 
-export const handleTotemRefresh = async (
+export async function handleTotemRefresh(
   post: Post,
   answerIdx: number,
   totemName: string,
   refreshCount: number
-) => {
-  if (refreshCount <= 0) {
-    throw new Error("No refreshes left today. Upgrade to Premium for more!");
+): Promise<boolean> {
+  if (refreshCount <= 0) return false;
+  try {
+    const timestamp = new Date().toISOString();
+    const updatedAnswers = await TotemService.updateTotemStats(post.answers, answerIdx, totemName, post.answers[answerIdx].userId, timestamp);
+    await updateDoc(doc(db, "posts", post.id), { answers: updatedAnswers });
+    return true;
+  } catch (error) {
+    console.error('Error refreshing totem:', error);
+    return false;
   }
-
-  const answer = post.answers[answerIdx];
-  const totem = answer.totems.find(t => t.name === totemName);
-  if (!totem) return;
-
-  const now = new Date().toISOString();
-  const updatedAnswers = post.answers.map((ans, idx) =>
-    idx === answerIdx
-      ? {
-          ...ans,
-          totems: ans.totems.map((t) =>
-            t.name === totemName
-              ? {
-                  ...t,
-                  likeTimes: [...(t.likeTimes || []), now],
-                  likeValues: [...(t.likeValues || []), 1],
-                  lastLike: now,
-                  crispness: calculateCrispness(
-                    [...(t.likeValues || []), 1],
-                    [...(t.likeTimes || []), now]
-                  )
-                }
-              : t
-          ),
-        }
-      : ans
-  );
-
-  await updateDoc(doc(db, "posts", post.id), { answers: updatedAnswers });
-  return updatedAnswers;
-}; 
+} 

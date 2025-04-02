@@ -1,161 +1,308 @@
 import { formatDistanceToNow } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
-import type { Post } from '@/types/models';
-import { useState } from 'react';
+import type { Post, TotemSuggestion, Answer, Totem } from '@/types/models';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { TotemButton } from '@/components/common/TotemButton';
-import { auth } from '@/firebase';
 import Link from 'next/link';
+import { SimilarityService } from '@/services/similarity';
+import { InfiniteScroll } from '@/components/common/InfiniteScroll';
+import { USER_FIELDS } from '@/constants/fields';
+import { getUserDisplayName, getTotemLikes, getTotemCrispness, hasUserLikedTotem } from '@/utils/componentHelpers';
+import { useTotem } from '@/contexts/TotemContext';
+
+// Helper function to safely convert various date formats to a Date object
+const toDate = (dateField: any): Date => {
+  if (!dateField) return new Date();
+  
+  if (dateField instanceof Date) return dateField;
+  
+  if (typeof dateField === 'object' && 'toDate' in dateField && typeof dateField.toDate === 'function') {
+    return dateField.toDate();
+  }
+  
+  if (typeof dateField === 'string') return new Date(dateField);
+  
+  if (typeof dateField === 'number') return new Date(dateField);
+  
+  return new Date();
+};
 
 interface QuestionListProps {
   posts: Post[];
-  onSelectQuestion: (post: Post) => void;
-  onLikeTotem: (postId: string, answerIdx: number, totemName: string) => void;
-  onRefreshTotem: (postId: string, answerIdx: number, totemName: string) => void;
+  onWantToAnswer: (post: Post) => void;
+  hasNextPage: boolean;
+  isLoading: boolean;
+  onLoadMore: () => void;
+  showAllTotems?: boolean;
 }
 
-export function QuestionList({ 
-  posts, 
-  onSelectQuestion, 
-  onLikeTotem,
-  onRefreshTotem 
+export function QuestionList({
+  posts,
+  onWantToAnswer,
+  hasNextPage,
+  isLoading,
+  onLoadMore,
+  showAllTotems = false
 }: QuestionListProps) {
-  const [expandedPosts, setExpandedPosts] = useState<Record<string, boolean>>({});
   const router = useRouter();
+  const { user, toggleLike } = useTotem();
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
 
-  const getTopTotem = (totems: Post['answers'][0]['totems']) => {
-    if (!totems.length) return null;
-    return totems.reduce((top, current) => (current.likes > top.likes ? current : top));
-  };
-
-  const togglePostExpansion = (postId: string) => {
-    setExpandedPosts(prev => ({
-      ...prev,
-      [postId]: !prev[postId]
-    }));
-  };
-
-  const truncateText = (text: string) => {
-    const firstParagraph = text.split('\n')[0];
-    if (firstParagraph.length > 150) {
-      return firstParagraph.substring(0, 150) + '...';
-    }
-    return firstParagraph;
-  };
-
-  const navigateToPost = (postId: string) => {
-    router.push(`/post/${postId}`);
-  };
-
-  const handleTotemLike = (e: React.MouseEvent, postId: string, answerIdx: number, totemName: string) => {
-    e.stopPropagation();
-    if (!auth.currentUser) return;
-
-    const post = posts.find(p => p.id === postId);
-    if (!post) return;
-
-    const totem = post.answers[answerIdx].totems.find(t => t.name === totemName);
-    if (!totem) return;
-
-    if (totem.likedBy.includes(auth.currentUser.uid)) {
-      alert("You've already liked this totem!");
+  const handleInteraction = useCallback(async (action: () => void | Promise<void>) => {
+    if (!user) {
+      setShowLoginPrompt(true);
       return;
     }
+    try {
+      await action();
+    } catch (error) {
+      console.error('Error handling interaction:', error);
+    }
+  }, [user]);
 
-    onLikeTotem(postId, answerIdx, totemName);
-  };
+  const handleLikeTotem = useCallback(async (post: Post, answerIndex: number, totemName: string) => {
+    if (!user) {
+      setShowLoginPrompt(true);
+      return;
+    }
+    try {
+      await toggleLike(post.id, totemName);
+    } catch (error) {
+      console.error('Error liking totem:', error);
+    }
+  }, [user, toggleLike]);
 
-  const handleTotemRefresh = (e: React.MouseEvent, postId: string, answerIdx: number, totemName: string) => {
-    e.stopPropagation();
-    if (!auth.currentUser) return;
-    onRefreshTotem(postId, answerIdx, totemName);
-  };
+  const handleUnlikeTotem = useCallback(async (post: Post, answerIndex: number, totemName: string) => {
+    if (!user) {
+      setShowLoginPrompt(true);
+      return;
+    }
+    try {
+      await toggleLike(post.id, totemName);
+    } catch (error) {
+      console.error('Error unliking totem:', error);
+    }
+  }, [user, toggleLike]);
+
+  const getBestAnswer = useCallback((post: Post) => {
+    if (!post.answers || post.answers.length === 0) return null;
+    
+    // Find the answer with the highest likes for any totem
+    return post.answers.reduce((best, current, index) => {
+      // Get the highest likes from any totem in the current answer
+      const currentMaxLikes = current.totems?.reduce((max, totem) => 
+        totem.likes > max ? totem.likes : max, 0) || 0;
+      
+      // Get the highest likes from any totem in the best answer so far
+      const bestMaxLikes = best.answer.totems?.reduce((max, totem) => 
+        totem.likes > max ? totem.likes : max, 0) || 0;
+      
+      return currentMaxLikes > bestMaxLikes ? { answer: current, index } : best;
+    }, { answer: post.answers[0], index: 0 });
+  }, []);
+
+  const getBestTotem = useCallback((answer: Answer) => {
+    if (!answer.totems?.length) return null;
+    
+    // Find totem with the most likes
+    return answer.totems.reduce((best, current) => {
+      return getTotemLikes(current) > getTotemLikes(best) ? current : best;
+    }, answer.totems[0]);
+  }, []);
+
+  const renderAnswer = useCallback((post: Post, answer: Answer, index: number, isBestAnswer: boolean = false) => {
+    const bestTotem = getBestTotem(answer);
+
+    if (!bestTotem) return null;
+
+    const isLiked = user ? hasUserLikedTotem(bestTotem, user.uid) : false;
+
+    return (
+      <div key={`${post.id}-${answer.text}`} 
+           className={`bg-white rounded-xl shadow p-4 hover:shadow-md transition-shadow ${isBestAnswer ? 'border-l-4 border-blue-500' : ''}`}>
+        <div className="text-gray-600 mb-4">
+          {answer.text}
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <TotemButton
+              key={bestTotem.name}
+              name={bestTotem.name}
+              likes={getTotemLikes(bestTotem)}
+              crispness={getTotemCrispness(bestTotem)}
+              isLiked={isLiked}
+              onLike={() => handleLikeTotem(post, index, bestTotem.name)}
+              onUnlike={() => handleUnlikeTotem(post, index, bestTotem.name)}
+              postId={post.id}
+            />
+            {answer.totems && answer.totems.length > 1 && (
+              <span className="text-sm text-gray-500">
+                +{answer.totems.length - 1} more totems
+              </span>
+            )}
+          </div>
+          
+          <div className="text-sm text-gray-500">
+            {formatDistanceToNow(toDate(answer.createdAt), { addSuffix: true })} by {getUserDisplayName(answer)}
+          </div>
+        </div>
+      </div>
+    );
+  }, [handleLikeTotem, handleUnlikeTotem, getBestTotem, user]);
+
+  const renderQuestion = useCallback((post: Post) => {
+    const bestAnswer = getBestAnswer(post);
+    
+    return (
+      <div className="bg-white rounded-xl shadow p-6">
+        <div className="flex items-center justify-between mb-4">
+          <Link href={`/post/${post.id}`} className="flex-1">
+            <h2 className="text-xl font-semibold text-gray-900 hover:text-blue-600">
+              {post.question}
+            </h2>
+          </Link>
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleInteraction(() => onWantToAnswer(post));
+            }}
+            className="ml-4 w-8 h-8 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-md transition-colors"
+            aria-label="Add answer"
+          >
+            +
+          </button>
+        </div>
+
+        {showAllTotems ? (
+          // Show top answer for each unique totem
+          <div className="space-y-4">
+            {Array.from(new Set(post.answers.flatMap(answer => 
+              answer.totems.map(totem => totem.name)
+            ))).map(totemName => {
+              // Find best answer for this totem
+              const bestAnswerForTotem = post.answers
+                .filter(answer => answer.totems.some(t => t.name === totemName))
+                .sort((a, b) => {
+                  const aTotem = a.totems.find(t => t.name === totemName);
+                  const bTotem = b.totems.find(t => t.name === totemName);
+                  return (bTotem?.likes || 0) - (aTotem?.likes || 0);
+                })[0];
+
+              if (!bestAnswerForTotem) return null;
+
+              const totem = bestAnswerForTotem.totems.find(t => t.name === totemName);
+              if (!totem) return null;
+
+              const answerIndex = post.answers.indexOf(bestAnswerForTotem);
+              const isLiked = user ? hasUserLikedTotem(totem, user.uid) : false;
+
+              return (
+                <div key={totemName} className="border-t pt-4 first:border-t-0 first:pt-0">
+                  <div className="text-gray-600 mb-4">
+                    {bestAnswerForTotem.text}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <TotemButton
+                        name={totem.name}
+                        likes={getTotemLikes(totem)}
+                        crispness={getTotemCrispness(totem)}
+                        isLiked={isLiked}
+                        onLike={() => handleLikeTotem(post, answerIndex, totem.name)}
+                        onUnlike={() => handleUnlikeTotem(post, answerIndex, totem.name)}
+                        postId={post.id}
+                      />
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      {formatDistanceToNow(toDate(bestAnswerForTotem.createdAt), { addSuffix: true })} by {getUserDisplayName(bestAnswerForTotem)}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          // Show just the best answer (existing behavior)
+          bestAnswer && (
+            <>
+              <div className="text-gray-600 mb-4">
+                {bestAnswer.answer.text}
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  {(() => {
+                    const bestTotem = getBestTotem(bestAnswer.answer);
+                    return bestTotem && (
+                      <>
+                        <TotemButton
+                          key={bestTotem.name}
+                          name={bestTotem.name}
+                          likes={getTotemLikes(bestTotem)}
+                          crispness={getTotemCrispness(bestTotem)}
+                          isLiked={user ? hasUserLikedTotem(bestTotem, user.uid) : false}
+                          onLike={() => handleLikeTotem(post, bestAnswer.index, bestTotem.name)}
+                          onUnlike={() => handleUnlikeTotem(post, bestAnswer.index, bestTotem.name)}
+                          postId={post.id}
+                        />
+                        {bestAnswer.answer.totems && bestAnswer.answer.totems.length > 1 && (
+                          <span className="text-sm text-gray-500">
+                            +{bestAnswer.answer.totems.length - 1} more totems
+                          </span>
+                        )}
+                        <span className="text-sm text-gray-500 ml-2">
+                          {post.answers.length} answers
+                        </span>
+                      </>
+                    );
+                  })()}
+                </div>
+                <div className="text-sm text-gray-500">
+                  {formatDistanceToNow(toDate(post.createdAt), { addSuffix: true })} by {getUserDisplayName(post)}
+                </div>
+              </div>
+            </>
+          )
+        )}
+      </div>
+    );
+  }, [handleLikeTotem, handleUnlikeTotem, onWantToAnswer, handleInteraction, getBestAnswer, getBestTotem, user, showAllTotems]);
+
+  if (!posts.length && !isLoading) {
+    return (
+      <div className="relative">
+        <p className="text-gray-600 text-center py-8" role="status">
+          No posts available
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      {posts.map((post) => {
-        const topAnswer = post.answers[0];
-        if (!topAnswer) return null;
-
-        const isExpanded = expandedPosts[post.id];
-        const displayText = isExpanded ? topAnswer.text : truncateText(topAnswer.text);
-
-        return (
-          <div key={post.id} className="bg-white rounded-xl shadow p-4">
-            <h2 className="text-xl font-bold mb-2">{post.question}</h2>
-            <div className="mt-2 flex flex-col">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <p className="text-gray-700">
-                    <Link 
-                      href={`/profile/${topAnswer.userID}`}
-                      className="text-blue-600 hover:underline"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {topAnswer.userName} ({topAnswer.userID})
-                    </Link>
-                    <span className="text-gray-500">
-                      {' • '}
-                      {topAnswer.createdAt ? 
-                        formatDistanceToNow(
-                          typeof topAnswer.createdAt === 'number' 
-                            ? new Date(topAnswer.createdAt) 
-                            : (topAnswer.createdAt as Timestamp).toDate(), 
-                          { addSuffix: true }
-                        ) : "Just now"}
-                    </span>
-                    <br />
-                    <span 
-                      className="cursor-pointer hover:text-gray-900"
-                      onClick={() => navigateToPost(post.id)}
-                    >
-                      {displayText}
-                      {topAnswer.text.length > displayText.length && (
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            togglePostExpansion(post.id);
-                          }}
-                          className="ml-2 text-blue-500 hover:underline"
-                        >
-                          {isExpanded ? 'Show Less' : 'Show More'}
-                        </button>
-                      )}
-                    </span>
-                  </p>
-                </div>
-                {topAnswer.totems.length > 0 && (
-                  <div className="ml-4">
-                    <TotemButton
-                      name={topAnswer.totems[0].name}
-                      likes={topAnswer.totems[0].likes}
-                      crispness={topAnswer.totems[0].crispness}
-                      onLike={(e) => handleTotemLike(e, post.id, 0, topAnswer.totems[0].name)}
-                      onRefresh={(e) => handleTotemRefresh(e, post.id, 0, topAnswer.totems[0].name)}
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="mt-4 flex justify-between items-center">
-              <button
-                onClick={() => onSelectQuestion(post)}
-                className="px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600"
-              >
-                Write Answer
-              </button>
-              {post.answers.length > 1 && (
-                <button 
-                  onClick={() => navigateToPost(post.id)}
-                  className="text-blue-500 hover:underline"
-                >
-                  See More Totems ({post.answers.length - 1} more)
-                </button>
-              )}
-            </div>
-          </div>
-        );
-      })}
+    <div className="relative">
+      {showLoginPrompt && (
+        <div className="fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg animate-fade-in">
+          Please log in to interact with posts
+        </div>
+      )}
+      <InfiniteScroll
+        hasNextPage={hasNextPage}
+        isLoading={isLoading}
+        onLoadMore={onLoadMore}
+        className="space-y-6"
+      >
+        {posts.map(post => (
+          <article 
+            key={post.id}
+            className="relative"
+          >
+            {renderQuestion(post)}
+          </article>
+        ))}
+      </InfiniteScroll>
     </div>
   );
 } 

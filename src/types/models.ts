@@ -1,50 +1,220 @@
 import { Timestamp } from 'firebase/firestore';
 
-export interface Totem {
-  name: string;
-  likes: number;
-  lastLike: string | null;
-  likedBy: string[];
-  crispness?: number;
-  likeTimes: string[];
-  likeValues: number[];
+/**
+ * Base interface for all entities that have timestamps
+ */
+export interface TimestampedEntity {
+  createdAt: number | Timestamp;
+  updatedAt: number | Timestamp;
+  lastInteraction?: number | Timestamp;
 }
 
-export interface Answer {
-  text: string;
+/**
+ * Represents a single like on a totem
+ */
+export interface TotemLike {
+  /**
+   * User ID who liked the totem
+   */
   userId: string;
-  userName: string;
-  userID: string;
-  createdAt: any;
-  totems: Totem[];
+  
+  /**
+   * When the user first liked the totem (never changes)
+   */
+  originalTimestamp: number;
+  
+  /**
+   * When the like status was last changed
+   */
+  lastUpdatedAt: number;
+  
+  /**
+   * Whether the like is currently active
+   */
+  isActive: boolean;
+  
+  /**
+   * Value of the like (typically 1)
+   */
+  value?: number;
 }
 
-export interface Post {
+/**
+ * Enhanced Totem interface with standardized timestamps and relationship structure
+ */
+export interface Totem extends TimestampedEntity {
   id: string;
-  question: string;
-  answers: Answer[];
+  name: string;
+  description?: string;
+  imageUrl?: string;
+  likes: number;
+  activeLikes: number;  // Number of currently active likes
+  likeHistory: TotemLike[];
+  crispness: number;
+  category: TotemCategory;
+  decayModel: DecayModel;
+  usageCount: number;
+  
+  // Enhanced relationship structure
+  relationships?: TotemRelationship[];
+  
+  // Legacy fields for backward compatibility
+  userId?: string;
+  userName?: string;
+  lastLike?: number;  // Timestamp of the last like
 }
 
-export interface UserProfile {
-  /** User's full name */
+/**
+ * Defines the relationship between totems
+ */
+export interface TotemRelationship {
+  totemId: string;
+  relationshipType: 'related' | 'parent' | 'child' | 'similar' | 'opposite';
+  strength: number; // 0-100 indicating relationship strength
+  sourcesCount: number; // How many sources established this relationship
+}
+
+export type DecayModel = 'FAST' | 'MEDIUM' | 'NONE';
+
+export interface TotemCategory {
+  id: string;
   name: string;
-  /** Unique user identifier, must be less than 15 characters */
-  userID: string;
-  bio: string;
+  description: string;
+  parentId?: string;
+  children: string[];
+  usageCount: number;
+}
+
+export interface TotemSuggestion {
+  totemName: string;
+  confidence: number;
+  reason: string;
+  category: string;
+}
+
+/**
+ * User profile with standardized fields
+ */
+export interface UserProfile extends TimestampedEntity {
+  // Core identity fields (standardized)
+  firebaseUid: string;
+  username: string;
+  name: string;
+  
+  // Profile content
+  email: string;
+  bio?: string;
+  photoURL?: string;
+  
+  // Status fields
   verificationStatus: 'unverified' | 'email_verified' | 'identity_verified';
   membershipTier: 'free' | 'basic' | 'premium';
-  refreshCount: number;
-  /** Array of userIDs that this user follows */
-  following: string[];
-  /** Array of userIDs that follow this user */
+  
+  // Usage limits
+  refreshesRemaining: number;
+  refreshResetTime: string;
+  
+  // Social connections
   followers: string[];
-  notificationPreferences: {
-    email: boolean;
-    push: boolean;
-    contentUpdates: boolean;
+  following: string[];
+  
+  // Totem relationships
+  totems: {
+    created: string[];
+    frequently_used: string[];
+    recent: string[];
   };
-  monetizationSettings: {
-    premiumContentEnabled: boolean;
-    pricePerAnswer: number;
-  };
+  
+  // Expertise
+  expertise: {
+    category: string;
+    level: number;
+  }[];
+  
+  // Legacy fields for backward compatibility
+  userID?: string;
+  userId?: string;
+  userName?: string;
+}
+
+/**
+ * Enhanced user-totem interaction tracking
+ */
+export interface UserTotemInteraction {
+  totemId: string;
+  interactionType: 'created' | 'used' | 'viewed' | 'liked' | 'disliked';
+  count: number;
+  firstInteraction: number; // timestamp
+  lastInteraction: number; // timestamp
+  contextCount: Record<string, number>; // e.g., {"post": 5, "comment": 3}
+}
+
+/**
+ * Answer with standardized fields
+ */
+export interface Answer extends TimestampedEntity {
+  id: string; // Unique identifier for the answer
+  text: string;
+  
+  // Standardized user fields
+  firebaseUid: string;
+  username: string;
+  name: string;
+  
+  // Associated totems
+  totems: Totem[];
+  
+  // Status indicators
+  isVerified?: boolean;
+  isPremium?: boolean;
+  
+  // Legacy fields for backward compatibility
+  userId?: string;
+  userName?: string;
+}
+
+/**
+ * Post with standardized fields and enhanced totem connections
+ */
+export interface Post extends TimestampedEntity {
+  id: string;
+  question: string;
+  
+  // Standardized user fields
+  firebaseUid: string;
+  username: string;
+  name: string;
+  
+  // Content categorization
+  categories: string[];
+  
+  // Enhanced totem connection
+  totemAssociations: TotemAssociation[];
+  
+  // Engagement metrics
+  score?: number;
+  
+  // Answers
+  answers: Answer[];
+  answerFirebaseUids: string[];
+  answerUsernames: string[];
+  
+  // Legacy fields for backward compatibility
+  userId?: string;
+  userName?: string;
+  answerUserIds?: string[];
+  text?: string;  // Legacy field for post content
+}
+
+/**
+ * Enhanced association between content and totems
+ */
+export interface TotemAssociation {
+  totemId: string;
+  totemName: string;  // Added for backward compatibility
+  relevanceScore: number; // 0-100
+  appliedBy: string; // user ID who applied this totem
+  appliedAt: number; // timestamp
+  endorsedBy: string[]; // users who agree with this totem
+  contestedBy: string[]; // users who disagree with this totem
 } 

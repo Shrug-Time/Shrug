@@ -1,0 +1,1227 @@
+[
+  {
+    "id": "3XaIltsuuj2WQwhvJr9g",
+    "lastEngagement": "2025-03-12T05:35:57.868Z",
+    "createdAt": {
+      "seconds": 1741233165,
+      "nanoseconds": 485000000
+    },
+    "answers": [
+      {
+        "totems": [
+          {
+            "likedBy": [],
+            "likes": 0,
+            "decayModel": "MEDIUM",
+            "crispness": 0,
+            "category": {
+              "description": "",
+              "children": [],
+              "usageCount": 0,
+              "name": "",
+              "id": ""
+            },
+            "relatedTotems": [],
+            "usageCount": 0,
+            "lastLike": "",
+            "likeTimes": [],
+            "name": "Action",
+            "likeValues": []
+          }
+        ],
+        "isPremium": false,
+        "userName": "Kyle Nowak",
+        "isVerified": true,
+        "text": "Take action",
+        "createdAt": 1741757757868,
+        "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1"
+      },
+      {
+        "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1",
+        "createdAt": 1741237802221,
+        "userName": "Kyle Nowak",
+        "userID": "KyleNowak",
+        "text": "Stuff",
+        "totems": [
+          {
+            "likedBy": [
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "currentUser",
+              "currentUser",
+              "currentUser",
+              "currentUser"
+            ],
+            "crispness": 0,
+            "lastLike": "2025-03-08T08:29:05.843Z",
+            "likes": 5,
+            "name": "Stuff"
+          }
+        ]
+      },
+      {
+        "text": "Dance like a funky chicken",
+        "totems": [
+          {
+            "name": "Dance",
+            "likes": 1,
+            "lastLike": "2025-03-08T08:31:50.311Z",
+            "likedBy": [
+              "87m5IWrx3pUplWg2eKVyg76bM5g1"
+            ],
+            "likeTimes": [
+              "2025-03-08T08:31:44.119Z",
+              "2025-03-08T08:31:49.175Z",
+              "2025-03-08T08:31:50.311Z"
+            ],
+            "crispness": 66.66673398028362,
+            "likeValues": [
+              0.5,
+              0.5,
+              1
+            ]
+          }
+        ],
+        "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1",
+        "userName": "Kyle Nowak",
+        "createdAt": 1741233893751,
+        "userID": "KyleNowak"
+      },
+      {
+        "totems": [
+          {
+            "likeValues": [
+              0.5,
+              0.5,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ],
+            "name": "Action",
+            "likes": 12,
+            "likeTimes": [
+              "2025-03-08T08:31:52.961Z",
+              "2025-03-08T08:31:54.734Z",
+              "2025-03-12T18:05:45.341Z",
+              "2025-03-15T22:10:26.893Z",
+              "2025-03-15T22:10:30.698Z",
+              "2025-03-15T22:10:31.667Z",
+              "2025-03-15T22:10:32.321Z",
+              "2025-03-15T22:10:32.959Z"
+            ],
+            "crispness": 87.681966773452,
+            "lastLike": "2025-03-15T22:10:32.959Z",
+            "likedBy": [
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "currentUser",
+              "currentUser",
+              "currentUser",
+              "currentUser",
+              "currentUser",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1"
+            ]
+          }
+        ],
+        "userID": "KyleNowak",
+        "userName": "Kyle Nowak",
+        "createdAt": 1741233182064,
+        "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1",
+        "text": "Do the next thing right"
+      }
+    ],
+    "question": "How do I live in the moment?",
+    "answerUserIds": [
+      "87m5IWrx3pUplWg2eKVyg76bM5g1",
+      "87m5IWrx3pUplWg2eKVyg76bM5g1",
+      "87m5IWrx3pUplWg2eKVyg76bM5g1",
+      "87m5IWrx3pUplWg2eKVyg76bM5g1"
+    ],
+    "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1"
+  },
+  {
+    "id": "9KUt5sjSGTcqRI39w5Ln",
+    "lastEngagement": {
+      "seconds": 1741844629,
+      "nanoseconds": 536000000
+    },
+    "userId": "clyjW75O4zX5U1Bt4NondWlKQvu1",
+    "answerUserIds": [
+      "87m5IWrx3pUplWg2eKVyg76bM5g1",
+      "87m5IWrx3pUplWg2eKVyg76bM5g1",
+      "87m5IWrx3pUplWg2eKVyg76bM5g1",
+      "87m5IWrx3pUplWg2eKVyg76bM5g1",
+      "87m5IWrx3pUplWg2eKVyg76bM5g1",
+      "87m5IWrx3pUplWg2eKVyg76bM5g1",
+      "87m5IWrx3pUplWg2eKVyg76bM5g1",
+      "clyjW75O4zX5U1Bt4NondWlKQvu1"
+    ],
+    "createdAt": 1741201786349,
+    "question": "What is up:",
+    "answers": [
+      {
+        "isVerified": true,
+        "text": "Hello, my name is Jeff",
+        "totems": [
+          {
+            "decayModel": "MEDIUM",
+            "likeTimes": [],
+            "name": "Hello",
+            "likeValues": [],
+            "crispness": 0,
+            "relatedTotems": [],
+            "category": {
+              "children": [],
+              "description": "",
+              "id": "",
+              "name": "",
+              "usageCount": 0
+            },
+            "lastLike": "",
+            "likedBy": [],
+            "usageCount": 0,
+            "likes": 0
+          }
+        ],
+        "userName": "Kyle Nowak",
+        "isPremium": false,
+        "createdAt": {
+          "seconds": 1741844629,
+          "nanoseconds": 536000000
+        },
+        "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1"
+      },
+      {
+        "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1",
+        "userID": "KyleNowak",
+        "createdAt": 1741424906371,
+        "text": "hello",
+        "userName": "Kyle Nowak",
+        "totems": [
+          {
+            "likeTimes": [
+              "2025-03-10T04:16:57.804Z"
+            ],
+            "likes": 1,
+            "name": "hello",
+            "crispness": 100,
+            "likeValues": [
+              1
+            ],
+            "lastLike": "2025-03-10T04:16:57.804Z",
+            "likedBy": [
+              "87m5IWrx3pUplWg2eKVyg76bM5g1"
+            ]
+          }
+        ]
+      },
+      {
+        "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1",
+        "createdAt": 1741216998163,
+        "text": "I am writing this now",
+        "userName": "Kyle Nowak",
+        "userID": "KyleNowak",
+        "totems": [
+          {
+            "likedBy": [
+              "87m5IWrx3pUplWg2eKVyg76bM5g1"
+            ],
+            "crispness": 99.6442878637566,
+            "likes": 1,
+            "lastLike": "2025-03-08T08:32:09.564Z",
+            "name": "Writing",
+            "likeTimes": [
+              "2025-03-08T08:32:09.564Z"
+            ],
+            "likeValues": [
+              1
+            ]
+          }
+        ]
+      },
+      {
+        "userID": "KyleNowak",
+        "text": "I am having a really good day today",
+        "totems": [
+          {
+            "crispness": 0,
+            "name": "Good",
+            "likedBy": [],
+            "lastLike": null,
+            "likes": 0
+          }
+        ],
+        "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1",
+        "createdAt": 1741202902698,
+        "userName": "Kyle Nowak"
+      },
+      {
+        "userID": "KyleNowak",
+        "text": "I like to partyyyyyyy!!!!",
+        "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1",
+        "totems": [
+          {
+            "crispness": 0,
+            "likes": 0,
+            "likedBy": [],
+            "name": "Party",
+            "lastLike": null
+          }
+        ],
+        "createdAt": 1741201786349,
+        "userName": "Kyle Nowak"
+      },
+      {
+        "createdAt": 1741202065351,
+        "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1",
+        "text": "I am having so much fun",
+        "totems": [
+          {
+            "likes": 1,
+            "lastLike": "2025-03-05T19:04:45.924Z",
+            "crispness": 63.06299818121693,
+            "likedBy": [
+              "87m5IWrx3pUplWg2eKVyg76bM5g1"
+            ],
+            "name": "Fun"
+          }
+        ],
+        "userID": "KyleNowak",
+        "userName": "Kyle Nowak"
+      },
+      {
+        "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1",
+        "userID": "KyleNowak",
+        "createdAt": 1741202065351,
+        "userName": "Kyle Nowak",
+        "text": "Everything is up.",
+        "totems": [
+          {
+            "lastLike": "2025-03-05T19:04:47.231Z",
+            "crispness": 63.06321428571429,
+            "likedBy": [
+              "87m5IWrx3pUplWg2eKVyg76bM5g1"
+            ],
+            "name": "Everything",
+            "likes": 1
+          }
+        ]
+      },
+      {
+        "createdAt": 1741202065351,
+        "text": "Hello",
+        "totems": [
+          {
+            "likes": 5,
+            "lastLike": "2025-03-08T08:25:06.671Z",
+            "crispness": 99.57436507936508,
+            "name": "Hello",
+            "likedBy": [
+              "clyjW75O4zX5U1Bt4NondWlKQvu1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1"
+            ]
+          }
+        ],
+        "userId": "clyjW75O4zX5U1Bt4NondWlKQvu1",
+        "userID": "clyjW75O4zX5U1Bt4NondWlKQvu1",
+        "userName": "Default User"
+      }
+    ]
+  },
+  {
+    "id": "BAtrBde3PsmJCOru7emm",
+    "createdAt": {
+      "seconds": 1741202065,
+      "nanoseconds": 353000000
+    },
+    "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1",
+    "answerUserIds": [
+      "87m5IWrx3pUplWg2eKVyg76bM5g1"
+    ],
+    "question": "What is happening in America today?",
+    "answers": [
+      {
+        "totems": [
+          {
+            "likedBy": [
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1"
+            ],
+            "likeValues": [
+              1
+            ],
+            "lastLike": "2025-03-16T17:57:23.217Z",
+            "crispness": 100,
+            "likeTimes": [
+              "2025-03-16T17:57:23.217Z"
+            ],
+            "likes": 2,
+            "name": "America"
+          }
+        ],
+        "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1",
+        "userID": "KyleNowak",
+        "text": "Stuff is happening.",
+        "createdAt": 1741202065660,
+        "userName": "Kyle Nowak"
+      }
+    ]
+  },
+  {
+    "id": "JaHUSL1q5JsDsnNJG5uE",
+    "question": "What is the best treatment center?",
+    "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1",
+    "createdAt": {
+      "seconds": 1741286648,
+      "nanoseconds": 661000000
+    },
+    "answers": [
+      {
+        "createdAt": 1741286689257,
+        "text": "The Pathway Program is the best place to send your teenager!",
+        "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1",
+        "totems": [
+          {
+            "name": "Pathway",
+            "lastLike": "2025-03-16T17:43:42.538Z",
+            "likeValues": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "likes": 4,
+            "likedBy": [
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1"
+            ],
+            "likeTimes": [
+              "2025-03-08T09:20:24.131Z",
+              "2025-03-10T04:13:01.621Z",
+              "2025-03-16T17:43:41.934Z",
+              "2025-03-16T17:43:42.538Z"
+            ],
+            "crispness": 100
+          },
+          {
+            "likedBy": [],
+            "likes": 0,
+            "name": "Treatment",
+            "lastLike": null
+          },
+          {
+            "likeTimes": [
+              "2025-03-10T04:13:02.251Z"
+            ],
+            "name": "Teenager",
+            "likeValues": [
+              1
+            ],
+            "crispness": 100,
+            "lastLike": "2025-03-10T04:13:02.251Z",
+            "likes": 1,
+            "likedBy": [
+              "87m5IWrx3pUplWg2eKVyg76bM5g1"
+            ]
+          }
+        ],
+        "userID": "KyleNowak",
+        "userName": "Kyle Nowak"
+      }
+    ],
+    "answerUserIds": [
+      "87m5IWrx3pUplWg2eKVyg76bM5g1"
+    ]
+  },
+  {
+    "id": "O6qi3Fve5dRfvnTMg8MQ",
+    "createdAt": {
+      "seconds": 1741233592,
+      "nanoseconds": 456000000
+    },
+    "answers": [
+      {
+        "createdAt": 1741233606822,
+        "text": "Something shiny",
+        "totems": [
+          {
+            "lastLike": "2025-03-16T17:40:12.594Z",
+            "likes": 2,
+            "likeTimes": [
+              "2025-03-16T17:40:11.992Z",
+              "2025-03-16T17:40:12.594Z"
+            ],
+            "crispness": 100,
+            "likeValues": [
+              1,
+              1
+            ],
+            "likedBy": [
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1"
+            ],
+            "name": "Shiny"
+          }
+        ],
+        "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1",
+        "userID": "KyleNowak",
+        "userName": "Kyle Nowak"
+      }
+    ],
+    "answerUserIds": [
+      "87m5IWrx3pUplWg2eKVyg76bM5g1"
+    ],
+    "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1",
+    "question": "What is the best mountain bike to buy?"
+  },
+  {
+    "id": "RWLQtS8CGdufqsc7ppzD",
+    "createdAt": 1741202083127,
+    "answerUserIds": [
+      "87m5IWrx3pUplWg2eKVyg76bM5g1"
+    ],
+    "answers": [
+      {
+        "userName": "Kyle Nowak",
+        "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1",
+        "text": "It is absolutely beautiful here",
+        "createdAt": 1741202102631,
+        "totems": [
+          {
+            "likedBy": [
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1"
+            ],
+            "crispness": 87.71666918182879,
+            "likeValues": [
+              0.5,
+              1,
+              1,
+              1
+            ],
+            "likeTimes": [
+              "2025-03-08T08:32:13.736Z",
+              "2025-03-16T17:40:28.921Z",
+              "2025-03-16T17:40:29.726Z",
+              "2025-03-16T18:07:09.592Z"
+            ],
+            "name": "Beauty",
+            "lastLike": "2025-03-16T18:07:09.592Z",
+            "likes": 4
+          }
+        ],
+        "userID": "KyleNowak"
+      }
+    ],
+    "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1",
+    "question": "What is it like in California?"
+  },
+  {
+    "id": "UXoVbVX37VTpcxTLhWyH",
+    "timePosted": {
+      "seconds": 1740858451,
+      "nanoseconds": 481000000
+    },
+    "answerUserIds": [
+      "87m5IWrx3pUplWg2eKVyg76bM5g1",
+      "clyjW75O4zX5U1Bt4NondWlKQvu1"
+    ],
+    "createdAt": {
+      "seconds": 1741199606,
+      "nanoseconds": 912000000
+    },
+    "answers": [
+      {
+        "text": "Nothing",
+        "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1",
+        "createdAt": 1741202065353,
+        "totems": [
+          {
+            "likedBy": [
+              "87m5IWrx3pUplWg2eKVyg76bM5g1"
+            ],
+            "likeTimes": [
+              "2025-03-08T08:32:19.146Z"
+            ],
+            "likeValues": [
+              0.5
+            ],
+            "name": "Nothing",
+            "likes": 1,
+            "lastLike": "2025-03-08T08:32:19.146Z",
+            "crispness": 50
+          }
+        ],
+        "userName": "Kyle Nowak",
+        "userID": "KyleNowak"
+      },
+      {
+        "userID": "clyjW75O4zX5U1Bt4NondWlKQvu1",
+        "text": "Chicken Butt",
+        "totems": [
+          {
+            "crispness": 100,
+            "likeTimes": [
+              "2025-03-16T18:01:19.906Z"
+            ],
+            "likedBy": [
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "clyjW75O4zX5U1Bt4NondWlKQvu1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1"
+            ],
+            "likes": 4,
+            "lastLike": "2025-03-16T18:01:19.906Z",
+            "name": "Funny",
+            "likeValues": [
+              1
+            ]
+          },
+          {
+            "lastLike": "2025-03-05T04:16:29.113Z",
+            "likes": 2,
+            "name": "dumb",
+            "likedBy": [
+              "clyjW75O4zX5U1Bt4NondWlKQvu1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1"
+            ],
+            "crispness": 54.60571693121693
+          }
+        ],
+        "userId": "clyjW75O4zX5U1Bt4NondWlKQvu1",
+        "createdAt": 1741202065353,
+        "userName": "Default User"
+      }
+    ],
+    "userId": "clyjW75O4zX5U1Bt4NondWlKQvu1",
+    "question": "What's up"
+  },
+  {
+    "id": "VEYDFkh2tiaTbytpa3rQ",
+    "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1",
+    "answers": [
+      {
+        "text": "In a house",
+        "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1",
+        "totems": [
+          {
+            "likedBy": [
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1"
+            ],
+            "likeTimes": [
+              "2025-03-10T01:40:49.558Z",
+              "2025-03-16T17:55:27.680Z"
+            ],
+            "name": "House",
+            "likes": 2,
+            "crispness": 100,
+            "lastLike": "2025-03-16T17:55:27.680Z",
+            "likeValues": [
+              1,
+              1
+            ]
+          }
+        ],
+        "createdAt": 1741237530040,
+        "userName": "Kyle Nowak",
+        "userID": "KyleNowak"
+      }
+    ],
+    "answerUserIds": [
+      "87m5IWrx3pUplWg2eKVyg76bM5g1"
+    ],
+    "createdAt": {
+      "seconds": 1741237514,
+      "nanoseconds": 116000000
+    },
+    "question": "Where am I?"
+  },
+  {
+    "id": "YxdxZSAsHLVuVzVbT2Ld",
+    "createdAt": {
+      "seconds": 1741238980,
+      "nanoseconds": 756000000
+    },
+    "answers": [
+      {
+        "isPremium": false,
+        "totems": [
+          {
+            "crispness": 100,
+            "decayModel": "MEDIUM",
+            "likeValues": [
+              1
+            ],
+            "name": "Yes",
+            "likes": 1,
+            "likedBy": [
+              "87m5IWrx3pUplWg2eKVyg76bM5g1"
+            ],
+            "category": {
+              "description": "General totems",
+              "id": "general",
+              "usageCount": 0,
+              "children": [],
+              "name": "General"
+            },
+            "likeTimes": [
+              "2025-03-17T04:46:03.841Z"
+            ],
+            "relatedTotems": [],
+            "usageCount": 0,
+            "lastLike": "2025-03-17T04:46:03.841Z"
+          }
+        ],
+        "text": "Talking is something people can do.",
+        "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1",
+        "userName": "Kyle Nowak",
+        "createdAt": 1742186756915,
+        "isVerified": true
+      }
+    ],
+    "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1",
+    "question": "Can I talk?",
+    "lastEngagement": 1742186756915
+  },
+  {
+    "id": "Yywcbv3se136prlWSPi7",
+    "question": "What is happening in California right now?",
+    "score": 0,
+    "createdAt": "2025-03-12T21:00:26.050Z",
+    "categories": [],
+    "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1",
+    "answers": [
+      {
+        "userName": "Kyle Nowak",
+        "isPremium": false,
+        "createdAt": 1741814079139,
+        "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1",
+        "isVerified": true,
+        "text": "It is rainy.\n\nI don't like it",
+        "totems": [
+          {
+            "relatedTotems": [],
+            "crispness": 100,
+            "lastLike": "2025-03-17T00:33:17.738Z",
+            "likeTimes": [
+              "2025-03-12T21:15:43.009Z",
+              "2025-03-15T22:09:33.304Z",
+              "2025-03-15T23:42:55.446Z",
+              "2025-03-15T23:42:56.934Z",
+              "2025-03-15T23:42:57.688Z",
+              "2025-03-15T23:42:57.888Z",
+              "2025-03-16T17:31:00.682Z",
+              "2025-03-16T17:31:03.628Z",
+              "2025-03-16T17:39:57.619Z",
+              "2025-03-16T17:39:59.925Z",
+              "2025-03-16T17:40:00.712Z",
+              "2025-03-16T17:40:05.317Z",
+              "2025-03-16T17:40:06.676Z",
+              "2025-03-16T17:41:21.350Z",
+              "2025-03-16T17:41:22.271Z",
+              "2025-03-16T17:45:37.915Z",
+              "2025-03-16T17:45:39.124Z",
+              "2025-03-16T17:45:39.829Z",
+              "2025-03-16T17:48:51.257Z",
+              "2025-03-16T17:48:57.665Z",
+              "2025-03-16T17:48:58.419Z",
+              "2025-03-16T17:51:13.670Z",
+              "2025-03-16T17:51:14.773Z",
+              "2025-03-16T17:52:01.670Z",
+              "2025-03-16T17:52:02.619Z",
+              "2025-03-16T17:55:17.195Z",
+              "2025-03-16T18:04:01.063Z",
+              "2025-03-16T18:06:57.629Z",
+              "2025-03-17T00:06:39.426Z",
+              "2025-03-17T00:33:17.738Z"
+            ],
+            "likes": 30,
+            "usageCount": 0,
+            "name": "Rain",
+            "likedBy": [
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1"
+            ],
+            "decayModel": "MEDIUM",
+            "category": {
+              "id": "",
+              "description": "",
+              "usageCount": 0,
+              "children": [],
+              "name": ""
+            },
+            "likeValues": [
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ]
+          }
+        ]
+      }
+    ],
+    "answerUserIds": [
+      "87m5IWrx3pUplWg2eKVyg76bM5g1"
+    ],
+    "lastEngagement": {
+      "seconds": 1741814079,
+      "nanoseconds": 139000000
+    },
+    "userName": "Kyle Nowak"
+  },
+  {
+    "id": "beNoDQsnIR10mduzSFUO",
+    "answerUserIds": [
+      "87m5IWrx3pUplWg2eKVyg76bM5g1"
+    ],
+    "answers": [
+      {
+        "userName": "Kyle Nowak",
+        "totems": [
+          {
+            "decayModel": "MEDIUM",
+            "likeTimes": [
+              "2025-03-13T05:32:49.529Z",
+              "2025-03-16T17:45:41.078Z",
+              "2025-03-16T17:45:41.466Z",
+              "2025-03-16T17:49:27.370Z",
+              "2025-03-16T17:49:27.994Z",
+              "2025-03-16T17:49:28.277Z",
+              "2025-03-16T17:55:21.286Z"
+            ],
+            "usageCount": 0,
+            "crispness": 100,
+            "likeValues": [
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ],
+            "name": "Cursor",
+            "lastLike": "2025-03-16T17:55:21.286Z",
+            "relatedTotems": [],
+            "category": {
+              "description": "",
+              "children": [],
+              "usageCount": 0,
+              "id": "",
+              "name": ""
+            },
+            "likedBy": [
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1"
+            ],
+            "likes": 7
+          },
+          {
+            "usageCount": 0,
+            "category": {
+              "children": [],
+              "id": "",
+              "name": "",
+              "usageCount": 0,
+              "description": ""
+            },
+            "name": "Greatness",
+            "lastLike": "",
+            "likes": 0,
+            "likeTimes": [],
+            "likedBy": [],
+            "crispness": 0,
+            "likeValues": [],
+            "relatedTotems": [],
+            "decayModel": "MEDIUM"
+          }
+        ],
+        "isPremium": false,
+        "isVerified": true,
+        "text": "Cursor AI is for sure the best coding language.\nAll other languages are inferior and destined for nothingness.",
+        "createdAt": 1741843964296,
+        "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1"
+      }
+    ],
+    "question": "What is the best AI for coding?",
+    "userName": "Kyle Nowak",
+    "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1",
+    "categories": [],
+    "lastEngagement": {
+      "seconds": 1741843964,
+      "nanoseconds": 296000000
+    },
+    "createdAt": {
+      "seconds": 1741843924,
+      "nanoseconds": 952000000
+    },
+    "score": 0
+  },
+  {
+    "id": "g8p9onSJ3IAzIr77jBEq",
+    "answerUserIds": [
+      "87m5IWrx3pUplWg2eKVyg76bM5g1",
+      "clyjW75O4zX5U1Bt4NondWlKQvu1"
+    ],
+    "answers": [
+      {
+        "totems": [
+          {
+            "likedBy": [
+              "clyjW75O4zX5U1Bt4NondWlKQvu1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1"
+            ],
+            "likes": 4,
+            "name": "s",
+            "likeTimes": [
+              "2025-03-08T08:32:21.742Z",
+              "2025-03-16T18:02:35.238Z",
+              "2025-03-16T18:07:03.522Z"
+            ],
+            "lastLike": "2025-03-16T18:07:03.522Z",
+            "crispness": 83.59094297525267,
+            "likeValues": [
+              0.5,
+              1,
+              1
+            ]
+          }
+        ],
+        "text": "s",
+        "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1",
+        "createdAt": 1741202065773,
+        "userID": "KyleNowak",
+        "userName": "Kyle Nowak"
+      },
+      {
+        "createdAt": 1741202065773,
+        "userID": "clyjW75O4zX5U1Bt4NondWlKQvu1",
+        "text": "The Best!",
+        "totems": [
+          {
+            "crispness": 62.13712599206349,
+            "likes": 2,
+            "lastLike": "2025-03-05T16:55:44.486Z",
+            "likedBy": [
+              "clyjW75O4zX5U1Bt4NondWlKQvu1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1"
+            ],
+            "name": "Best"
+          }
+        ],
+        "userId": "clyjW75O4zX5U1Bt4NondWlKQvu1",
+        "userName": "Default User"
+      }
+    ],
+    "question": "Who is Lindsey",
+    "userId": "clyjW75O4zX5U1Bt4NondWlKQvu1",
+    "createdAt": {
+      "seconds": 1741202065,
+      "nanoseconds": 353000000
+    }
+  },
+  {
+    "id": "khleMdiBWBv2U3Giofor",
+    "score": 0,
+    "answerUserIds": [
+      "87m5IWrx3pUplWg2eKVyg76bM5g1"
+    ],
+    "categories": [],
+    "lastEngagement": 1742169583732,
+    "createdAt": "2025-03-12T20:57:59.861Z",
+    "question": "What is happening in California today?",
+    "answers": [
+      {
+        "createdAt": 1742169583732,
+        "isPremium": false,
+        "isVerified": true,
+        "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1",
+        "text": "Today there is nothing new happening. \n\nQuite Boring",
+        "totems": [
+          {
+            "crispness": 100,
+            "usageCount": 0,
+            "category": {
+              "name": "General",
+              "description": "General totems",
+              "id": "general",
+              "usageCount": 0,
+              "children": []
+            },
+            "likedBy": [
+              "87m5IWrx3pUplWg2eKVyg76bM5g1"
+            ],
+            "likeValues": [
+              1
+            ],
+            "likes": 1,
+            "decayModel": "MEDIUM",
+            "relatedTotems": [],
+            "likeTimes": [
+              "2025-03-16T23:59:58.398Z"
+            ],
+            "lastLike": "2025-03-16T23:59:58.398Z",
+            "name": "Nothing"
+          },
+          {
+            "name": "Boring",
+            "category": {
+              "id": "general",
+              "children": [],
+              "name": "General",
+              "usageCount": 0,
+              "description": "General totems"
+            },
+            "usageCount": 0,
+            "relatedTotems": [],
+            "likeTimes": [],
+            "decayModel": "MEDIUM",
+            "likeValues": [],
+            "likedBy": [],
+            "lastLike": "",
+            "likes": 0,
+            "crispness": 0
+          },
+          {
+            "likeTimes": [],
+            "crispness": 0,
+            "decayModel": "MEDIUM",
+            "lastLike": "",
+            "likes": 0,
+            "likedBy": [],
+            "relatedTotems": [],
+            "usageCount": 0,
+            "likeValues": [],
+            "category": {
+              "name": "General",
+              "id": "general",
+              "children": [],
+              "usageCount": 0,
+              "description": "General totems"
+            },
+            "name": "Lame"
+          }
+        ],
+        "userName": "Kyle Nowak"
+      }
+    ]
+  },
+  {
+    "id": "pdnJxx1fYqEjzhKVBiXE",
+    "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1",
+    "question": "Why is Cursor so awesome?",
+    "answers": [
+      {
+        "text": "Because!",
+        "totems": [
+          {
+            "likes": 7,
+            "likeTimes": [
+              "2025-03-16T17:43:37.157Z",
+              "2025-03-16T17:43:39.169Z",
+              "2025-03-16T17:43:39.988Z",
+              "2025-03-16T17:45:42.688Z",
+              "2025-03-16T17:45:43.304Z",
+              "2025-03-16T17:51:47.685Z"
+            ],
+            "likedBy": [
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1"
+            ],
+            "name": "Cursor",
+            "lastLike": "2025-03-16T17:51:47.685Z",
+            "likeValues": [
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ],
+            "crispness": 100
+          }
+        ],
+        "userID": "KyleNowak",
+        "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1",
+        "userName": "Kyle Nowak",
+        "createdAt": 1741411509020
+      }
+    ],
+    "createdAt": {
+      "seconds": 1741411493,
+      "nanoseconds": 970000000
+    },
+    "answerUserIds": [
+      "87m5IWrx3pUplWg2eKVyg76bM5g1"
+    ]
+  },
+  {
+    "id": "wcJiEqeUl3Z0FXGUIhNW",
+    "createdAt": {
+      "seconds": 1741202065,
+      "nanoseconds": 353000000
+    },
+    "answers": [],
+    "question": "What is up?",
+    "timestamp": {
+      "seconds": 1740809294,
+      "nanoseconds": 834000000
+    },
+    "userId": "clyjW75O4zX5U1Bt4NondWlKQvu1"
+  },
+  {
+    "id": "yCJHnrn6RfavoL7lb7j7",
+    "answers": [
+      {
+        "userName": "Kyle Nowak",
+        "userID": "KyleNowak",
+        "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1",
+        "totems": [
+          {
+            "name": "Hello",
+            "likeTimes": [
+              "2025-03-16T18:02:32.627Z"
+            ],
+            "likes": 1,
+            "likedBy": [
+              "87m5IWrx3pUplWg2eKVyg76bM5g1"
+            ],
+            "lastLike": "2025-03-16T18:02:32.627Z",
+            "crispness": 100,
+            "likeValues": [
+              1
+            ]
+          }
+        ],
+        "text": "Hello",
+        "createdAt": 1741232501734
+      }
+    ],
+    "userId": "87m5IWrx3pUplWg2eKVyg76bM5g1",
+    "answerUserIds": [
+      "87m5IWrx3pUplWg2eKVyg76bM5g1"
+    ],
+    "createdAt": {
+      "seconds": 1741202065,
+      "nanoseconds": 353000000
+    },
+    "question": "Hello?"
+  },
+  {
+    "id": "z3lWeQTQIEQLHCShZqzq",
+    "createdAt": {
+      "seconds": 1741202065,
+      "nanoseconds": 353000000
+    },
+    "question": "What is my name?",
+    "answers": [
+      {
+        "userID": "clyjW75O4zX5U1Bt4NondWlKQvu1",
+        "totems": [
+          {
+            "crispness": 75.29087312425577,
+            "likeTimes": [
+              "2025-03-08T08:32:28.926Z",
+              "2025-03-16T18:02:26.962Z"
+            ],
+            "name": "Winner",
+            "likes": 4,
+            "likedBy": [
+              "87m5IWrx3pUplWg2eKVyg76bM5g1",
+              "87m5IWrx3pUplWg2eKVyg76bM5g1"
+            ],
+            "likeValues": [
+              0.5,
+              1
+            ],
+            "lastLike": "2025-03-16T18:02:26.962Z"
+          }
+        ],
+        "text": "Teddy",
+        "userName": "Default User",
+        "userId": "clyjW75O4zX5U1Bt4NondWlKQvu1",
+        "createdAt": 1741202065903
+      }
+    ],
+    "userId": "clyjW75O4zX5U1Bt4NondWlKQvu1",
+    "answerUserIds": [
+      "clyjW75O4zX5U1Bt4NondWlKQvu1"
+    ]
+  }
+]

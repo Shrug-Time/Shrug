@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isEmailVerified() {
+      return request.auth.token.email_verified == true;
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    function isPremiumUser() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.membershipTier == 'premium';
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isOwner(userId);
+      allow update: if isAuthenticated() && (
+        isOwner(userId) || 
+        // Allow updating followers/following arrays
+        (request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['followers', 'following']))
+      );
+    }
+
+    // Posts collection
+    match /posts/{postId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isEmailVerified();
+      allow update: if isAuthenticated() && (
+        // Allow updating answers array
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['answers', 'totalEngagement', 'score', 'lastEngagement'])
+      );
+    }
+
+    // Totems collection
+    match /totems/{totemId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isEmailVerified();
+      allow update: if isAuthenticated() && (
+        // Allow updating usage stats
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['usageCount', 'lastUsed', 'answerRefs'])
+      );
+    }
+
+    // Premium features
+    match /premium/{document=**} {
+      allow read, write: if isAuthenticated() && isPremiumUser();
+    }
+  }
+} 
