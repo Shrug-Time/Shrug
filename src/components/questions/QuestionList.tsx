@@ -3,13 +3,14 @@ import { Timestamp } from 'firebase/firestore';
 import type { Post, TotemSuggestion, Answer, Totem } from '@/types/models';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { TotemButton } from '@/components/common/TotemButton';
+import { TotemButton } from '@/components/totem/TotemButtonV2';
 import Link from 'next/link';
 import { SimilarityService } from '@/services/similarity';
 import { InfiniteScroll } from '@/components/common/InfiniteScroll';
 import { USER_FIELDS } from '@/constants/fields';
 import { getUserDisplayName, getTotemLikes, getTotemCrispness, hasUserLikedTotem } from '@/utils/componentHelpers';
-import { useTotem } from '@/contexts/TotemContext';
+import { useTotemV2 } from '@/contexts/TotemContextV2';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Helper function to safely convert various date formats to a Date object
 const toDate = (dateField: any): Date => {
@@ -46,9 +47,28 @@ export function QuestionList({
   showAllTotems = false
 }: QuestionListProps) {
   const router = useRouter();
-  const { user, toggleLike } = useTotem();
+  const { user } = useAuth();
+  const { toggleLike, loadPostTotems } = useTotemV2();
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+
+  // Load initial state of likes for all posts
+  useEffect(() => {
+    if (!user) return;
+
+    const loadAllPostsTotems = async () => {
+      for (const post of posts) {
+        const totemNames = post.answers.flatMap(answer => 
+          answer.totems.map(totem => totem.name)
+        );
+        await loadPostTotems(post.id, totemNames);
+      }
+    };
+
+    loadAllPostsTotems();
+  }, [posts, user, loadPostTotems]);
+
+  console.log('[QuestionList] Rendering with posts:', posts.length);
 
   const handleInteraction = useCallback(async (action: () => void | Promise<void>) => {
     if (!user) {
@@ -62,30 +82,6 @@ export function QuestionList({
     }
   }, [user]);
 
-  const handleLikeTotem = useCallback(async (post: Post, answerIndex: number, totemName: string) => {
-    if (!user) {
-      setShowLoginPrompt(true);
-      return;
-    }
-    try {
-      await toggleLike(post.id, totemName);
-    } catch (error) {
-      console.error('Error liking totem:', error);
-    }
-  }, [user, toggleLike]);
-
-  const handleUnlikeTotem = useCallback(async (post: Post, answerIndex: number, totemName: string) => {
-    if (!user) {
-      setShowLoginPrompt(true);
-      return;
-    }
-    try {
-      await toggleLike(post.id, totemName);
-    } catch (error) {
-      console.error('Error unliking totem:', error);
-    }
-  }, [user, toggleLike]);
-
   const getBestAnswer = useCallback((post: Post) => {
     if (!post.answers || post.answers.length === 0) return null;
     
@@ -93,27 +89,39 @@ export function QuestionList({
     return post.answers.reduce((best, current, index) => {
       // Get the highest likes from any totem in the current answer
       const currentMaxLikes = current.totems?.reduce((max, totem) => 
-        totem.likes > max ? totem.likes : max, 0) || 0;
+        getTotemLikes(totem) > max ? getTotemLikes(totem) : max, 0) || 0;
       
       // Get the highest likes from any totem in the best answer so far
       const bestMaxLikes = best.answer.totems?.reduce((max, totem) => 
-        totem.likes > max ? totem.likes : max, 0) || 0;
+        getTotemLikes(totem) > max ? getTotemLikes(totem) : max, 0) || 0;
       
       return currentMaxLikes > bestMaxLikes ? { answer: current, index } : best;
     }, { answer: post.answers[0], index: 0 });
   }, []);
 
-  const getBestTotem = useCallback((answer: Answer) => {
-    if (!answer.totems?.length) return null;
+  const getBestTotem = useCallback((totems: Totem[]) => {
+    if (!totems || totems.length === 0) return null;
     
-    // Find totem with the most likes
-    return answer.totems.reduce((best, current) => {
-      return getTotemLikes(current) > getTotemLikes(best) ? current : best;
-    }, answer.totems[0]);
+    return totems.reduce((best, current) => {
+      const bestLikes = getTotemLikes(best);
+      const currentLikes = getTotemLikes(current);
+      return currentLikes > bestLikes ? current : best;
+    }, totems[0]);
   }, []);
 
+  const renderTotemButton = (postId: string, totemName: string) => {
+    console.log('[QuestionList] Rendering totem button:', { postId, totemName });
+    return (
+      <TotemButton
+        key={totemName}
+        totemName={totemName}
+        postId={postId}
+      />
+    );
+  };
+
   const renderAnswer = useCallback((post: Post, answer: Answer, index: number, isBestAnswer: boolean = false) => {
-    const bestTotem = getBestTotem(answer);
+    const bestTotem = getBestTotem(answer.totems);
 
     if (!bestTotem) return null;
 
@@ -128,16 +136,7 @@ export function QuestionList({
 
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <TotemButton
-              key={bestTotem.name}
-              name={bestTotem.name}
-              likes={getTotemLikes(bestTotem)}
-              crispness={getTotemCrispness(bestTotem)}
-              isLiked={isLiked}
-              onLike={() => handleLikeTotem(post, index, bestTotem.name)}
-              onUnlike={() => handleUnlikeTotem(post, index, bestTotem.name)}
-              postId={post.id}
-            />
+            {renderTotemButton(post.id, bestTotem.name)}
             {answer.totems && answer.totems.length > 1 && (
               <span className="text-sm text-gray-500">
                 +{answer.totems.length - 1} more totems
@@ -151,125 +150,26 @@ export function QuestionList({
         </div>
       </div>
     );
-  }, [handleLikeTotem, handleUnlikeTotem, getBestTotem, user]);
+  }, [getBestTotem, user, renderTotemButton]);
 
   const renderQuestion = useCallback((post: Post) => {
     const bestAnswer = getBestAnswer(post);
     
     return (
-      <div className="bg-white rounded-xl shadow p-6">
-        <div className="flex items-center justify-between mb-4">
-          <Link href={`/post/${post.id}`} className="flex-1">
-            <h2 className="text-xl font-semibold text-gray-900 hover:text-blue-600">
-              {post.question}
-            </h2>
-          </Link>
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              handleInteraction(() => onWantToAnswer(post));
-            }}
-            className="ml-4 w-8 h-8 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-md transition-colors"
-            aria-label="Add answer"
-          >
-            +
-          </button>
+      <div key={post.id} className="bg-white rounded-lg shadow p-4 mb-4">
+        <Link href={`/post/${post.id}`} className="block hover:bg-gray-50 rounded-lg transition-colors">
+          <h2 className="text-xl font-semibold mb-2 text-gray-900 hover:text-blue-600">{post.question}</h2>
+        </Link>
+        <div className="flex flex-wrap gap-2">
+          {post.answers.map((answer, idx) => (
+            <div key={idx} className="flex flex-wrap gap-2">
+              {answer.totems.map((totem) => renderTotemButton(post.id, totem.name))}
+            </div>
+          ))}
         </div>
-
-        {showAllTotems ? (
-          // Show top answer for each unique totem
-          <div className="space-y-4">
-            {Array.from(new Set(post.answers.flatMap(answer => 
-              answer.totems.map(totem => totem.name)
-            ))).map(totemName => {
-              // Find best answer for this totem
-              const bestAnswerForTotem = post.answers
-                .filter(answer => answer.totems.some(t => t.name === totemName))
-                .sort((a, b) => {
-                  const aTotem = a.totems.find(t => t.name === totemName);
-                  const bTotem = b.totems.find(t => t.name === totemName);
-                  return (bTotem?.likes || 0) - (aTotem?.likes || 0);
-                })[0];
-
-              if (!bestAnswerForTotem) return null;
-
-              const totem = bestAnswerForTotem.totems.find(t => t.name === totemName);
-              if (!totem) return null;
-
-              const answerIndex = post.answers.indexOf(bestAnswerForTotem);
-              const isLiked = user ? hasUserLikedTotem(totem, user.uid) : false;
-
-              return (
-                <div key={totemName} className="border-t pt-4 first:border-t-0 first:pt-0">
-                  <div className="text-gray-600 mb-4">
-                    {bestAnswerForTotem.text}
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <TotemButton
-                        name={totem.name}
-                        likes={getTotemLikes(totem)}
-                        crispness={getTotemCrispness(totem)}
-                        isLiked={isLiked}
-                        onLike={() => handleLikeTotem(post, answerIndex, totem.name)}
-                        onUnlike={() => handleUnlikeTotem(post, answerIndex, totem.name)}
-                        postId={post.id}
-                      />
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {formatDistanceToNow(toDate(bestAnswerForTotem.createdAt), { addSuffix: true })} by {getUserDisplayName(bestAnswerForTotem)}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          // Show just the best answer (existing behavior)
-          bestAnswer && (
-            <>
-              <div className="text-gray-600 mb-4">
-                {bestAnswer.answer.text}
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  {(() => {
-                    const bestTotem = getBestTotem(bestAnswer.answer);
-                    return bestTotem && (
-                      <>
-                        <TotemButton
-                          key={bestTotem.name}
-                          name={bestTotem.name}
-                          likes={getTotemLikes(bestTotem)}
-                          crispness={getTotemCrispness(bestTotem)}
-                          isLiked={user ? hasUserLikedTotem(bestTotem, user.uid) : false}
-                          onLike={() => handleLikeTotem(post, bestAnswer.index, bestTotem.name)}
-                          onUnlike={() => handleUnlikeTotem(post, bestAnswer.index, bestTotem.name)}
-                          postId={post.id}
-                        />
-                        {bestAnswer.answer.totems && bestAnswer.answer.totems.length > 1 && (
-                          <span className="text-sm text-gray-500">
-                            +{bestAnswer.answer.totems.length - 1} more totems
-                          </span>
-                        )}
-                        <span className="text-sm text-gray-500 ml-2">
-                          {post.answers.length} answers
-                        </span>
-                      </>
-                    );
-                  })()}
-                </div>
-                <div className="text-sm text-gray-500">
-                  {formatDistanceToNow(toDate(post.createdAt), { addSuffix: true })} by {getUserDisplayName(post)}
-                </div>
-              </div>
-            </>
-          )
-        )}
       </div>
     );
-  }, [handleLikeTotem, handleUnlikeTotem, onWantToAnswer, handleInteraction, getBestAnswer, getBestTotem, user, showAllTotems]);
+  }, [getBestAnswer, renderTotemButton]);
 
   if (!posts.length && !isLoading) {
     return (
