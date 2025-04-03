@@ -52,62 +52,20 @@ export async function getPostsForTotem(totemName: string): Promise<Post[]> {
  * Update the likes for a totem in a post
  */
 export async function updateTotemLikes(
-  postId: string, 
+  postId: string,
   totemName: string,
   isUnlike: boolean = false
-) {
-  try {
-    console.log(`updateTotemLikes - Starting ${isUnlike ? 'unlike' : 'like'} operation with postId:`, postId, 'totemName:', totemName);
-    
-    // Get the post document
-    const postDoc = await getDoc(doc(db, 'posts', postId));
-    if (!postDoc.exists()) {
-      console.error('updateTotemLikes - Post not found');
-      throw new Error('Post not found');
-    }
-    
-    const post = { id: postId, ...postDoc.data() } as Post;
-    console.log('updateTotemLikes - Post retrieved:', JSON.stringify({
-      id: post.id,
-      question: post.question,
-      answersCount: post.answers.length
-    }));
-    
-    // Ensure user is logged in
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      console.error('updateTotemLikes - User not logged in');
-      throw new Error('You must be logged in to like a totem');
-    }
-    
-    // Find the answer containing the totem
-    const answerIndex = post.answers.findIndex(answer => 
-      answer.totems?.some(totem => totem.name === totemName)
-    );
-    
-    if (answerIndex === -1) {
-      console.error('updateTotemLikes - Totem not found in any answer');
-      throw new Error('Totem not found in post');
-    }
-    
-    console.log('updateTotemLikes - Found totem in answer index:', answerIndex);
-    
-    // Find the totem in the answer
-    const answer = post.answers[answerIndex];
-    const totem = answer.totems.find(totem => totem.name === totemName);
-    
-    console.log('updateTotemLikes - Totem before update:', JSON.stringify(totem));
-    
-    // Call the TotemService to handle the like/unlike
-    const result = await TotemService.handleTotemLike(post, answerIndex, totemName, currentUser.uid, isUnlike);
-    console.log(`updateTotemLikes - Successfully ${isUnlike ? 'unliked' : 'liked'} totem`);
-    
-    return result;
-    
-  } catch (error) {
-    console.error('Error updating totem likes:', error);
-    throw error;
+): Promise<void> {
+  console.log(`updateTotemLikes - Starting ${isUnlike ? 'unlike' : 'like'} operation with postId:`, postId, 'totemName:', totemName);
+  
+  const userId = auth.currentUser?.uid;
+  if (!userId) {
+    console.error('updateTotemLikes - User not logged in');
+    throw new Error("User must be logged in to like totems");
   }
+
+  await TotemService.handleTotemLike(postId, totemName, userId, isUnlike);
+  console.log(`updateTotemLikes - Successfully ${isUnlike ? 'unliked' : 'liked'} totem`);
 }
 
 /**
@@ -115,50 +73,6 @@ export async function updateTotemLikes(
  */
 export async function unlikeTotem(postId: string, totemName: string) {
   return updateTotemLikes(postId, totemName, true);
-}
-
-/**
- * Refresh a user's like on a totem
- */
-export async function refreshUserLike(postId: string, totemName: string) {
-  try {
-    console.log('refreshUserLike - Starting with postId:', postId, 'totemName:', totemName);
-    
-    // Get the post document
-    const postDoc = await getDoc(doc(db, 'posts', postId));
-    if (!postDoc.exists()) {
-      console.error('refreshUserLike - Post not found');
-      throw new Error('Post not found');
-    }
-    
-    const post = { id: postId, ...postDoc.data() } as Post;
-    
-    // Ensure user is logged in
-    const currentUser = auth.currentUser;
-    if (!currentUser) {
-      console.error('refreshUserLike - User not logged in');
-      throw new Error('You must be logged in to refresh a like');
-    }
-    
-    // Find the answer containing the totem
-    const answerIndex = post.answers.findIndex(answer => 
-      answer.totems?.some(totem => totem.name === totemName)
-    );
-    
-    if (answerIndex === -1) {
-      console.error('refreshUserLike - Totem not found in any answer');
-      throw new Error('Totem not found in post');
-    }
-    
-    // Call the TotemService to handle the refresh
-    const result = await TotemService.refreshUserLike(post, answerIndex, totemName, currentUser.uid);
-    console.log('refreshUserLike - Successfully refreshed like');
-    
-    return result;
-  } catch (error) {
-    console.error('Error refreshing user like:', error);
-    throw error;
-  }
 }
 
 /**
@@ -203,7 +117,6 @@ export async function refreshTotem(postId: string, totemName: string): Promise<{
     
     console.log('refreshTotem - Totem before refresh:', {
       name: totem.name,
-      likes: totem.likes,
       likeHistory: totem.likeHistory?.length || 0,
       crispness: totem.crispness
     });
@@ -339,8 +252,6 @@ export async function getPost(postId: string): Promise<Post | null> {
         text: answer.text,
         totems: answer.totems?.map(totem => ({
           name: totem.name,
-          likes: totem.likes,
-          activeLikes: totem.activeLikes,
           likeHistory: totem.likeHistory
         }))
       }))
@@ -351,4 +262,19 @@ export async function getPost(postId: string): Promise<Post | null> {
     console.error('Error fetching post:', error);
     return null;
   }
+}
+
+// Update standardizePostData to use TotemService
+export function standardizePostData(post: Post): Post {
+  return {
+    ...post,
+    answers: post.answers.map(answer => ({
+      ...answer,
+      totems: answer.totems.map(totem => ({
+        ...totem,
+        likeHistory: totem.likeHistory || [],
+        crispness: TotemService.calculateCrispnessFromLikeHistory(totem.likeHistory || [])
+      }))
+    }))
+  };
 } 

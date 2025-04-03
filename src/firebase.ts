@@ -1,7 +1,7 @@
 // src/firebase.ts
 import { initializeApp, getApps, FirebaseApp, getApp } from "firebase/app";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification, onAuthStateChanged, Auth } from "firebase/auth";
-import { getFirestore, doc, setDoc, getDoc, updateDoc, Timestamp, Firestore } from "firebase/firestore";
+import { getFirestore, doc, setDoc, getDoc, updateDoc, Timestamp, Firestore, onSnapshot } from "firebase/firestore";
 
 // Firebase configuration
 const firebaseConfig = {
@@ -91,4 +91,4 @@ export const sendVerificationEmail = async () => {
 };
 
 // Export additional Firebase utilities
-export { doc, setDoc, getDoc, updateDoc, Timestamp };
+export { doc, setDoc, getDoc, updateDoc, Timestamp, onSnapshot };

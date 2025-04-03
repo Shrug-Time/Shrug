@@ -2,34 +2,30 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useTotem } from '@/contexts/TotemContext';
+import { useTotemV2 } from '@/contexts/TotemContextV2';
+import { useAuth } from '@/contexts/AuthContext';
 import { QuestionList } from '@/components/questions/QuestionList';
 import { useRouter } from 'next/navigation';
 import { Post } from '@/types/models';
 import { PostService } from '@/services/firebase';
+import { getTotemLikes } from '@/utils/componentHelpers';
 
 type FeedType = 'for-you' | 'popular' | 'latest';
 
-// Utility functions
-const calculatePostScore = (post: Post) => {
-  const now = new Date().getTime();
-  const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-  let score = 0;
-
-  post.answers.forEach(answer => {
-    answer.totems.forEach(totem => {
-      const lastLikeTime = totem.lastLike ? new Date(totem.lastLike).getTime() : 0;
-      const timeSinceLike = now - lastLikeTime;
-      const recencyScore = Math.max(0, 1 - (timeSinceLike / ONE_WEEK_MS));
-      score += (totem.likes * 0.6 + (totem.crispness || 0) * 0.4) * recencyScore;
-    });
-  });
-
-  return score;
+// Calculate total likes for a post
+const calculateTotalLikes = (post: Post) => {
+  return post.answers.reduce((sum, answer) => 
+    sum + answer.totems.reduce((totemSum, totem) => 
+      totemSum + getTotemLikes(totem), 0
+    ), 0
+  );
 };
 
 export default function Home() {
-  const { user, isLoading: authLoading, toggleLike } = useTotem();
+  const { user } = useAuth();
+  const { toggleLike } = useTotemV2();
+  console.log('[Home] Context initialized:', { hasUser: !!user, hasToggleLike: !!toggleLike });
+  
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<FeedType>('latest');
@@ -46,7 +42,7 @@ export default function Home() {
             result = await PostService.getPosts('createdAt', 10);
             break;
           case 'popular':
-            result = await PostService.getPosts('likes', 10);
+            result = await PostService.getPosts('lastInteraction', 10);
             break;
           case 'for-you':
             if (user?.uid) {
@@ -60,7 +56,15 @@ export default function Home() {
           default:
             result = await PostService.getPosts('createdAt', 10);
         }
-        setPosts(result.items);
+
+        // Sort posts by total likes within each tab
+        const sortedPosts = [...result.items].sort((a, b) => {
+          const aLikes = calculateTotalLikes(a);
+          const bLikes = calculateTotalLikes(b);
+          return bLikes - aLikes;
+        });
+
+        setPosts(sortedPosts);
       } catch (error) {
         console.error('Error fetching posts:', error);
         // Set empty posts array on error
@@ -70,35 +74,21 @@ export default function Home() {
       }
     };
 
-    if (!authLoading) {
-      fetchPosts();
-    }
-  }, [user?.uid, authLoading, activeTab]);
+    fetchPosts();
+  }, [user?.uid, activeTab]);
 
   const handleWantToAnswer = (post: Post) => {
     router.push(`/post/${post.id}`);
   };
 
   const handleTotemLikeClick = async (post: Post, answerIdx: number, totemName: string) => {
+    console.log('[Home] handleTotemLikeClick called:', { postId: post.id, totemName });
     await toggleLike(post.id, totemName);
-    // Refresh the post data
-    const updatedPost = await PostService.getPost(post.id);
-    if (updatedPost) {
-      setPosts(prevPosts => 
-        prevPosts.map(p => p.id === post.id ? updatedPost : p)
-      );
-    }
   };
 
   const handleTotemUnlikeClick = async (post: Post, answerIdx: number, totemName: string) => {
+    console.log('[Home] handleTotemUnlikeClick called:', { postId: post.id, totemName });
     await toggleLike(post.id, totemName);
-    // Refresh the post data
-    const updatedPost = await PostService.getPost(post.id);
-    if (updatedPost) {
-      setPosts(prevPosts => 
-        prevPosts.map(p => p.id === post.id ? updatedPost : p)
-      );
-    }
   };
 
   return (

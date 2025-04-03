@@ -71,7 +71,6 @@ export const POST_FIELDS = {
   // Engagement metrics
   SCORE: 'score',
   VIEWS: 'views',
-  LIKES: 'likes',
   
   // Answers
   ANSWERS: 'answers',
@@ -126,7 +125,6 @@ export const TOTEM_FIELDS = {
   TOTEM_NAME: 'totemName',
   
   // Interaction metrics
-  LIKES: 'likes',
   LIKE_HISTORY: 'likeHistory',
   CRISPNESS: 'crispness',
   USAGE_COUNT: 'usageCount',

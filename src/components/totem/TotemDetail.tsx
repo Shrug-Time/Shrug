@@ -2,7 +2,7 @@
 
 import { Post, TotemLike, Totem } from '@/types/models';
 import { auth } from '@/firebase';
-import { TotemButton } from '@/components/common/TotemButton';
+import { TotemButton } from '@/components/totem/TotemButtonV2';
 import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
 import { InfiniteScroll } from '@/components/common/InfiniteScroll';
@@ -10,7 +10,8 @@ import { useCallback, useEffect, useState, useMemo } from 'react';
 import { TOTEM_FIELDS } from '@/constants/fields';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
-import { useTotem } from '@/contexts/TotemContext';
+import { useTotemV2 } from '@/contexts/TotemContextV2';
+import { useAuth } from '@/contexts/AuthContext';
 import { hasUserLikedTotem, getTotemLikes, getTotemCrispness, getUserDisplayName } from '@/utils/componentHelpers';
 import dateHelpers from '@/utils/dateHelpers';
 
@@ -24,7 +25,8 @@ interface TotemDetailProps {
 }
 
 export function TotemDetail({ post, totemName, onLike, onUnlike }: TotemDetailProps) {
-  const { user } = useTotem();
+  const { user } = useAuth();
+  const { isLiked } = useTotemV2();
 
   // Find the answer containing the totem
   const answer = post.answers.find(answer => 
@@ -40,7 +42,7 @@ export function TotemDetail({ post, totemName, onLike, onUnlike }: TotemDetailPr
     return <div>Totem not found in this post</div>;
   }
 
-  const isLiked = user ? hasUserLikedTotem(totem, user.uid) : false;
+  const totemIsLiked = user ? isLiked(post.id, totemName) : false;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -51,12 +53,7 @@ export function TotemDetail({ post, totemName, onLike, onUnlike }: TotemDetailPr
         </div>
         <div className="flex items-center justify-between">
           <TotemButton
-            name={totem.name}
-            likes={getTotemLikes(totem)}
-            crispness={getTotemCrispness(totem)}
-            isLiked={isLiked}
-            onLike={onLike}
-            onUnlike={onUnlike}
+            totemName={totem.name}
             postId={post.id}
           />
           <div className="text-sm text-gray-500">

@@ -14,11 +14,15 @@ Shrug is a social platform where users can ask questions and receive answers usi
    - [Current Implementation](#current-implementation)
    - [Future Optimization Plans](#future-optimization-plans)
    - [Technical Considerations](#technical-considerations)
-8. [Like Button Fix Plan](#like-button-fix-plan)
-9. [Debugging Guide](#debugging-guide-for-likeunlike-issues)
-10. [Performance Considerations](#performance-considerations)
-11. [User Identification](#user-identification)
-12. [Scalability Improvement Plan](#scalability-improvement-plan)
+8. [Scalability Improvement Plan](#scalability-improvement-plan)
+9. [Performance Considerations](#performance-considerations)
+10. [Debugging Guide](#debugging-guide-for-likeunlike-issues)
+    - [Quick Debug Checklist](#quick-debug-checklist)
+    - [Common Error Patterns](#common-error-patterns)
+    - [Component-Specific Issues](#component-specific-issues)
+    - [Data Flow Verification](#data-flow-verification)
+11. [Like Button Fix Plan](#like-button-fix-plan)
+12. [User Identification](#user-identification)
 13. [Standardization Plan](#shrug-version-16)
 14. [Decision Log](#decision-log)
 15. [Issue Tracker](#issue-tracker)
@@ -160,70 +164,74 @@ The like/unlike functionality is now working correctly with the following improv
 
 ## Debugging Guide for Like/Unlike Issues
 
-### What We've Tried (And Why It Didn't Work)
-1. **Adding Extensive Logging**
-   - Added transaction logs, real-time update logs, and state change logs
-   - Helped diagnose the flow but didn't fix the core issue
-   - Lesson: Logging is helpful but can't fix architectural issues
+### Quick Debug Checklist
+1. **Console Errors**
+   - [ ] Check browser console for Firebase errors
+   - [ ] Look for React state update warnings
+   - [ ] Verify network requests
 
-2. **Modifying Transaction Logic**
-   - Updated transaction to handle both like and unlike cases
-   - Transaction works correctly but UI doesn't update
-   - Lesson: The issue isn't with the database operations
+2. **Component State**
+   - [ ] Verify auth state is correct
+   - [ ] Check like state in TotemContext
+   - [ ] Confirm real-time listener is active
 
-3. **Adding React Query Cache Invalidation**
-   - Implemented cache invalidation for optimistic updates
-   - Made the system more complex and introduced race conditions
-   - Lesson: Don't mix different state management approaches
+3. **Data Flow**
+   - [ ] Verify Firebase transaction success
+   - [ ] Check real-time update propagation
+   - [ ] Confirm UI updates match server state
 
-4. **Implementing Optimistic Updates**
-   - Added client-side state updates before server confirmation
-   - Created state synchronization issues
-   - Lesson: Keep state management simple and consistent
+4. **Common Issues**
+   - [ ] Firebase initialization errors
+   - [ ] State synchronization problems
+   - [ ] Real-time listener disconnections
 
-### What We Should Check Next Time
-1. **Parent Component Update Flow**
-   - How are real-time updates being handled in parent components?
-   - Are updates being properly propagated to child components?
-   - Are the data structures consistent between parent and child?
+### Common Error Patterns
+1. **Firebase Errors**
+   - Collection reference issues
+   - Transaction failures
+   - Real-time listener disconnections
 
-2. **Data Structure Verification**
-   - Does the real-time update data structure match what components expect?
-   - Are we properly processing the likeHistory array?
-   - Is there a mismatch between server and client data structures?
+2. **React State Issues**
+   - Stale state updates
+   - Race conditions
+   - Unnecessary re-renders
 
-3. **Component Update Triggers**
-   - What exactly triggers a re-render in the parent components?
-   - Are we using the correct React patterns for state updates?
-   - Is there unnecessary re-rendering happening?
+3. **Data Structure Mismatches**
+   - Server/client data inconsistencies
+   - Legacy vs. new field usage
+   - Missing required fields
 
-### Questions to Ask When Debugging Like Issues
-1. "Can you show me the logs from when you click the like button?"
-2. "Which component is rendering the TotemButton?"
-3. "Are you seeing any console errors?"
-4. "Is the real-time listener being triggered?"
-5. "What's the current state of the likeHistory array?"
+### Component-Specific Issues
+1. **TotemButton**
+   - Like state persistence
+   - Click handler issues
+   - Loading state management
 
-### Recommendations for Future Fixes
-1. **Start with Component Hierarchy**
-   - Map out the component tree
-   - Identify where state updates should trigger
-   - Verify data flow between components
+2. **PostTotemClient**
+   - Real-time updates
+   - Error handling
+   - State management
 
-2. **Verify Data Structures**
-   - Check server-side data structure
-   - Verify client-side expectations
-   - Ensure consistency in data transformation
+3. **TotemContext**
+   - State synchronization
+   - Update propagation
+   - Error recovery
 
-3. **Test Real-time Updates**
-   - Verify listener setup
-   - Check update propagation
-   - Confirm state updates trigger re-renders
+### Data Flow Verification
+1. **Server to Client**
+   - Firebase transaction success
+   - Real-time update receipt
+   - State update propagation
 
-4. **Keep It Simple**
-   - Avoid mixing state management approaches
-   - Maintain single source of truth
-   - Use React's built-in state management when possible
+2. **Client to Server**
+   - Request validation
+   - Transaction execution
+   - Error handling
+
+3. **State Management**
+   - Context updates
+   - Component re-renders
+   - UI updates
 
 ## Performance Considerations
 

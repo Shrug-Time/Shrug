@@ -39,7 +39,7 @@ export class PostService {
       let q = query(
         postsRef,
         where('totems', 'array-contains', totemName),
-        orderBy('likes', 'desc'),
+        orderBy('lastInteraction', 'desc'),
         limit(pageSize)
       );
 

@@ -47,8 +47,6 @@ export interface Totem extends TimestampedEntity {
   name: string;
   description?: string;
   imageUrl?: string;
-  likes: number;
-  activeLikes: number;  // Number of currently active likes
   likeHistory: TotemLike[];
   crispness: number;
   category: TotemCategory;

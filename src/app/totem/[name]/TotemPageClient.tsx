@@ -1,48 +1,57 @@
 'use client';
 
-import { TotemDetail } from '@/components/totem/TotemDetail';
-import { Post, Totem } from '@/types/models';
 import { useState, useEffect } from 'react';
+import { TotemDetail } from '@/components/totem/TotemDetail';
+import type { Post } from '@/types/models';
 import { getPost } from '@/lib/firebase/posts';
-import { useTotem } from '@/contexts/TotemContext';
+import { useTotemV2 } from '@/contexts/TotemContextV2';
+import { useAuth } from '@/contexts/AuthContext';
+import { db } from '@/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 interface TotemPageClientProps {
-  initialPosts: Post[];
+  initialPost: Post;
   totemName: string;
 }
 
-export function TotemPageClient({ initialPosts, totemName }: TotemPageClientProps) {
+export function TotemPageClient({ initialPost, totemName }: TotemPageClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { user, toggleLike, getPost: getPostFromState, updatePost } = useTotem();
-
-  // Get posts from global state or use initial posts
-  const posts = initialPosts.map(post => getPostFromState(post.id) || post);
+  const { user } = useAuth();
+  const { toggleLike } = useTotemV2();
 
   useEffect(() => {
-    const fetchPosts = async () => {
+    // Initial fetch
+    const fetchPost = async () => {
       setIsLoading(true);
       try {
-        const updatedPosts = await Promise.all(
-          initialPosts.map(post => getPost(post.id))
-        );
-        updatedPosts.forEach(post => {
-          if (post) {
-            updatePost(post);
-          }
-        });
+        const updatedPost = await getPost(initialPost.id);
+        if (updatedPost) {
+          // Update local state if needed
+        }
       } catch (error) {
-        console.error('Error fetching posts:', error);
-        setError('Failed to load posts');
+        console.error('Error fetching post:', error);
+        setError('Failed to load post data');
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchPosts();
-  }, [initialPosts, updatePost]);
+    fetchPost();
 
-  const handleLikeTotem = async (postId: string) => {
+    // Set up real-time listener
+    const postRef = doc(db, 'posts', initialPost.id);
+    const unsubscribe = onSnapshot(postRef, (doc) => {
+      if (doc.exists()) {
+        const updatedPost = doc.data() as Post;
+        // Update local state if needed
+      }
+    });
+
+    return () => unsubscribe();
+  }, [initialPost.id]);
+
+  const handleLikeTotem = async () => {
     if (!user) {
       setError('You must be logged in to like a totem');
       return;
@@ -51,7 +60,7 @@ export function TotemPageClient({ initialPosts, totemName }: TotemPageClientProp
     setIsLoading(true);
     setError(null);
     try {
-      await toggleLike(postId, totemName);
+      await toggleLike(initialPost.id, totemName);
     } catch (error) {
       console.error('Error liking totem:', error);
       setError(error instanceof Error ? error.message : 'Failed to like totem');
@@ -60,7 +69,7 @@ export function TotemPageClient({ initialPosts, totemName }: TotemPageClientProp
     }
   };
 
-  const handleUnlikeTotem = async (postId: string) => {
+  const handleUnlikeTotem = async () => {
     if (!user) {
       setError('You must be logged in to unlike a totem');
       return;
@@ -69,7 +78,7 @@ export function TotemPageClient({ initialPosts, totemName }: TotemPageClientProp
     setIsLoading(true);
     setError(null);
     try {
-      await toggleLike(postId, totemName);
+      await toggleLike(initialPost.id, totemName);
     } catch (error) {
       console.error('Error unliking totem:', error);
       setError(error instanceof Error ? error.message : 'Failed to unlike totem');
@@ -87,16 +96,11 @@ export function TotemPageClient({ initialPosts, totemName }: TotemPageClientProp
   }
 
   return (
-    <div className="space-y-8">
-      {posts.map(post => (
-        <TotemDetail
-          key={post.id}
-          post={post}
-          totemName={totemName}
-          onLike={() => handleLikeTotem(post.id)}
-          onUnlike={() => handleUnlikeTotem(post.id)}
-        />
-      ))}
-    </div>
+    <TotemDetail
+      post={initialPost}
+      totemName={totemName}
+      onLike={handleLikeTotem}
+      onUnlike={handleUnlikeTotem}
+    />
   );
 } 

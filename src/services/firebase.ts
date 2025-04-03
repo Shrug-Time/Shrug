@@ -19,6 +19,7 @@ import {
 } from 'firebase/firestore';
 import type { Post, UserProfile, Answer, TotemAssociation, Totem, TotemLike } from '@/types/models';
 import { COMMON_FIELDS, USER_FIELDS, POST_FIELDS, ANSWER_FIELDS, TOTEM_ASSOCIATION_FIELDS } from '@/constants/fields';
+import { TotemService } from '@/services/totem';
 
 const POSTS_PER_PAGE = 20;
 
@@ -536,31 +537,33 @@ export const PostService = {
     }
   },
 
-  async getPosts(orderByField: 'createdAt' | 'likes', pageSize = 10, lastDoc?: any): Promise<{ items: Post[]; lastDoc: any }> {
+  async getPosts(orderByField: 'createdAt' | 'lastInteraction', pageSize = 10, lastDoc?: any): Promise<{ items: Post[]; lastDoc: any }> {
     try {
-      const postsRef = collection(db, 'posts');
-      let q = query(
-        postsRef,
-        orderBy(orderByField, 'desc'),
-        limit(pageSize)
-      );
-
+      let q = query(collection(db, "posts"), orderBy(orderByField, 'desc'), limit(pageSize));
+      
       if (lastDoc) {
         q = query(q, startAfter(lastDoc));
       }
-
-      const snapshot = await getDocs(q);
-      const posts = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Post[];
-
+      
+      const querySnapshot = await getDocs(q);
+      const items = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Post[];
+      
       return {
-        items: posts,
-        lastDoc: snapshot.docs[snapshot.docs.length - 1] || null
+        items: items.map(post => ({
+          ...post,
+          answers: post.answers.map(answer => ({
+            ...answer,
+            totems: answer.totems.map(totem => ({
+              ...totem,
+              likeHistory: totem.likeHistory || [],
+              crispness: TotemService.calculateCrispnessFromLikeHistory(totem.likeHistory || [])
+            }))
+          }))
+        })),
+        lastDoc: querySnapshot.docs[querySnapshot.docs.length - 1]
       };
     } catch (error) {
-      console.error('Error fetching posts:', error);
+      console.error('Error getting posts:', error);
       throw error;
     }
   },
@@ -602,155 +605,6 @@ export class UserService {
       console.error('Error checking premium status:', error);
       throw error;
     }
-  }
-}
-
-export class TotemService {
-  static async handleTotemLike(
-    postId: string,
-    totemName: string,
-    userId: string,
-    isUnlike: boolean = false
-  ): Promise<void> {
-    const postRef = doc(db, "posts", postId);
-    
-    return runTransaction(db, async (transaction) => {
-      const postDoc = await transaction.get(postRef);
-      if (!postDoc.exists()) {
-        throw new Error("Post not found");
-      }
-
-      const post = postDoc.data();
-      const answer = findAnswerWithTotem(post.answers, totemName);
-      const totem = findTotemInAnswer(answer, totemName);
-
-      // Initialize likeHistory if it doesn't exist
-      totem.likeHistory = totem.likeHistory || [];
-
-      const now = Date.now();
-      const existingLike = totem.likeHistory.find(like => like.userId === userId);
-
-      console.log('handleTotemLike - Current state:', {
-        postId,
-        totemName,
-        userId,
-        isUnlike,
-        existingLike,
-        likeHistory: totem.likeHistory
-      });
-
-      if (isUnlike) {
-        // Update existing like to inactive
-        if (existingLike) {
-          existingLike.isActive = false;
-          existingLike.lastUpdatedAt = now;
-          console.log('handleTotemLike - Unliking:', {
-            postId,
-            totemName,
-            userId,
-            existingLike
-          });
-        }
-        // Decrement likes count
-        totem.likes = Math.max(0, (totem.likes || 0) - 1);
-      } else {
-        if (existingLike) {
-          // Reactivate existing like
-          existingLike.isActive = true;
-          existingLike.lastUpdatedAt = now;
-          console.log('handleTotemLike - Reactivating like:', {
-            postId,
-            totemName,
-            userId,
-            existingLike
-          });
-        } else {
-          // Create new like
-          const newLike = {
-            userId,
-            originalTimestamp: now,
-            lastUpdatedAt: now,
-            isActive: true,
-            value: 1
-          };
-          totem.likeHistory.push(newLike);
-          console.log('handleTotemLike - Creating new like:', {
-            postId,
-            totemName,
-            userId,
-            newLike
-          });
-        }
-        // Increment likes count
-        totem.likes = (totem.likes || 0) + 1;
-      }
-
-      // Update the post with the modified answer
-      transaction.update(postRef, { answers: post.answers });
-      
-      console.log('handleTotemLike - Final state:', {
-        postId,
-        totemName,
-        userId,
-        likeHistory: totem.likeHistory
-      });
-    });
-  }
-
-  private static updateTotemStats(
-    answers: Answer[],
-    answerIdx: number,
-    totemName: string,
-    userId: string,
-    timestamp: number
-  ) {
-    return answers.map((ans, idx) =>
-      idx === answerIdx
-        ? {
-            ...ans,
-            totems: ans.totems.map((t) =>
-              t.name === totemName
-                ? {
-                    ...t,
-                    likes: t.likes + 1,
-                    likeHistory: [
-                      ...(t.likeHistory || []),
-                      {
-                        userId,
-                        originalTimestamp: timestamp,
-                        lastUpdatedAt: timestamp,
-                        isActive: true,
-                        value: 1
-                      }
-                    ],
-                    crispness: this.calculateCrispnessFromLikeHistory(t.likeHistory || [])
-                  }
-                : t
-            ),
-          }
-        : ans
-    );
-  }
-
-  private static calculateCrispnessFromLikeHistory(likeHistory: TotemLike[]): number {
-    const now = Date.now();
-    const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-    
-    const activeLikes = likeHistory.filter(like => like.isActive);
-    if (activeLikes.length === 0) return 0;
-
-    let totalWeight = 0;
-    let weightedSum = 0;
-
-    activeLikes.forEach(like => {
-      const timeSinceLike = now - like.lastUpdatedAt;
-      const weight = Math.max(0, 1 - (timeSinceLike / ONE_WEEK_MS));
-      
-      weightedSum += weight * like.value;
-      totalWeight += weight;
-    });
-
-    return totalWeight > 0 ? (weightedSum / totalWeight) * 100 : 0;
   }
 }
 

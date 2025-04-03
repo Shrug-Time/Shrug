@@ -1,5 +1,6 @@
 import { Timestamp } from 'firebase/firestore';
 import type { Post, Answer, Totem } from '@/types/models';
+import { getTotemLikes } from '@/utils/componentHelpers';
 
 /**
  * Safely converts a Firestore Timestamp to milliseconds
@@ -30,8 +31,8 @@ export function normalizeTotem(totem: Partial<Totem>): Totem {
   return {
     id: totem.id || '',
     name: totem.name || '',
-    likes: totem.likes || 0,
-    activeLikes: totem.activeLikes || 0,
+    description: totem.description,
+    imageUrl: totem.imageUrl,
     likeHistory: totem.likeHistory || [],
     crispness: totem.crispness || 0,
     category: totem.category || {

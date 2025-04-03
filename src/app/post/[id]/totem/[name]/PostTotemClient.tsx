@@ -3,40 +3,59 @@
 import { useState, useEffect, useCallback } from 'react';
 import { TotemDetail } from '@/components/totem/TotemDetail';
 import type { Post } from '@/types/models';
-import { getPost } from '@/lib/firebase/posts';
-import { useTotem } from '@/contexts/TotemContext';
+import { useTotemV2 } from '@/contexts/TotemContextV2';
+import { db } from '@/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { useAuth } from '@/contexts/AuthContext';
+import { PostService } from '@/services/firebase';
+import Link from 'next/link';
 
 interface PostTotemClientProps {
-  initialPost: Post;
+  postId: string;
   totemName: string;
 }
 
-export function PostTotemClient({ initialPost, totemName }: PostTotemClientProps) {
-  const [isLoading, setIsLoading] = useState(false);
+export function PostTotemClient({ postId, totemName }: PostTotemClientProps) {
+  const [post, setPost] = useState<Post | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { user, toggleLike, getPost: getPostFromState, updatePost } = useTotem();
+  const { user } = useAuth();
+  const { toggleLike } = useTotemV2();
 
-  // Get post from global state or use initial post
-  const post = getPostFromState(initialPost.id) || initialPost;
-
+  // Initial data fetch
   useEffect(() => {
     const fetchPost = async () => {
-      setIsLoading(true);
       try {
-        const updatedPost = await getPost(initialPost.id);
-        if (updatedPost) {
-          updatePost(updatedPost);
+        const fetchedPost = await PostService.getPost(postId);
+        if (!fetchedPost) {
+          throw new Error('Post not found');
         }
+        setPost(fetchedPost);
       } catch (error) {
         console.error('Error fetching post:', error);
-        setError('Failed to load post data');
+        setError(error instanceof Error ? error.message : 'Failed to load post');
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchPost();
-  }, [initialPost.id, updatePost]);
+  }, [postId]);
+
+  // Set up real-time listener
+  useEffect(() => {
+    if (!post) return;
+
+    const postRef = doc(db, 'posts', postId);
+    const unsubscribe = onSnapshot(postRef, (doc) => {
+      if (doc.exists()) {
+        const updatedPost = doc.data() as Post;
+        setPost(updatedPost);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [postId, post]);
 
   const handleLikeTotem = useCallback(async () => {
     if (!user) {
@@ -47,14 +66,14 @@ export function PostTotemClient({ initialPost, totemName }: PostTotemClientProps
     setIsLoading(true);
     setError(null);
     try {
-      await toggleLike(post.id, totemName);
+      await toggleLike(postId, totemName);
     } catch (error) {
       console.error('Error liking totem:', error);
       setError(error instanceof Error ? error.message : 'Failed to like totem');
     } finally {
       setIsLoading(false);
     }
-  }, [user, post.id, totemName, toggleLike]);
+  }, [user, postId, totemName, toggleLike]);
 
   const handleUnlikeTotem = useCallback(async () => {
     if (!user) {
@@ -65,21 +84,35 @@ export function PostTotemClient({ initialPost, totemName }: PostTotemClientProps
     setIsLoading(true);
     setError(null);
     try {
-      await toggleLike(post.id, totemName);
+      await toggleLike(postId, totemName);
     } catch (error) {
       console.error('Error unliking totem:', error);
       setError(error instanceof Error ? error.message : 'Failed to unlike totem');
     } finally {
       setIsLoading(false);
     }
-  }, [user, post.id, totemName, toggleLike]);
+  }, [user, postId, totemName, toggleLike]);
 
   if (isLoading) {
     return <div>Loading...</div>;
   }
 
   if (error) {
-    return <div className="text-red-500">{error}</div>;
+    return (
+      <div className="text-red-500">
+        <p>{error}</p>
+        <Link
+          href="/"
+          className="text-blue-500 hover:underline mt-4 inline-block"
+        >
+          ← Back to Home
+        </Link>
+      </div>
+    );
+  }
+
+  if (!post) {
+    return <div>Post not found</div>;
   }
 
   return (

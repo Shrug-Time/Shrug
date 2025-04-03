@@ -153,30 +153,52 @@ export function QuestionList({
   }, [getBestTotem, user, renderTotemButton]);
 
   const renderQuestion = useCallback((post: Post) => {
-    const bestAnswer = getBestAnswer(post);
+    // Get the first paragraph of the answer
+    const firstAnswer = post.answers[0];
+    const firstParagraph = firstAnswer?.text?.split('\n')[0] || '';
+    
+    // Find the totem with the most likes
+    const topTotem = firstAnswer?.totems.reduce((top, current) => {
+      const topLikes = getTotemLikes(top);
+      const currentLikes = getTotemLikes(current);
+      return currentLikes > topLikes ? current : top;
+    }, firstAnswer.totems[0]);
     
     return (
       <div key={post.id} className="bg-white rounded-lg shadow p-4 mb-4">
+        <div className="text-sm text-gray-500 mb-2">
+          Posted by {post.username}
+        </div>
         <Link href={`/post/${post.id}`} className="block hover:bg-gray-50 rounded-lg transition-colors">
           <h2 className="text-xl font-semibold mb-2 text-gray-900 hover:text-blue-600">{post.question}</h2>
+          {firstParagraph && (
+            <p className="text-gray-600 mb-3 line-clamp-2">{firstParagraph}</p>
+          )}
         </Link>
         <div className="flex flex-wrap gap-2">
-          {post.answers.map((answer, idx) => (
-            <div key={idx} className="flex flex-wrap gap-2">
-              {answer.totems.map((totem) => renderTotemButton(post.id, totem.name))}
-            </div>
-          ))}
+          {topTotem && renderTotemButton(post.id, topTotem.name)}
         </div>
       </div>
     );
-  }, [getBestAnswer, renderTotemButton]);
+  }, [getTotemLikes, renderTotemButton]);
+
+  // Calculate total likes for each post
+  const postsWithLikes = posts.map(post => ({
+    ...post,
+    totalLikes: post.answers.reduce((sum, answer) => 
+      sum + answer.totems.reduce((totemSum, totem) => 
+        totemSum + getTotemLikes(totem), 0
+      ), 0
+    )
+  }));
+
+  // Sort posts by total likes
+  const sortedPosts = [...postsWithLikes].sort((a, b) => b.totalLikes - a.totalLikes);
 
   if (!posts.length && !isLoading) {
     return (
-      <div className="relative">
-        <p className="text-gray-600 text-center py-8" role="status">
-          No posts available
-        </p>
+      <div className="text-center text-gray-500 py-8">
+        No questions found
       </div>
     );
   }
@@ -194,7 +216,7 @@ export function QuestionList({
         onLoadMore={onLoadMore}
         className="space-y-6"
       >
-        {posts.map(post => (
+        {sortedPosts.map(post => (
           <article 
             key={post.id}
             className="relative"

@@ -91,15 +91,14 @@ export function AnswerForm({ selectedQuestion, onAnswerSubmitted }: AnswerFormPr
     const newTotemObj: Totem = {
       id: newTotem.trim(),
       name: newTotem.trim(),
-      likes: 0,
+      likeHistory: [],
       crispness: 100,
       category: { id: 'general', name: 'General', description: '', children: [], usageCount: 0 },
       decayModel: 'MEDIUM',
       usageCount: 0,
       createdAt: now,
       updatedAt: now,
-      lastInteraction: now,
-      likeHistory: []
+      lastInteraction: now
     };
 
     setSelectedTotems(prev => [...prev, newTotemObj]);

@@ -1,56 +1,14 @@
 "use client";
 
-import { useEffect, useState, use, useCallback } from 'react';
-import { useRouter, useParams } from 'next/navigation';
-import { formatDistanceToNow } from 'date-fns';
-import { Timestamp } from 'firebase/firestore';
-import { db } from '@/firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
-import type { Post, Answer, Totem } from '@/types/models';
-import { TotemButton } from '@/components/totem/TotemButtonV2';
-import { auth } from '@/firebase';
-import { handleTotemLike, handleTotemRefresh } from '@/utils/totem';
-import { QuestionList } from '@/components/questions/QuestionList';
-import { Header } from '@/components/common/Header';
-import { CreatePostForm } from '@/components/posts/CreatePostForm';
-import { AnswerModal } from '@/components/answers/AnswerModal';
+import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useUser } from '@/hooks/useUser';
 import { PostService } from '@/services/firebase';
-import { TotemDetail } from '@/components/totem/TotemDetail';
-import Link from 'next/link';
-import { TotemService } from '@/services/totem';
-import { getTotemLikes, getUserDisplayName } from '@/utils/componentHelpers';
-
-// Helper function to safely convert various date formats to a Date object
-const toDate = (dateField: any): Date => {
-  if (!dateField) return new Date();
-  
-  if (dateField instanceof Date) return dateField;
-  
-  if (typeof dateField === 'object' && 'toDate' in dateField && typeof dateField.toDate === 'function') {
-    return dateField.toDate();
-  }
-  
-  if (typeof dateField === 'string') return new Date(dateField);
-  
-  if (typeof dateField === 'number') return new Date(dateField);
-  
-  return new Date();
-};
-
-interface GroupedAnswer {
-  totemName: string;
-  answers: Array<{
-    text: string;
-    userId: string;
-    createdAt: any;
-    answerIdx: number;
-    crispness?: number;
-    userName: string;
-    userID: string;
-  }>;
-}
+import { CreatePostForm } from '@/components/posts/CreatePostForm';
+import { AnswerModal } from '@/components/answers/AnswerModal';
+import { QuestionAnswers } from '@/components/questions/QuestionAnswers';
+import type { Post } from '@/types/models';
 
 export default function PostPage() {
   const params = useParams();
@@ -76,15 +34,6 @@ export default function PostPage() {
     queryClient.invalidateQueries({ queryKey: ['posts'] });
   };
 
-  const getTopTotem = useCallback((answer: Answer) => {
-    if (!answer.totems || answer.totems.length === 0) return null;
-    return answer.totems.reduce((top, current) => {
-      const topLikes = getTotemLikes(top);
-      const currentLikes = getTotemLikes(current);
-      return currentLikes > topLikes ? current : top;
-    }, answer.totems[0]);
-  }, []);
-
   if (isLoading) {
     return <div>Loading...</div>;
   }
@@ -102,36 +51,7 @@ export default function PostPage() {
         </div>
       </div>
 
-      <div className="space-y-6">
-        {post.answers.map((answer, index) => {
-          const topTotem = getTopTotem(answer);
-          if (!topTotem) return null;
-
-          return (
-            <div key={`${post.id}-${answer.text}`} className="bg-white rounded-xl shadow p-6">
-              <div className="text-gray-600 mb-4">
-                {answer.text}
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <TotemButton
-                    totemName={topTotem.name}
-                    postId={post.id}
-                  />
-                  {answer.totems.length > 1 && (
-                    <span className="text-sm text-gray-500">
-                      +{answer.totems.length - 1} more totems
-                    </span>
-                  )}
-                </div>
-                <div className="text-sm text-gray-500">
-                  {formatDistanceToNow(toDate(answer.createdAt), { addSuffix: true })} by {getUserDisplayName(answer)}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      <QuestionAnswers post={post} />
 
       {showCreatePost && userData && (
         <CreatePostForm

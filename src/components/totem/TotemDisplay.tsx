@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { Totem } from '@/types/models';
 import { formatDistanceToNow } from 'date-fns';
+import { getTotemLikes } from '@/utils/componentHelpers';
 
 interface TotemDisplayProps {
   totem: Totem;
@@ -34,7 +35,7 @@ export function TotemDisplay({
     }
   };
 
-  const formatTimestamp = (timestamp: string) => {
+  const formatTimestamp = (timestamp: string | number) => {
     try {
       return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
     } catch {
@@ -68,7 +69,7 @@ export function TotemDisplay({
 
       <div className="flex items-center gap-4 mb-4">
         <div>
-          <span className="text-2xl font-bold">{totem.likes}</span>
+          <span className="text-2xl font-bold">{getTotemLikes(totem).toString()}</span>
           <span className="text-gray-500 ml-1">likes</span>
         </div>
         <div>
