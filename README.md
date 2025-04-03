@@ -3,6 +3,77 @@
 ## Overview
 Shrug is a social platform where users can ask questions and receive answers using a unique "totem" system. Users can like and interact with totems, creating a dynamic community of shared knowledge and perspectives.
 
+## Table of Contents
+1. [Quick Start](#quick-start)
+2. [Tech Stack](#tech-stack)
+3. [Project Structure](#project-structure)
+4. [Key Features](#key-features)
+5. [Documentation](#documentation)
+6. [Current Progress](#current-progress)
+7. [Data Fetching Strategy](#data-fetching-strategy)
+   - [Current Implementation](#current-implementation)
+   - [Future Optimization Plans](#future-optimization-plans)
+   - [Technical Considerations](#technical-considerations)
+8. [Like Button Fix Plan](#like-button-fix-plan)
+9. [Debugging Guide](#debugging-guide-for-likeunlike-issues)
+10. [Performance Considerations](#performance-considerations)
+11. [User Identification](#user-identification)
+12. [Scalability Improvement Plan](#scalability-improvement-plan)
+13. [Standardization Plan](#shrug-version-16)
+14. [Decision Log](#decision-log)
+15. [Issue Tracker](#issue-tracker)
+16. [TotemButton Implementation Plan](#totembutton-implementation-plan)
+17. [Like/Unlike Fix Plan](#likeunlike-fix-plan)
+
+## Data Fetching Strategy
+
+### Current Implementation
+The application currently uses a client-side data fetching strategy for Firebase operations. This decision was made to:
+1. Quickly resolve Firebase initialization issues in server components
+2. Maintain compatibility with the existing Firebase setup
+3. Provide a simple, working solution that can be optimized later
+
+#### Key Components
+- Server components handle layout and static content
+- Client components handle data fetching and real-time updates
+- Firebase operations are performed exclusively in client components
+
+### Future Optimization Plans
+
+#### Phase 1: Server-Side Firebase Integration
+- Implement proper Firebase initialization for server components
+- Add server-side rendering for initial page loads
+- Maintain real-time updates through client components
+- Expected timeline: 1-2 weeks
+
+#### Phase 2: Performance Optimization
+- Implement caching strategies
+- Add data prefetching for common user flows
+- Optimize bundle size and loading performance
+- Expected timeline: 2-3 weeks
+
+#### Phase 3: Advanced Features
+- Add offline support
+- Implement optimistic updates
+- Add data persistence strategies
+- Expected timeline: 1-2 months
+
+### Technical Considerations
+1. **Current Limitations**
+   - No server-side rendering for dynamic content
+   - Slightly slower initial page loads
+   - Higher client-side JavaScript bundle size
+
+2. **Benefits**
+   - Simple, working implementation
+   - Easy to maintain and debug
+   - Clear separation of concerns
+
+3. **Migration Path**
+   - Can gradually move to server-side rendering
+   - No need for immediate refactoring
+   - Flexible for future architectural changes
+
 ## Quick Start
 1. Clone the repository
 2. Install dependencies: `npm install`
@@ -86,6 +157,73 @@ The like/unlike functionality is now working correctly with the following improv
 - ✅ Transaction-based like/unlike operations
 - ✅ Proper error handling and rollback
 - 🔄 Legacy likedBy array removal in progress (maintained for backward compatibility)
+
+## Debugging Guide for Like/Unlike Issues
+
+### What We've Tried (And Why It Didn't Work)
+1. **Adding Extensive Logging**
+   - Added transaction logs, real-time update logs, and state change logs
+   - Helped diagnose the flow but didn't fix the core issue
+   - Lesson: Logging is helpful but can't fix architectural issues
+
+2. **Modifying Transaction Logic**
+   - Updated transaction to handle both like and unlike cases
+   - Transaction works correctly but UI doesn't update
+   - Lesson: The issue isn't with the database operations
+
+3. **Adding React Query Cache Invalidation**
+   - Implemented cache invalidation for optimistic updates
+   - Made the system more complex and introduced race conditions
+   - Lesson: Don't mix different state management approaches
+
+4. **Implementing Optimistic Updates**
+   - Added client-side state updates before server confirmation
+   - Created state synchronization issues
+   - Lesson: Keep state management simple and consistent
+
+### What We Should Check Next Time
+1. **Parent Component Update Flow**
+   - How are real-time updates being handled in parent components?
+   - Are updates being properly propagated to child components?
+   - Are the data structures consistent between parent and child?
+
+2. **Data Structure Verification**
+   - Does the real-time update data structure match what components expect?
+   - Are we properly processing the likeHistory array?
+   - Is there a mismatch between server and client data structures?
+
+3. **Component Update Triggers**
+   - What exactly triggers a re-render in the parent components?
+   - Are we using the correct React patterns for state updates?
+   - Is there unnecessary re-rendering happening?
+
+### Questions to Ask When Debugging Like Issues
+1. "Can you show me the logs from when you click the like button?"
+2. "Which component is rendering the TotemButton?"
+3. "Are you seeing any console errors?"
+4. "Is the real-time listener being triggered?"
+5. "What's the current state of the likeHistory array?"
+
+### Recommendations for Future Fixes
+1. **Start with Component Hierarchy**
+   - Map out the component tree
+   - Identify where state updates should trigger
+   - Verify data flow between components
+
+2. **Verify Data Structures**
+   - Check server-side data structure
+   - Verify client-side expectations
+   - Ensure consistency in data transformation
+
+3. **Test Real-time Updates**
+   - Verify listener setup
+   - Check update propagation
+   - Confirm state updates trigger re-renders
+
+4. **Keep It Simple**
+   - Avoid mixing state management approaches
+   - Maintain single source of truth
+   - Use React's built-in state management when possible
 
 ## Performance Considerations
 
@@ -670,41 +808,12 @@ A more maintainable and scalable approach should follow these principles:
 
 ### Phase 1: Simplify the TotemButton Component
 
-```typescript
-// Simple TotemButton component
-function TotemButton({ name, likes, isLiked, postId, onLike, onUnlike }) {
-  // Simple loading state for UX
-  const [isLoading, setIsLoading] = useState(false);
-  
-  const handleClick = async () => {
-    if (isLoading) return;
-    
-    setIsLoading(true);
-    try {
-      if (isLiked) {
-        await onUnlike(postId, name);
-      } else {
-        await onLike(postId, name);
-      }
-    } catch (error) {
-      console.error("Error toggling like:", error);
-      // Error message to user
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  return (
-    <button 
-      onClick={handleClick}
-      disabled={isLoading}
-      className={`totem-button ${isLiked ? 'liked' : ''}`}
-    >
-      <img src={`/totems/${name}.gif`} alt={name} />
-      <span>{likes}</span>
-    </button>
-  );
-}
+```tsx
+<TotemButton
+  name="Rain"
+  isLiked={false}
+  onLike={() => {}}
+/>
 ```
 
 ### Phase 2: Create a Clean TotemService
