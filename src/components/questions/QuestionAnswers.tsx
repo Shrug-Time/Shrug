@@ -3,6 +3,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { TotemButton } from '@/components/totem/TotemButtonV2';
 import { getTotemLikes, getUserDisplayName } from '@/utils/componentHelpers';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 // Helper function to safely convert various date formats to a Date object
 const toDate = (dateField: any): Date => {
@@ -85,9 +86,12 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
           {/* Show only the top answer for this totem */}
           {answers[0] && (
             <div className="bg-white rounded-xl shadow p-4">
-              <div className="text-gray-600 mb-4">
+              <Link 
+                href={`/post/${post.id}/answer/${answers[0].answer.id}`}
+                className="block text-gray-600 mb-4 hover:text-blue-600 transition-colors"
+              >
                 {answers[0].answer.text}
-              </div>
+              </Link>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <TotemButton
@@ -101,7 +105,7 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
                   )}
                 </div>
                 <div className="text-sm text-gray-500">
-                  {formatDistanceToNow(toDate(post.createdAt), { addSuffix: true })} by {getUserDisplayName(answers[0].answer)}
+                  {formatDistanceToNow(toDate(answers[0].answer.createdAt), { addSuffix: true })} by {getUserDisplayName(answers[0].answer)}
                 </div>
               </div>
             </div>

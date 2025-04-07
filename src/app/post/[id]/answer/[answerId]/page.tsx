@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { PostService } from '@/services/firebase';
 import { formatDistanceToNow } from 'date-fns';
 import { TotemButton } from '@/components/totem/TotemButtonV2';
-import { getTotemLikes, getUserDisplayName } from '@/utils/componentHelpers';
+import { getUserDisplayName } from '@/utils/componentHelpers';
 import Link from 'next/link';
 
 // Helper function to safely convert various date formats to a Date object
@@ -25,7 +25,7 @@ const toDate = (dateField: any): Date => {
   return new Date();
 };
 
-export default function AnswerPage() {
+export default function AnswerDetailPage() {
   const params = useParams();
   const postId = params.id as string;
   const answerId = params.answerId as string;
@@ -57,12 +57,14 @@ export default function AnswerPage() {
         <h1 className="text-2xl font-bold text-gray-900 mb-4">{post.question}</h1>
       </div>
 
-      <div className="bg-white rounded-xl shadow p-4">
-        <div className="text-gray-600 mb-4">
+      <div className="bg-white rounded-xl shadow p-6">
+        <div className="text-gray-600 mb-6 text-lg">
           {answer.text}
         </div>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        
+        <div className="mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Totems for this answer:</h2>
+          <div className="flex flex-wrap gap-2">
             {answer.totems.map(totem => (
               <TotemButton
                 key={totem.name}
@@ -71,9 +73,10 @@ export default function AnswerPage() {
               />
             ))}
           </div>
-          <div className="text-sm text-gray-500">
-            {formatDistanceToNow(toDate(answer.createdAt), { addSuffix: true })} by {getUserDisplayName(answer)}
-          </div>
+        </div>
+
+        <div className="text-sm text-gray-500">
+          {formatDistanceToNow(toDate(answer.createdAt), { addSuffix: true })} by {getUserDisplayName(answer)}
         </div>
       </div>
     </div>
