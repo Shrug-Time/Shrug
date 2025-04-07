@@ -130,9 +130,12 @@ export function QuestionList({
     return (
       <div key={`${post.id}-${answer.text}`} 
            className={`bg-white rounded-xl shadow p-4 hover:shadow-md transition-shadow ${isBestAnswer ? 'border-l-4 border-blue-500' : ''}`}>
-        <div className="text-gray-600 mb-4">
+        <Link 
+          href={`/post/${post.id}/answer/${answer.id}`}
+          className="block text-gray-600 mb-4 hover:text-blue-600 transition-colors"
+        >
           {answer.text}
-        </div>
+        </Link>
 
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
@@ -169,12 +172,19 @@ export function QuestionList({
         <div className="text-sm text-gray-500 mb-2">
           Posted by {post.username}
         </div>
-        <Link href={`/post/${post.id}`} className="block hover:bg-gray-50 rounded-lg transition-colors">
-          <h2 className="text-xl font-semibold mb-2 text-gray-900 hover:text-blue-600">{post.question}</h2>
-          {firstParagraph && (
-            <p className="text-gray-600 mb-3 line-clamp-2">{firstParagraph}</p>
+        <div className="space-y-2">
+          <Link href={`/post/${post.id}`} className="block hover:bg-gray-50 rounded-lg transition-colors">
+            <h2 className="text-xl font-semibold mb-2 text-gray-900 hover:text-blue-600">{post.question}</h2>
+          </Link>
+          {firstParagraph && firstAnswer && (
+            <Link 
+              href={`/post/${post.id}/answer/${firstAnswer.id}`}
+              className="block text-gray-600 mb-3 line-clamp-2 hover:text-blue-600 transition-colors"
+            >
+              {firstParagraph}
+            </Link>
           )}
-        </Link>
+        </div>
         <div className="flex flex-wrap gap-2">
           {topTotem && renderTotemButton(post.id, topTotem.name)}
         </div>
