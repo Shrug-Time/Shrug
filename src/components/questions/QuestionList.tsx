@@ -38,6 +38,7 @@ interface QuestionListProps {
   isLoading: boolean;
   onLoadMore: () => void;
   showAllTotems?: boolean;
+  showUserAnswers?: boolean;
 }
 
 export function QuestionList({
@@ -46,7 +47,8 @@ export function QuestionList({
   hasNextPage,
   isLoading,
   onLoadMore,
-  showAllTotems = false
+  showAllTotems = false,
+  showUserAnswers = false
 }: QuestionListProps) {
   const router = useRouter();
   const { user } = useAuth();
@@ -132,16 +134,20 @@ export function QuestionList({
   };
 
   const renderQuestion = useCallback((post: Post) => {
-    // Get the first paragraph of the answer
-    const firstAnswer = post.answers[0];
-    const firstParagraph = firstAnswer?.text?.split('\n')[0] || '';
+    // Get the user's answer if showUserAnswers is true, otherwise get the best answer
+    const userAnswer = showUserAnswers && user 
+      ? post.answers.find(answer => answer.firebaseUid === user.uid)
+      : null;
+    
+    const answerToShow = userAnswer || post.answers[0];
+    const firstParagraph = answerToShow?.text?.split('\n')[0] || '';
     
     // Find the totem with the most likes
-    const topTotem = firstAnswer?.totems.reduce((top, current) => {
+    const topTotem = answerToShow?.totems.reduce((top, current) => {
       const topLikes = getTotemLikes(top);
       const currentLikes = getTotemLikes(current);
       return currentLikes > topLikes ? current : top;
-    }, firstAnswer.totems[0]);
+    }, answerToShow.totems[0]);
     
     return (
       <div key={post.id} className="bg-white rounded-lg shadow p-4 mb-4">
@@ -152,9 +158,9 @@ export function QuestionList({
           <Link href={`/post/${post.id}`} className="block hover:bg-gray-50 rounded-lg transition-colors">
             <h2 className="text-xl font-semibold mb-2 text-gray-900 hover:text-blue-600">{post.question}</h2>
           </Link>
-          {firstParagraph && firstAnswer && (
+          {firstParagraph && answerToShow && (
             <Link 
-              href={`/post/${post.id}/answer/${firstAnswer.id}`}
+              href={`/post/${post.id}/answer/${answerToShow.id}`}
               className="block text-gray-600 mb-3 line-clamp-2 hover:text-blue-600 transition-colors"
             >
               {firstParagraph}
@@ -174,7 +180,7 @@ export function QuestionList({
         </div>
       </div>
     );
-  }, [getTotemLikes, renderTotemButton]);
+  }, [getTotemLikes, renderTotemButton, showUserAnswers, user]);
 
   // Calculate total likes for each post
   const postsWithLikes = posts.map(post => ({

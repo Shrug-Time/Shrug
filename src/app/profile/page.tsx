@@ -169,6 +169,7 @@ export default function ProfilePage() {
                   isLoading={false}
                   onLoadMore={() => {}}
                   showAllTotems={false}
+                  showUserAnswers={true}
                 />
               ) : (
                 <p className="text-gray-600">No answers yet</p>
