@@ -185,12 +185,20 @@ export function QuestionList({
             </Link>
           )}
         </div>
-        <div className="flex flex-wrap gap-2">
-          {topTotem && renderTotemButton(post.id, topTotem.name)}
+        <div className="flex items-center justify-between">
+          <div className="flex flex-wrap gap-2">
+            {topTotem && renderTotemButton(post.id, topTotem.name)}
+          </div>
+          <button
+            onClick={() => onWantToAnswer(post)}
+            className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            Add Answer
+          </button>
         </div>
       </div>
     );
-  }, [getTotemLikes, renderTotemButton]);
+  }, [getTotemLikes, renderTotemButton, onWantToAnswer]);
 
   // Calculate total likes for each post
   const postsWithLikes = posts.map(post => ({
