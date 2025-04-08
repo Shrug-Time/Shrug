@@ -11,6 +11,8 @@ import { USER_FIELDS } from '@/constants/fields';
 import { getUserDisplayName, getTotemLikes, getTotemCrispness, hasUserLikedTotem } from '@/utils/componentHelpers';
 import { useTotemV2 } from '@/contexts/TotemContextV2';
 import { useAuth } from '@/contexts/AuthContext';
+import { AnswerModal } from '@/components/answers/AnswerModal';
+import { useQueryClient } from '@tanstack/react-query';
 
 // Helper function to safely convert various date formats to a Date object
 const toDate = (dateField: any): Date => {
@@ -50,7 +52,8 @@ export function QuestionList({
   const { user } = useAuth();
   const { toggleLike, loadPostTotems } = useTotemV2();
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
-  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [selectedQuestion, setSelectedQuestion] = useState<Post | null>(null);
+  const queryClient = useQueryClient();
 
   // Load initial state of likes for all posts
   useEffect(() => {
@@ -120,40 +123,13 @@ export function QuestionList({
     );
   };
 
-  const renderAnswer = useCallback((post: Post, answer: Answer, index: number, isBestAnswer: boolean = false) => {
-    const bestTotem = getBestTotem(answer.totems);
-
-    if (!bestTotem) return null;
-
-    const isLiked = user ? hasUserLikedTotem(bestTotem, user.uid) : false;
-
-    return (
-      <div key={`${post.id}-${answer.text}`} 
-           className={`bg-white rounded-xl shadow p-4 hover:shadow-md transition-shadow ${isBestAnswer ? 'border-l-4 border-blue-500' : ''}`}>
-        <Link 
-          href={`/post/${post.id}/answer/${answer.id}`}
-          className="block text-gray-600 mb-4 hover:text-blue-600 transition-colors"
-        >
-          {answer.text}
-        </Link>
-
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            {renderTotemButton(post.id, bestTotem.name)}
-            {answer.totems && answer.totems.length > 1 && (
-              <span className="text-sm text-gray-500">
-                +{answer.totems.length - 1} more totems
-              </span>
-            )}
-          </div>
-          
-          <div className="text-sm text-gray-500">
-            {formatDistanceToNow(toDate(answer.createdAt), { addSuffix: true })} by {getUserDisplayName(answer)}
-          </div>
-        </div>
-      </div>
-    );
-  }, [getBestTotem, user, renderTotemButton]);
+  const handleAnswerSubmitted = () => {
+    setSelectedQuestion(null);
+    queryClient.invalidateQueries({ queryKey: ['posts'] });
+    if (onWantToAnswer) {
+      onWantToAnswer(selectedQuestion!);
+    }
+  };
 
   const renderQuestion = useCallback((post: Post) => {
     // Get the first paragraph of the answer
@@ -190,15 +166,15 @@ export function QuestionList({
             {topTotem && renderTotemButton(post.id, topTotem.name)}
           </div>
           <button
-            onClick={() => onWantToAnswer(post)}
-            className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            onClick={() => setSelectedQuestion(post)}
+            className="inline-flex items-center justify-center w-8 h-8 rounded-full text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
-            Add Answer
+            +
           </button>
         </div>
       </div>
     );
-  }, [getTotemLikes, renderTotemButton, onWantToAnswer]);
+  }, [getTotemLikes, renderTotemButton]);
 
   // Calculate total likes for each post
   const postsWithLikes = posts.map(post => ({
@@ -222,27 +198,25 @@ export function QuestionList({
   }
 
   return (
-    <div className="relative">
-      {showLoginPrompt && (
-        <div className="fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg animate-fade-in">
-          Please log in to interact with posts
-        </div>
-      )}
+    <>
       <InfiniteScroll
+        onLoadMore={onLoadMore}
         hasNextPage={hasNextPage}
         isLoading={isLoading}
-        onLoadMore={onLoadMore}
-        className="space-y-6"
       >
-        {sortedPosts.map(post => (
-          <article 
-            key={post.id}
-            className="relative"
-          >
-            {renderQuestion(post)}
-          </article>
-        ))}
+        <div className="space-y-4">
+          {posts.map(renderQuestion)}
+        </div>
       </InfiniteScroll>
-    </div>
+
+      {selectedQuestion && (
+        <AnswerModal
+          isOpen={!!selectedQuestion}
+          onClose={() => setSelectedQuestion(null)}
+          selectedQuestion={selectedQuestion}
+          onAnswerSubmitted={handleAnswerSubmitted}
+        />
+      )}
+    </>
   );
 } 
