@@ -14,7 +14,7 @@ interface TotemButtonProps {
 
 export function TotemButton({ postId, totemName, className = '' }: TotemButtonProps) {
   const { user } = useAuth();
-  const { toggleLike, isLiked, getLikeCount } = useTotemV2();
+  const { toggleLike, isLiked, getLikeCount, getCrispness } = useTotemV2();
   const [isLoading, setIsLoading] = useState(false);
   const { isAuthModalOpen, setIsAuthModalOpen, handleAuthRequired } = useAuthModal();
 
@@ -42,14 +42,23 @@ export function TotemButton({ postId, totemName, className = '' }: TotemButtonPr
 
   const liked = user ? isLiked(postId, totemName) : false;
   const likeCount = getLikeCount(postId, totemName);
+  const crispness = getCrispness(postId, totemName);
+  const showCrispness = crispness !== undefined && crispness > 0;
 
   return (
     <>
-      <Link 
-        href={`/post/${postId}/totem/${encodeURIComponent(totemName)}`}
-        className={`flex items-center gap-2 ${className}`}
-      >
-        <span className="text-lg text-gray-900 hover:text-blue-600">{totemName}</span>
+      <div className={`flex items-center gap-2 ${className}`}>
+        <Link 
+          href={`/post/${postId}/totem/${encodeURIComponent(totemName)}`}
+          className="flex items-center gap-1"
+        >
+          <span className="text-lg text-gray-900 hover:text-blue-600">{totemName}</span>
+          {showCrispness && (
+            <span className="text-xs text-gray-500 ml-1">
+              {Math.round(crispness)}% Crisp
+            </span>
+          )}
+        </Link>
         <Button
           onClick={handleClick}
           variant="ghost"
@@ -61,7 +70,7 @@ export function TotemButton({ postId, totemName, className = '' }: TotemButtonPr
         >
           <span className="text-sm">{likeCount}</span>
         </Button>
-      </Link>
+      </div>
 
       <AuthModal
         isOpen={isAuthModalOpen}

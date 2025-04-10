@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import type { UserProfile, Post } from '@/types/models';
 import { QuestionList } from '@/components/questions/QuestionList';
 import { useUser } from '@/hooks/useUser';
+import { PostService } from '@/services/PostService';
 
 export default function ProfilePage() {
   const { profile, isLoading: isLoadingProfile, error: profileError, updateProfile } = useUser();
@@ -59,9 +60,8 @@ export default function ProfilePage() {
       const postsRef = collection(db, 'posts');
       const q = query(
         postsRef,
-        where('answerUserIds', 'array-contains', profile.firebaseUid),
-        orderBy('lastEngagement', 'desc'),
-        limit(10)
+        where('answerFirebaseUids', 'array-contains', profile.firebaseUid),
+        orderBy('lastEngagement', 'desc')
       );
       
       const querySnapshot = await getDocs(q);

@@ -13,6 +13,8 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isVerificationSent, setIsVerificationSent] = useState(false);
+  const [newUser, setNewUser] = useState<{ email: string | null, name: string | null } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,7 +39,12 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
         membershipTier: 'free',
       });
 
-      onSuccess();
+      // Show verification sent screen
+      setIsVerificationSent(true);
+      setNewUser({
+        email: user.email,
+        name: name || email.split('@')[0]
+      });
     } catch (err) {
       console.error('Signup error:', err);
       setError(
@@ -49,6 +56,39 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
       setIsLoading(false);
     }
   };
+
+  // If verification is sent, show verification success message
+  if (isVerificationSent && newUser) {
+    return (
+      <div className="text-center py-4">
+        <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        
+        <h3 className="text-lg font-medium text-gray-900 mb-1">Welcome to Shrug!</h3>
+        <p className="text-sm text-gray-600 mb-4">
+          {newUser.name ? `Hi ${newUser.name}! ` : ''}We've sent a verification email to <strong>{newUser.email}</strong>.
+        </p>
+        <p className="text-sm text-gray-600 mb-4">
+          Please check your inbox and click the verification link to activate your account.
+        </p>
+        
+        <div className="mt-4">
+          <button
+            onClick={onSuccess}
+            className="w-full rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          >
+            Continue to Shrug
+          </button>
+          <p className="mt-2 text-xs text-gray-500">
+            You'll have limited access until you verify your email
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">

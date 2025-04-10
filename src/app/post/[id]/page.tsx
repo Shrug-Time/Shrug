@@ -6,7 +6,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useUser } from '@/hooks/useUser';
 import { PostService } from '@/services/firebase';
 import { CreatePostForm } from '@/components/posts/CreatePostForm';
-import { AnswerModal } from '@/components/answers/AnswerModal';
 import { QuestionAnswers } from '@/components/questions/QuestionAnswers';
 import type { Post } from '@/types/models';
 
@@ -14,7 +13,6 @@ export default function PostPage() {
   const params = useParams();
   const postId = params.id as string;
   const queryClient = useQueryClient();
-  const [selectedQuestion, setSelectedQuestion] = useState<Post | null>(null);
   const { profile: userData, isLoading: isLoadingUserData } = useUser();
   const [showCreatePost, setShowCreatePost] = useState(false);
 
@@ -22,17 +20,6 @@ export default function PostPage() {
     queryKey: ['post', postId],
     queryFn: () => PostService.getPost(postId),
   });
-
-  const handleWantToAnswer = () => {
-    if (post) {
-      setSelectedQuestion(post);
-    }
-  };
-
-  const handleAnswerSubmitted = () => {
-    setSelectedQuestion(null);
-    queryClient.invalidateQueries({ queryKey: ['posts'] });
-  };
 
   if (isLoading) {
     return <div>Loading...</div>;
@@ -63,15 +50,6 @@ export default function PostPage() {
             queryClient.invalidateQueries({ queryKey: ['posts'] });
           }}
           onCancel={() => setShowCreatePost(false)}
-        />
-      )}
-
-      {selectedQuestion && (
-        <AnswerModal
-          isOpen={!!selectedQuestion}
-          onClose={() => setSelectedQuestion(null)}
-          selectedQuestion={selectedQuestion}
-          onAnswerSubmitted={handleAnswerSubmitted}
         />
       )}
     </div>
