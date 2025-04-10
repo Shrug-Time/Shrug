@@ -1,5 +1,5 @@
 import { auth, db } from '@/firebase';
-import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
 import type { UserProfile } from '@/types/models';
 import { COMMON_FIELDS, USER_FIELDS } from '@/constants/fields';
 
@@ -285,5 +285,68 @@ export class UserService {
     };
     
     return standardized;
+  }
+
+  /**
+   * Get the user profile with refresh quota information
+   */
+  static async getUserProfile(userId: string): Promise<UserProfile> {
+    const userRef = doc(db, "users", userId);
+    const userDoc = await getDoc(userRef);
+    
+    if (!userDoc.exists()) {
+      // Get the current user from auth if available
+      const currentUser = auth.currentUser;
+      
+      // Create a default profile object with displayName and email
+      return this.createDefaultProfile({
+        displayName: currentUser?.displayName || null,
+        email: currentUser?.email || null
+      });
+    }
+    
+    const userData = userDoc.data() as UserProfile;
+    
+    // Make sure refreshes field exists
+    if (userData.refreshesRemaining === undefined) {
+      userData.refreshesRemaining = 5; // Default starting quota
+      await updateDoc(userRef, { refreshesRemaining: userData.refreshesRemaining });
+    }
+    
+    return userData;
+  }
+  
+  /**
+   * Update refresh count for a user
+   */
+  static async updateRefreshes(userId: string, refreshCount: number, resetTimestamp?: string): Promise<boolean> {
+    try {
+      const userRef = doc(db, "users", userId);
+      const userDoc = await getDoc(userRef);
+      
+      if (!userDoc.exists()) {
+        // Get the current user from auth if available
+        const currentUser = auth.currentUser;
+        
+        // Create a default profile with minimal info
+        await this.createDefaultProfile({
+          displayName: currentUser?.displayName || null,
+          email: currentUser?.email || null
+        });
+      }
+      
+      const updateData: Record<string, any> = { refreshesRemaining: refreshCount };
+      
+      // Add reset timestamp if provided
+      if (resetTimestamp) {
+        updateData.refreshResetTime = resetTimestamp;
+      }
+      
+      await updateDoc(userRef, updateData);
+      return true;
+    } catch (error) {
+      console.error("Error updating refresh count:", error);
+      return false;
+    }
   }
 } 

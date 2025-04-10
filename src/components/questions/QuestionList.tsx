@@ -64,17 +64,46 @@ export function QuestionList({
   useEffect(() => {
     if (!user) return;
 
-    const loadAllPostsTotems = async () => {
-      for (const post of posts) {
-        const totemNames = post.answers.flatMap(answer => 
-          answer.totems.map(totem => totem.name)
-        );
-        await loadPostTotems(post.id, totemNames);
+    const loadTotemsOnce = async () => {
+      // Skip if no posts to prevent unnecessary loads
+      if (posts.length === 0) return;
+
+      // Create a set of unique totem names across all posts
+      const uniqueTotemNames = new Set<string>();
+      
+      // Collect all totem names across all posts
+      posts.forEach(post => {
+        if (post.answers) {
+          post.answers.forEach(answer => {
+            if (answer.totems) {
+              answer.totems.forEach(totem => {
+                uniqueTotemNames.add(totem.name);
+              });
+            }
+          });
+        }
+      });
+      
+      // Convert Set to Array
+      const totemNamesArray = Array.from(uniqueTotemNames);
+      
+      // Only proceed if we have totem names to load
+      if (totemNamesArray.length > 0) {
+        console.log(`[QuestionList] Loading totems: ${totemNamesArray.length} unique totems`);
+        
+        // Load totems one post at a time to reduce load
+        for (const post of posts) {
+          await loadPostTotems(post.id, totemNamesArray);
+          // Add a small delay to prevent overwhelming the server
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
       }
     };
 
-    loadAllPostsTotems();
-  }, [posts, user, loadPostTotems]);
+    // Run once and don't re-run for the same posts
+    const postsKey = posts.map(p => p.id).join(',');
+    loadTotemsOnce();
+  }, [posts.length, user, loadPostTotems]);
 
   console.log('[QuestionList] Rendering with posts:', posts.length);
 
