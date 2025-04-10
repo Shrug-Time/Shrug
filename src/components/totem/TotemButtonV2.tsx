@@ -55,7 +55,7 @@ export function TotemButton({ postId, totemName, className = '' }: TotemButtonPr
           <span className="text-lg text-gray-900 hover:text-blue-600">{totemName}</span>
           {showCrispness && (
             <span className="text-xs text-gray-500 ml-1">
-              {Math.round(crispness)}% Crisp
+              {Math.round(crispness || 0)}% Crisp
             </span>
           )}
         </Link>

@@ -11,7 +11,7 @@ interface TotemContextType {
   toggleLike: (postId: string, totemName: string) => Promise<boolean>;
   isLiked: (postId: string, totemName: string) => boolean;
   getLikeCount: (postId: string, totemName: string) => number;
-  getCrispness: (postId: string, totemName: string) => number;
+  getCrispness: (postId: string, totemName: string) => number | undefined;
   refreshesRemaining: number;
   isLoading: boolean;
   error: Error | null;
@@ -338,12 +338,15 @@ export function TotemProviderV2({ children }: { children: React.ReactNode }) {
   }, [likeState]);
 
   const getCrispness = useCallback((postId: string, totemName: string) => {
+    // If we don't have state for this post/totem pair, return undefined
     const key = `${postId}-${totemName}`;
     const state = likeState[key];
     
-    if (!state) return 0;
+    if (!state || state.crispness === undefined) {
+      return undefined;
+    }
     
-    // Check if we need to recalculate crispness due to time decay
+    // Calculate how long it's been since we last calculated crispness
     const now = Date.now();
     const lastCalculated = state.lastCalculated || now;
     const minutesSinceCalculation = (now - lastCalculated) / (60 * 1000);
@@ -361,15 +364,18 @@ export function TotemProviderV2({ children }: { children: React.ReactNode }) {
       
       console.log(`[Crispness] Real-time decay after ${minutesSinceCalculation.toFixed(1)} minutes: ${state.crispness.toFixed(1)}% → ${newCrispness.toFixed(1)}%`);
       
-      // Update the state with new crispness and calculation time
-      setLikeState(prev => ({
-        ...prev,
-        [key]: {
-          ...prev[key],
-          crispness: newCrispness,
-          lastCalculated: now
-        }
-      }));
+      // Instead of updating state immediately, schedule an update
+      // This prevents the setState during render error
+      setTimeout(() => {
+        setLikeState(prev => ({
+          ...prev,
+          [key]: {
+            ...prev[key],
+            crispness: newCrispness,
+            lastCalculated: now
+          }
+        }));
+      }, 0);
       
       return newCrispness;
     }
