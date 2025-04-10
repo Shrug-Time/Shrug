@@ -180,4 +180,151 @@ export class TotemServiceV2 {
       return false;
     }
   }
+
+  /**
+   * Get the crispness of a totem
+   */
+  static async getTotemCrispness(postId: string, totemName: string): Promise<number> {
+    const postRef = doc(db, "posts", postId);
+    const postDoc = await getDoc(postRef);
+    
+    if (!postDoc.exists()) {
+      return 0;
+    }
+
+    const post = postDoc.data() as Post;
+    const answer = post.answers.find(a => 
+      a.totems.some(t => t.name === totemName)
+    );
+    const totem = answer?.totems.find(t => t.name === totemName);
+
+    if (!totem) {
+      return 0;
+    }
+
+    return totem.crispness || 0;
+  }
+  
+  /**
+   * Check if a user has inactive likes for a totem
+   */
+  static async hasInactiveLikes(postId: string, totemName: string, userId: string): Promise<boolean> {
+    const postRef = doc(db, "posts", postId);
+    const postDoc = await getDoc(postRef);
+    
+    if (!postDoc.exists()) {
+      return false;
+    }
+
+    const post = postDoc.data() as Post;
+    const answer = post.answers.find(a => 
+      a.totems.some(t => t.name === totemName)
+    );
+    const totem = answer?.totems.find(t => t.name === totemName);
+
+    if (!totem?.likeHistory) {
+      return false;
+    }
+
+    return totem.likeHistory.some(
+      like => like.userId === userId && !like.isActive
+    );
+  }
+  
+  /**
+   * Get the crispness of an inactive like
+   */
+  static async getInactiveLikeCrispness(postId: string, totemName: string, userId: string): Promise<number> {
+    const postRef = doc(db, "posts", postId);
+    const postDoc = await getDoc(postRef);
+    
+    if (!postDoc.exists()) {
+      return 0;
+    }
+
+    const post = postDoc.data() as Post;
+    const answer = post.answers.find(a => 
+      a.totems.some(t => t.name === totemName)
+    );
+    const totem = answer?.totems.find(t => t.name === totemName);
+
+    if (!totem?.likeHistory) {
+      return 0;
+    }
+
+    const inactiveLike = totem.likeHistory.find(
+      like => like.userId === userId && !like.isActive
+    );
+    
+    if (!inactiveLike) {
+      return 0;
+    }
+    
+    // Calculate the crispness of this single like
+    const now = Date.now();
+    const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+    const timeSinceLike = now - inactiveLike.lastUpdatedAt;
+    const crispness = Math.max(0, 1 - (timeSinceLike / ONE_WEEK_MS)) * 100;
+    
+    return crispness;
+  }
+  
+  /**
+   * Refresh a like for a totem (restore with 100% crispness)
+   */
+  static async refreshLike(postId: string, totemName: string, userId: string): Promise<boolean> {
+    try {
+      const postRef = doc(db, "posts", postId);
+
+      return runTransaction(db, async (transaction) => {
+        // Get the current post state
+        const postDoc = await transaction.get(postRef);
+        if (!postDoc.exists()) {
+          return false;
+        }
+
+        const post = postDoc.data() as Post;
+        
+        // Find the answer containing the totem
+        const answer = post.answers.find(a => 
+          a.totems.some(t => t.name === totemName)
+        );
+        const totem = answer?.totems.find(t => t.name === totemName);
+
+        if (!totem || !totem.likeHistory) {
+          return false;
+        }
+
+        // Find existing like - both active and inactive
+        const existingLike = totem.likeHistory.find(
+          (like) => like.userId === userId
+        );
+
+        if (existingLike) {
+          // Update existing like with refreshed timestamp and make it active
+          existingLike.isActive = true;
+          existingLike.lastUpdatedAt = Date.now();
+        } else {
+          // Add new like (shouldn't happen if we're refreshing, but just in case)
+          totem.likeHistory.push({
+            userId,
+            originalTimestamp: Date.now(),
+            lastUpdatedAt: Date.now(),
+            isActive: true,
+            value: 1,
+          });
+        }
+
+        // Calculate crispness
+        totem.crispness = this.calculateCrispnessFromLikeHistory(totem.likeHistory);
+
+        // Update only the answers array
+        transaction.update(postRef, { answers: post.answers });
+        return true;
+      });
+    } catch (error) {
+      console.error('Error refreshing like:', error);
+      return false;
+    }
+  }
 } 
