@@ -103,17 +103,29 @@ We're making the app more user-friendly and engaging - like adding power steerin
      - Create template-based customization system
      - See [PROFILE_ORGANIZATION.md](./PROFILE_ORGANIZATION.md) for full details
 
-2. **Content Discovery** (4-6 days)
+2. **Identity Verification** (3-5 days)
+   - Implement hybrid verification approach (Phone + Social Media)
+   - Add phone number verification with SMS codes
+   - Enable optional social media account linking
+   - Create verification badges for user profiles
+   - Set up progressive verification levels:
+     - Basic: Email verification (required for signup)
+     - Standard: Phone verification (required for posting answers)
+     - Enhanced: Social account verification (optional, provides additional trust signals)
+   - Implement community reporting for suspicious profiles
+   - Add moderation tools for verification disputes
+
+3. **Content Discovery** (4-6 days)
    - Build recommendation system for content
    - Implement search functionality
    - Create category browsing features
 
-3. **User Relationships** (3-5 days)
+4. **User Relationships** (3-5 days)
    - Build follow/follower system
    - Create activity feeds
    - Implement user discovery features
 
-4. **Notification System** (3-5 days)
+5. **Notification System** (3-5 days)
    - Create notification infrastructure
    - Implement in-app notifications
    - Add email notification options
