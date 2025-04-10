@@ -9,7 +9,7 @@ This document outlines the implementation plan for completing the Shrug platform
 - **Technical Approach**: How we'll implement it
 - **Timeline Estimate**: Approximate implementation time
 
-## Phase 1: Data Structure Refinement (2-3 weeks)
+## Phase 1: Data Structure Refinement (1-2 weeks)
 
 ### What We're Doing
 We're organizing how information is stored in the database to make it more efficient - like organizing a filing cabinet so you can find things quickly.
@@ -21,25 +21,40 @@ We're organizing how information is stored in the database to make it more effic
 
 ### Technical Approach
 
-1. **Complete Schema Standardization** (3-5 days)
-   - Finish migrating from old field names (userId → firebaseUid)
-   - Make all timestamps use the same format
+#### REVISED APPROACH: Fresh Start (No Legacy Data Migration)
+After careful review of the existing data structure and minimal active user data, we've decided to take a fresh-start approach rather than migrating legacy data. This will provide a cleaner foundation and faster implementation timeline.
+
+1. **Define Standard Schema** (1-2 days)
+   - Standardize on `firebaseUid` for all user references
+   - Use numeric timestamps (milliseconds since epoch) consistently
    - Document all fields in TypeScript interfaces
+   - Create strict validation for data consistency
+   - Address multiple sources of truth identified in crispness calculation
 
-2. **Create Efficient Data Collections** (5-7 days)
-   - Organize user activity data in dedicated subcollections
-   - Create separate collections for different types of content
-   - Build relationships between collections
+2. **Reset & Rebuild Data Collections** (2-3 days)
+   - Clear existing collections or create new ones with proper structure
+   - Implement data access layer using standardized fields
+   - Create separate collections for users, posts, answers
+   - Add strategic denormalization where needed for performance
+   - Ensure consistent active/inactive like handling
 
-3. **Set Up Database Indexes** (2-3 days)
+3. **Set Up Database Indexes** (1-2 days)
    - Create index configuration file
    - Add indexes for common search patterns
-   - Remove unnecessary indexes
+   - Implement proper pagination for all list views
+
+**Total Revised Timeline**: 4-7 days (reduced from original 10-15 days)
+
+**Key Benefits of Fresh Start Approach**:
+- Eliminates technical debt from the beginning
+- Avoids complex migration scripts
+- Provides cleaner foundation for later phases
+- Allows implementation of best practices without legacy constraints
 
 ### Confirmation Points
-- Do you want user profiles to include any additional fields beyond the current ones?
-- Should we prioritize any specific user activities for tracking?
-- Are there specific performance targets we should aim for?
+- Are there any specific data elements we should preserve from the existing system?
+- Should we implement any data import tools for specific legacy content?
+- What performance metrics should we target for data operations?
 
 ## Phase 2: Core Functionality Improvement (3-4 weeks)
 
