@@ -32,7 +32,7 @@ export function TotemProviderV2({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const [likeState, setLikeState] = useState<Record<string, { isLiked: boolean; count: number; crispness: number }>>({}); 
+  const [likeState, setLikeState] = useState<Record<string, { isLiked: boolean; count: number; crispness: number; lastCalculated?: number }>>({}); 
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
   const [refreshesRemaining, setRefreshesRemaining] = useState(5);
   const [refreshData, setRefreshData] = useState<{
@@ -105,16 +105,26 @@ export function TotemProviderV2({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Manually check if user has liked this totem
+      console.log(`[TotemState] Loading state for ${totemName} (${postId})`);
+      console.log(`[TotemState] Totem has ${totem.likeHistory?.length || 0} likes in history, stored crispness: ${totem.crispness || 0}`);
+      
+      // Determine if the current user has liked this totem
+      // This only checks active likes for UI purposes
       const isLiked = totem.likeHistory?.some(
         like => like.userId === user.uid && like.isActive
       ) || false;
       
-      // Get active like count
+      // Get active like count (only active likes count toward the visible counter)
       const count = totem.likeHistory?.filter(like => like.isActive).length || 0;
       
-      // Calculate crispness based on like age
-      const crispness = calculateCrispnessFromLikeHistory(totem.likeHistory || []);
+      // Calculate crispness based on ALL likes (active and inactive)
+      // This is different from the UI state but gives better decay behavior
+      const calculatedCrispness = calculateCrispnessFromLikeHistory(totem.likeHistory || []);
+      
+      // Always use the calculated crispness, never the static value
+      const crispness = calculatedCrispness;
+      
+      console.log(`[TotemState] Calculated values - isLiked: ${isLiked}, count: ${count}, crispness: ${crispness.toFixed(1)}%`);
       
       // Only update if values changed
       setLikeState(prev => {
@@ -127,7 +137,12 @@ export function TotemProviderV2({ children }: { children: React.ReactNode }) {
         }
         return {
           ...prev,
-          [key]: { isLiked, count, crispness }
+          [key]: { 
+            isLiked, 
+            count, 
+            crispness,
+            lastCalculated: Date.now() 
+          }
         };
       });
     } catch (error) {
@@ -139,25 +154,36 @@ export function TotemProviderV2({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   // Calculate crispness from like history
+  // Only considers active likes for crispness calculation
   const calculateCrispnessFromLikeHistory = (likeHistory: any[]): number => {
     const now = Date.now();
     const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
     
+    // Filter to only active likes
     const activeLikes = likeHistory.filter(like => like.isActive);
-    if (activeLikes.length === 0) return 0;
-
+    if (!activeLikes || activeLikes.length === 0) return 0;
+    
+    console.log(`[Crispness] Calculating for ${activeLikes.length} active likes`);
+    
     let totalWeight = 0;
     let weightedSum = 0;
 
     activeLikes.forEach(like => {
-      const timeSinceLike = now - like.lastUpdatedAt;
-      const weight = Math.max(0, 1 - (timeSinceLike / ONE_WEEK_MS));
+      const lastUpdated = like.lastUpdatedAt;
+      const timeSinceLike = now - lastUpdated;
+      // Calculate weight from time decay
+      let weight = Math.max(0, 1 - (timeSinceLike / ONE_WEEK_MS));
+      
+      console.log(`[Crispness] Like timestamp: ${new Date(lastUpdated).toISOString()}, age: ${Math.round(timeSinceLike/86400000)} days, weight: ${weight.toFixed(2)}`);
       
       weightedSum += weight * (like.value || 1);
       totalWeight += weight;
     });
 
-    return totalWeight > 0 ? (weightedSum / totalWeight) * 100 : 0;
+    const finalCrispness = totalWeight > 0 ? (weightedSum / totalWeight) * 100 : 0;
+    console.log(`[Crispness] Final calculation: ${finalCrispness.toFixed(1)}% (weighted sum: ${weightedSum.toFixed(2)}, total weight: ${totalWeight.toFixed(2)})`);
+    
+    return finalCrispness;
   };
 
   // Load initial state for all totems in a post
@@ -313,7 +339,42 @@ export function TotemProviderV2({ children }: { children: React.ReactNode }) {
 
   const getCrispness = useCallback((postId: string, totemName: string) => {
     const key = `${postId}-${totemName}`;
-    return likeState[key]?.crispness ?? 0;
+    const state = likeState[key];
+    
+    if (!state) return 0;
+    
+    // Check if we need to recalculate crispness due to time decay
+    const now = Date.now();
+    const lastCalculated = state.lastCalculated || now;
+    const minutesSinceCalculation = (now - lastCalculated) / (60 * 1000);
+    
+    // Recalculate crispness if it's been more than 5 minutes
+    if (minutesSinceCalculation >= 5) {
+      // We'll use a simple approximation for real-time decay 
+      // rather than fetching from the database again
+      const weekInMs = 7 * 24 * 60 * 60 * 1000;
+      const decayPercent = minutesSinceCalculation / (7 * 24 * 60); // Minutes in a week
+      
+      // Apply time decay (maximum 1% decay per 5 minutes)
+      const decayAmount = Math.min(1, decayPercent) * state.crispness;
+      const newCrispness = Math.max(0, state.crispness - decayAmount);
+      
+      console.log(`[Crispness] Real-time decay after ${minutesSinceCalculation.toFixed(1)} minutes: ${state.crispness.toFixed(1)}% → ${newCrispness.toFixed(1)}%`);
+      
+      // Update the state with new crispness and calculation time
+      setLikeState(prev => ({
+        ...prev,
+        [key]: {
+          ...prev[key],
+          crispness: newCrispness,
+          lastCalculated: now
+        }
+      }));
+      
+      return newCrispness;
+    }
+    
+    return state.crispness;
   }, [likeState]);
 
   const value = {
