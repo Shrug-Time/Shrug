@@ -92,10 +92,16 @@ We're making the app more user-friendly and engaging - like adding power steerin
 
 ### Technical Approach
 
-1. **Profile Customization** (3-5 days)
+1. **Profile Customization** (5-7 days)
    - Implement profile editing functionality
    - Add avatar/image upload capabilities
    - Create user settings management
+   - **New: Creator-Controlled Profile Organization**
+     - Allow users to organize their profile by totems
+     - Implement totem hierarchy visualization
+     - Enable custom content arrangement by topic
+     - Create template-based customization system
+     - See [PROFILE_ORGANIZATION.md](./PROFILE_ORGANIZATION.md) for full details
 
 2. **Content Discovery** (4-6 days)
    - Build recommendation system for content
@@ -219,3 +225,11 @@ To address the concern about miscommunication and ensure you're fully informed a
    - Reasoning behind choices will be explained in non-technical terms
 
 Would you prefer we start with more detailed breakdowns of each phase now, or would you rather proceed phase by phase, diving deeper into each one as we reach it? 
+
+
+Kyle's Thoughts:
+Can we apply ads even if we decide not to use them?
+How would recommendation system work?
+Use think to consider how to create subcollections and better organize data
+    In addition, use think to come up with the brst way to do the questions.
+        i.e. How do you handle the million variations to one question?
