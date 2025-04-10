@@ -4,6 +4,11 @@ import { TotemButton } from '@/components/totem/TotemButtonV2';
 import { getTotemLikes, getUserDisplayName } from '@/utils/componentHelpers';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useState } from 'react';
+import { AnswerModal } from '@/components/answers/AnswerModal';
+import { useQueryClient } from '@tanstack/react-query';
+import { useAuthModal } from '@/hooks/useAuthModal';
+import { AuthModal } from '@/components/auth/AuthModal';
 
 // Helper function to safely convert various date formats to a Date object
 const toDate = (dateField: any): Date => {
@@ -28,6 +33,20 @@ interface QuestionAnswersProps {
 
 export function QuestionAnswers({ post }: QuestionAnswersProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const [selectedQuestion, setSelectedQuestion] = useState<Post | null>(null);
+  const { isAuthModalOpen, setIsAuthModalOpen, handleAuthRequired } = useAuthModal();
+
+  const handleAnswerSubmitted = () => {
+    setSelectedQuestion(null);
+    queryClient.invalidateQueries({ queryKey: ['posts'] });
+  };
+
+  const handleAnswerClick = () => {
+    handleAuthRequired(() => {
+      setSelectedQuestion(post);
+    });
+  };
 
   // Group answers by totem
   const answersByTotem = post.answers.reduce((acc, answer) => {
@@ -64,54 +83,89 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
 
   if (sortedTotems.length === 0) {
     return (
-      <div className="text-center text-gray-500 py-8">
-        No answers yet
+      <div className="space-y-4">
+        <div className="text-center text-gray-500 py-8">
+          No answers yet
+        </div>
+        <div className="flex justify-center">
+          <button
+            onClick={() => setSelectedQuestion(post)}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            Add First Answer
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      {sortedTotems.map(({ totemName, answers, totalLikes }) => (
-        <div key={totemName} className="space-y-4">
-          <div className="bg-white rounded-xl shadow p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              {totemName}
-            </h2>
-            <p className="text-gray-600">
-              {answers.length} answers • {totalLikes} total likes
-            </p>
-          </div>
+    <>
+      <div className="flex justify-end mb-4">
+        <button
+          onClick={handleAnswerClick}
+          className="inline-flex items-center justify-center w-8 h-8 rounded-full text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        >
+          +
+        </button>
+      </div>
 
-          {/* Show only the top answer for this totem */}
-          {answers[0] && (
-            <div className="bg-white rounded-xl shadow p-4">
-              <Link 
-                href={`/post/${post.id}/answer/${answers[0].answer.id}`}
-                className="block text-gray-600 mb-4 hover:text-blue-600 transition-colors"
-              >
-                {answers[0].answer.text}
-              </Link>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <TotemButton
-                    totemName={totemName}
-                    postId={post.id}
-                  />
-                  {answers[0].answer.totems.length > 1 && (
-                    <span className="text-sm text-gray-500">
-                      +{answers[0].answer.totems.length - 1} more totems
-                    </span>
-                  )}
-                </div>
-                <div className="text-sm text-gray-500">
-                  {formatDistanceToNow(toDate(answers[0].answer.createdAt), { addSuffix: true })} by {getUserDisplayName(answers[0].answer)}
+      <div className="space-y-8">
+        {sortedTotems.map(({ totemName, answers, totalLikes }) => (
+          <div key={totemName} className="space-y-4">
+            <div className="bg-white rounded-xl shadow p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                {totemName}
+              </h2>
+              <p className="text-gray-600">
+                {answers.length} answers • {totalLikes} total likes
+              </p>
+            </div>
+
+            {/* Show only the top answer for this totem */}
+            {answers[0] && (
+              <div className="bg-white rounded-xl shadow p-4">
+                <Link 
+                  href={`/post/${post.id}/answer/${answers[0].answer.id}`}
+                  className="block text-gray-600 mb-4 hover:text-blue-600 transition-colors"
+                >
+                  {answers[0].answer.text}
+                </Link>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <TotemButton
+                      totemName={totemName}
+                      postId={post.id}
+                    />
+                    {answers[0].answer.totems.length > 1 && (
+                      <span className="text-sm text-gray-500">
+                        +{answers[0].answer.totems.length - 1} more totems
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {formatDistanceToNow(toDate(answers[0].answer.createdAt), { addSuffix: true })} by {getUserDisplayName(answers[0].answer)}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {selectedQuestion && (
+        <AnswerModal
+          isOpen={!!selectedQuestion}
+          onClose={() => setSelectedQuestion(null)}
+          selectedQuestion={selectedQuestion}
+          onAnswerSubmitted={handleAnswerSubmitted}
+        />
+      )}
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
+    </>
   );
 } 

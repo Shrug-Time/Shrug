@@ -13,6 +13,8 @@ import { useTotemV2 } from '@/contexts/TotemContextV2';
 import { useAuth } from '@/contexts/AuthContext';
 import { AnswerModal } from '@/components/answers/AnswerModal';
 import { useQueryClient } from '@tanstack/react-query';
+import { useAuthModal } from '@/hooks/useAuthModal';
+import { AuthModal } from '@/components/auth/AuthModal';
 
 // Helper function to safely convert various date formats to a Date object
 const toDate = (dateField: any): Date => {
@@ -56,6 +58,7 @@ export function QuestionList({
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState<Post | null>(null);
   const queryClient = useQueryClient();
+  const { isAuthModalOpen, setIsAuthModalOpen, handleAuthRequired } = useAuthModal();
 
   // Load initial state of likes for all posts
   useEffect(() => {
@@ -133,6 +136,12 @@ export function QuestionList({
     }
   };
 
+  const handleAnswerClick = (post: Post) => {
+    handleAuthRequired(() => {
+      setSelectedQuestion(post);
+    });
+  };
+
   const renderQuestion = useCallback((post: Post) => {
     // Get the user's answer if showUserAnswers is true, otherwise get the best answer
     const userAnswer = showUserAnswers && user 
@@ -172,7 +181,7 @@ export function QuestionList({
             {topTotem && renderTotemButton(post.id, topTotem.name)}
           </div>
           <button
-            onClick={() => setSelectedQuestion(post)}
+            onClick={() => handleAnswerClick(post)}
             className="inline-flex items-center justify-center w-8 h-8 rounded-full text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             +
@@ -180,7 +189,7 @@ export function QuestionList({
         </div>
       </div>
     );
-  }, [getTotemLikes, renderTotemButton, showUserAnswers, user]);
+  }, [getTotemLikes, renderTotemButton, showUserAnswers, user, handleAuthRequired]);
 
   // Calculate total likes for each post
   const postsWithLikes = posts.map(post => ({
@@ -223,6 +232,11 @@ export function QuestionList({
           onAnswerSubmitted={handleAnswerSubmitted}
         />
       )}
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
     </>
   );
 } 
