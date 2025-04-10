@@ -29,7 +29,6 @@ export default function Home() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<FeedType>('latest');
-  const [showCreatePost, setShowCreatePost] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -93,16 +92,6 @@ export default function Home() {
 
   return (
     <main className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold">Questions</h1>
-        <button
-          onClick={() => setShowCreatePost(true)}
-          className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
-        >
-          Ask a Question
-        </button>
-      </div>
-
       <div className="flex space-x-4 mb-6">
         <button
           onClick={() => setActiveTab('latest')}
