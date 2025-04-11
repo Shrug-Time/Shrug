@@ -9,50 +9,76 @@ Shrug is a social platform where users can ask questions and receive answers usi
 3. [Project Structure](#project-structure)
 4. [Key Features](#key-features)
 5. [Documentation](#documentation)
-6. [Implementation Plan](#implementation-plan)
+6. [Development Status](#development-status)
 
 ## Quick Start
 1. Clone the repository
 2. Install dependencies: `npm install`
 3. Set up environment variables (see `.env.example`)
 4. Run the development server: `npm run dev`
+5. Access the site at http://localhost:3000
 
 ## Tech Stack
-- Next.js 14
+- Next.js 14+
 - TypeScript
 - Firebase (Authentication & Firestore)
 - Tailwind CSS
 - React Query
+- Firebase Hosting (deployment)
 
 ## Project Structure
 ```
 src/
-├── app/                 # Next.js app router pages
+├── app/                # Next.js app router pages
 ├── components/         # React components
-│   ├── common/        # Shared components
-│   ├── questions/     # Question-related components
-│   └── totem/         # Totem-related components
-├── lib/               # Utility functions and configurations
-├── services/          # Business logic and API calls
-└── types/            # TypeScript type definitions
+│   ├── common/         # Shared components
+│   ├── questions/      # Question-related components
+│   └── totem/          # Totem-related components
+├── contexts/           # React contexts for state management
+├── hooks/              # Custom React hooks
+├── services/           # Business logic and API calls
+├── types/              # TypeScript type definitions
+└── utils/              # Utility functions
 ```
 
 ## Key Features
 - User authentication
 - Question creation and management
 - Totem-based answer system
-- Like/unlike functionality
-- Real-time updates
+- Like/unlike functionality with "crispness" decay
+- Profile management
 - Responsive design
 
 ## Documentation
 - [Implementation Plan](docs/IMPLEMENTATION_PLAN.md) - Current development roadmap
-- [Architecture](docs/ARCHITECTURE.md) - System design and data models
-- [Development](docs/DEVELOPMENT.md) - Development guidelines and patterns
-- [Changelog](docs/CHANGELOG.md) - Version history and future plans
+- [Firebase Setup](docs/FIREBASE_SETUP.md) - Firebase configuration details
 
-## Implementation Plan
-For the current development roadmap and detailed implementation plan, see [IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).
+## Development Status
+The project is currently in a refactoring phase following the [Implementation Plan](docs/IMPLEMENTATION_PLAN.md). We are:
+1. Standardizing data structures
+2. Improving URL route consistency
+3. Strengthening TypeScript typing
+4. Enhancing code quality and maintainability
+
+The app is functional in development mode (`npm run dev`) but needs implementation plan work before production deployment.
+
+### Working Components
+- Authentication (signup, login, logout)
+- Question creation and viewing
+- Totem-based interactions
+- Basic user profiles
+
+### Environment Requirements
+- Node.js 18+
+- npm 9+
+- Firebase project with Firestore and Authentication enabled
+
+## Deployment
+We use Firebase Hosting for deployment. Once the initial implementation phase is complete:
+1. Build the project: `npm run build`
+2. Deploy to Firebase: `firebase deploy`
+
+GitHub Actions are configured to automatically deploy the `main` branch to production.
 
 ## Learn More
 To learn more about Next.js, take a look at the following resources:
