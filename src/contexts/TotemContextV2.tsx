@@ -180,7 +180,8 @@ export function TotemProviderV2({ children }: { children: React.ReactNode }) {
       totalWeight += weight;
     });
 
-    const finalCrispness = totalWeight > 0 ? (weightedSum / totalWeight) * 100 : 0;
+    // Fixed calculation: divide total weight by number of likes to get proper percentage
+    const finalCrispness = activeLikes.length > 0 ? (totalWeight / activeLikes.length) * 100 : 0;
     console.log(`[Crispness] Final calculation: ${finalCrispness.toFixed(1)}% (weighted sum: ${weightedSum.toFixed(2)}, total weight: ${totalWeight.toFixed(2)})`);
     
     return finalCrispness;
