@@ -99,6 +99,14 @@ We're making the basic features work better and more reliably - like upgrading t
    - Add proper error handling
    - Implement caching for frequently accessed data
 
+5. **Basic Content Reporting** (3-4 days)
+   - Implement post/answer reporting UI
+   - Create admin notification system for reports
+   - Build simple review workflow
+   - Add basic enforcement actions (hide/remove)
+   - Implement rate limiting to prevent abuse
+   - Set up email notifications for moderators
+
 ### Confirmation Points
 - Which social login providers should we prioritize?
 - What specific premium features should be implemented first?
@@ -153,6 +161,15 @@ We're making the app more user-friendly and engaging - like adding power steerin
    - Create notification infrastructure
    - Implement in-app notifications
    - Add email notification options
+
+6. **Mobile-First Responsiveness** (4-6 days)
+   - Implement responsive design for all components
+   - Optimize layout for various screen sizes
+   - Create touch-friendly interaction patterns
+   - Ensure readable typography on small screens
+   - Test across multiple devices and orientations
+   - Optimize image loading for mobile networks
+   - Ensure core functionality works on low-end devices
 
 ### Confirmation Points
 - What profile customization options are most important?
@@ -236,6 +253,22 @@ We're making the app faster and more efficient - like tuning up a car engine.
 - How important is offline functionality?
 - What devices/connection speeds should we optimize for?
 
+### Post-MVP Features (Can Wait for Investment)
+
+- Advanced analytics
+- Complex recommendation systems
+- Full-featured moderation tools
+- Advanced search capabilities
+- Complete compliance infrastructure
+- **Onboarding Experience**
+  - First-time user tutorial
+  - Tooltips explaining unique concepts (totems)
+  - Progressive disclosure of features
+  - Contextual help throughout the interface
+  - "Empty state" designs for new users
+
+By focusing on the components listed as critical MVP elements, we create the strongest foundation for demonstrating the core value proposition to potential investors.
+
 ## Next Steps and Communication Plan
 
 To address the concern about miscommunication and ensure you're fully informed at each step:
@@ -257,15 +290,113 @@ To address the concern about miscommunication and ensure you're fully informed a
 
 4. **Decision Record**
    - All significant decisions will be documented
-   - Alternative approaches considered will be noted
-   - Reasoning behind choices will be explained in non-technical terms
 
-Would you prefer we start with more detailed breakdowns of each phase now, or would you rather proceed phase by phase, diving deeper into each one as we reach it? 
+## Appendix: Hosting and Technical Debt
 
+### Firebase Hosting Setup (Started but Deferred)
 
-Kyle's Thoughts:
-Can we apply ads even if we decide not to use them?
-How would recommendation system work?
-Use think to consider how to create subcollections and better organize data
-    In addition, use think to come up with the brst way to do the questions.
-        i.e. How do you handle the million variations to one question?
+We began setting up Firebase hosting but encountered obstacles that reinforced the need for our implementation plan:
+
+1. **Current Status of Hosting Setup**:
+   - Firebase CLI tools installed
+   - GitHub repository connected (Shrug-Time/Shrug)
+   - CI/CD pipeline configured for main branch
+   - Deployment attempted but blocked by code quality issues
+
+2. **Encountered ESLint Errors**:
+   - Production build failed due to numerous ESLint warnings and errors
+   - Issues include: missing TypeScript types, inconsistent patterns, unused variables
+   - These errors prevent production builds but don't affect development mode
+
+3. **Decision to Defer Hosting Completion**:
+   - Rather than applying temporary fixes, we're prioritizing the implementation plan
+   - The issues encountered align exactly with what our plan already aims to address
+   - Fixing errors outside the plan would create duplicate work and potential inconsistencies
+
+4. **To Complete Hosting Later**:
+   - After completing Phase 1 (Data Structure Refinement)
+   - Run `npm run build` to verify errors are resolved
+   - Run `firebase deploy` to complete deployment
+   - Verify the site at the Firebase-provided URL
+
+This experience validates our implementation approach - focusing on standardization and code quality first will create a stronger foundation before introducing new features.
+
+## MVP Focus for Investment
+
+To create the most efficient path to an investment-ready MVP, tasks within each phase should be prioritized according to these principles:
+
+### Critical MVP Components
+
+1. **Core Functionality (Highest Priority)**
+   - Totem system working correctly
+   - Question & Answer flow functioning
+   - User profiles showing activity
+   - Mobile responsiveness for all features
+
+2. **Trust & Safety (Essential)**
+   - Basic content reporting
+   - Account creation security
+   - Minimal but effective moderation tools
+
+3. **User Experience (Essential for Engagement)**
+   - Intuitive navigation
+   - Onboarding explaining unique concepts
+   - Smooth authentication process
+
+### Implementation Approach
+
+This plan is structured to deliver these MVPs components while maintaining code quality:
+
+1. **Phase 1 Priorities**:
+   - Data structure and route standardization are foundational
+   - These enable all subsequent features to be built reliably
+
+2. **Phase 2 Priorities**:
+   - Authentication must be solid from day one
+   - Reporting functionality protects the community
+   - Transaction safety prevents data corruption
+
+3. **Phase 3 Priorities**:
+   - Mobile responsiveness is essential for demos
+   - Onboarding helps showcase the unique value proposition
+   - Profile functionality demonstrates stickiness
+
+### Post-MVP Features (Can Wait for Investment)
+
+- Advanced analytics
+- Complex recommendation systems
+- Full-featured moderation tools
+- Advanced search capabilities
+- Complete compliance infrastructure
+
+By focusing on the components listed as critical MVP elements, we create the strongest foundation for demonstrating the core value proposition to potential investors.
+
+# Firebase Hosting Configuration
+
+## Setup Details
+- **Hosting Provider**: Firebase Hosting
+- **Connected Repository**: Shrug-Time/Shrug
+- **Production Branch**: main
+- **Public Directory**: [out or .next - whichever you selected]
+- **Build Command**: [npm run build or whatever you specified]
+- **Single Page App**: [Yes/No - based on your selection]
+
+## Deployment Methods
+1. **Automatic Deployment**:
+   - Merging to main branch automatically triggers deployment
+   - GitHub Actions workflow handles build and deploy
+
+2. **Manual Deployment**:
+   ```
+   npm run build
+   firebase deploy
+   ```
+
+## Access Points
+- **Live Site URL**: [Your Firebase URL - typically https://your-project-id.web.app]
+- **GitHub Actions**: View deployments in GitHub repository under Actions tab
+
+## Common Issues
+- If builds fail, check GitHub Actions logs for errors
+- Local changes must be pushed to GitHub to trigger deployment
+- Preview deployments can be created by opening pull requests
