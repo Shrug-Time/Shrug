@@ -37,6 +37,7 @@ After careful review of the existing data structure and minimal active user data
    - [✅ COMPLETED] Add strategic denormalization where needed for performance
    - [✅ COMPLETED] Ensure consistent active/inactive like handling
    - **Create database reset script to clear all collections and start fresh with standardized fields only**
+   - **Remove all legacy field handling from services after database reset**
 
 3. **Set Up Database Indexes** (1-2 days)
    - [✅ COMPLETED] Create index configuration file
