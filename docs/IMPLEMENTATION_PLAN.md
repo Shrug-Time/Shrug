@@ -36,7 +36,7 @@ After careful review of the existing data structure and minimal active user data
    - [✅ COMPLETED] Implement data access layer using standardized fields
    - [✅ COMPLETED] Add strategic denormalization where needed for performance
    - [✅ COMPLETED] Ensure consistent active/inactive like handling
-   - Create migration scripts for existing data or clear collections as needed
+   - **Create database reset script to clear all collections and start fresh with standardized fields only**
 
 3. **Set Up Database Indexes** (1-2 days)
    - [✅ COMPLETED] Create index configuration file
