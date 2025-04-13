@@ -5,7 +5,8 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Toast } from '@/components/common/Toast';
 import { QuestionList } from '@/components/questions/QuestionList';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
-import { UserService, PostService } from '@/services/firebase';
+import { PostService } from '@/services/firebase';
+import { UserService } from '@/services/userService';
 import { handleTotemLike as utilHandleTotemLike, handleTotemRefresh as utilHandleTotemRefresh } from '@/utils/totem';
 import { useRouter } from 'next/navigation';
 import type { Post, UserProfile } from '@/types/models';
@@ -46,8 +47,18 @@ function ProfileContent({ userID }: { userID: string }) {
     queryKey: ['user', userID, idType],
     queryFn: async () => {
       try {
-        // For now, use the existing getUserProfile method which handles different ID types
-        const profile = await UserService.getUserProfile(userID);
+        let profile = null;
+
+        // Handle different ID types appropriately
+        if (idType === 'firebaseUid') {
+          profile = await UserService.getUserByFirebaseUid(userID);
+        } else if (idType === 'username') {
+          profile = await UserService.getUserByUsername(userID);
+        } else {
+          // For legacy IDs, try both methods
+          profile = await UserService.getUserByFirebaseUid(userID) || 
+                    await UserService.getUserByUsername(userID);
+        }
         
         // If we didn't find a profile, throw an error
         if (!profile) {
@@ -221,9 +232,10 @@ function ProfileContent({ userID }: { userID: string }) {
             <h2 className="text-xl font-semibold mb-4">Posts and Answers</h2>
             <QuestionList 
               posts={userPosts}
-              onSelectQuestion={handleSelectQuestion}
-              onLikeTotem={handleTotemLike}
-              onRefreshTotem={handleTotemRefresh}
+              onWantToAnswer={(post) => router.push(`/post/${post.id}`)}
+              hasNextPage={false}
+              isLoading={false}
+              onLoadMore={() => {}}
               showAllTotems={false}
             />
           </div>

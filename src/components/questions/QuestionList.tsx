@@ -15,6 +15,7 @@ import { AnswerModal } from '@/components/answers/AnswerModal';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthModal } from '@/hooks/useAuthModal';
 import { AuthModal } from '@/components/auth/AuthModal';
+import { getPostUrl, getAnswerUrl } from '@/utils/routes';
 
 // Helper function to safely convert various date formats to a Date object
 const toDate = (dateField: any): Date => {
@@ -65,13 +66,10 @@ export function QuestionList({
     if (!user) return;
 
     const loadTotemsOnce = async () => {
-      // Skip if no posts to prevent unnecessary loads
       if (posts.length === 0) return;
 
-      // Create a set of unique totem names across all posts
       const uniqueTotemNames = new Set<string>();
       
-      // Collect all totem names across all posts
       posts.forEach(post => {
         if (post.answers) {
           post.answers.forEach(answer => {
@@ -84,28 +82,19 @@ export function QuestionList({
         }
       });
       
-      // Convert Set to Array
       const totemNamesArray = Array.from(uniqueTotemNames);
       
-      // Only proceed if we have totem names to load
       if (totemNamesArray.length > 0) {
-        console.log(`[QuestionList] Loading totems: ${totemNamesArray.length} unique totems`);
-        
-        // Load totems one post at a time to reduce load
         for (const post of posts) {
           await loadPostTotems(post.id, totemNamesArray);
-          // Add a small delay to prevent overwhelming the server
           await new Promise(resolve => setTimeout(resolve, 50));
         }
       }
     };
 
-    // Run once and don't re-run for the same posts
     const postsKey = posts.map(p => p.id).join(',');
     loadTotemsOnce();
   }, [posts.length, user, loadPostTotems]);
-
-  console.log('[QuestionList] Rendering with posts:', posts.length);
 
   const handleInteraction = useCallback(async (action: () => void | Promise<void>) => {
     if (!user) {
@@ -147,7 +136,6 @@ export function QuestionList({
   }, []);
 
   const renderTotemButton = (postId: string, totemName: string) => {
-    console.log('[QuestionList] Rendering totem button:', { postId, totemName });
     return (
       <TotemButton
         key={totemName}
@@ -172,20 +160,18 @@ export function QuestionList({
   };
 
   const renderQuestion = useCallback((post: Post) => {
-    // Get the user's answer if showUserAnswers is true, otherwise get the best answer
     const userAnswer = showUserAnswers && user 
       ? post.answers.find(answer => answer.firebaseUid === user.uid)
       : null;
     
-    const answerToShow = userAnswer || post.answers[0];
+    const answerToShow = userAnswer || (post.answers && post.answers.length > 0 ? post.answers[0] : null);
     const firstParagraph = answerToShow?.text?.split('\n')[0] || '';
     
-    // Find the totem with the most likes
-    const topTotem = answerToShow?.totems.reduce((top, current) => {
+    const topTotem = answerToShow?.totems?.reduce((top, current) => {
       const topLikes = getTotemLikes(top);
       const currentLikes = getTotemLikes(current);
       return currentLikes > topLikes ? current : top;
-    }, answerToShow.totems[0]);
+    }, answerToShow?.totems?.[0]);
     
     return (
       <div key={post.id} className="bg-white rounded-lg shadow p-4 mb-4">
@@ -193,16 +179,25 @@ export function QuestionList({
           Posted by {post.username}
         </div>
         <div className="space-y-2">
-          <Link href={`/post/${post.id}`} className="block hover:bg-gray-50 rounded-lg transition-colors">
+          <Link href={getPostUrl(post.id)} className="block hover:bg-gray-50 rounded-lg transition-colors">
             <h2 className="text-xl font-semibold mb-2 text-gray-900 hover:text-blue-600">{post.question}</h2>
           </Link>
           {firstParagraph && answerToShow && (
-            <Link 
-              href={`/post/${post.id}/answer/${answerToShow.id}`}
-              className="block text-gray-600 mb-3 line-clamp-2 hover:text-blue-600 transition-colors"
-            >
-              {firstParagraph}
-            </Link>
+            answerToShow.id ? (
+              <Link 
+                href={getAnswerUrl(post.id, answerToShow.id)}
+                className="block hover:bg-gray-50 rounded-lg transition-colors p-2"
+              >
+                <p className="text-gray-600">{firstParagraph}</p>
+              </Link>
+            ) : (
+              <Link 
+                href={getPostUrl(post.id)}
+                className="block hover:bg-gray-50 rounded-lg transition-colors p-2"
+              >
+                <p className="text-gray-600">{firstParagraph}</p>
+              </Link>
+            )
           )}
         </div>
         <div className="flex items-center justify-between">

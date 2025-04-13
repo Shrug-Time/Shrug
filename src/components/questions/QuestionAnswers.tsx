@@ -4,11 +4,12 @@ import { TotemButton } from '@/components/totem/TotemButtonV2';
 import { getTotemLikes, getUserDisplayName } from '@/utils/componentHelpers';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { AnswerModal } from '@/components/answers/AnswerModal';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthModal } from '@/hooks/useAuthModal';
 import { AuthModal } from '@/components/auth/AuthModal';
+import { getAnswerUrl, getPostUrl } from '@/utils/routes';
 
 // Helper function to safely convert various date formats to a Date object
 const toDate = (dateField: any): Date => {
@@ -126,8 +127,9 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
             {answers[0] && (
               <div className="bg-white rounded-xl shadow p-4">
                 <Link 
-                  href={`/post/${post.id}/answer/${answers[0].answer.id}`}
-                  className="block text-gray-600 mb-4 hover:text-blue-600 transition-colors"
+                  className="group cursor-pointer"
+                  href={getAnswerUrl(post.id, answers[0].answer.id)}
+                  title="View full answer"
                 >
                   {answers[0].answer.text}
                 </Link>

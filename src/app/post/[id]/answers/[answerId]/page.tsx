@@ -7,6 +7,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { TotemButton } from '@/components/totem/TotemButtonV2';
 import { getTotemLikes, getUserDisplayName } from '@/utils/componentHelpers';
 import Link from 'next/link';
+import { getPostUrl } from '@/utils/routes';
 
 // Helper function to safely convert various date formats to a Date object
 const toDate = (dateField: any): Date => {
@@ -51,7 +52,7 @@ export default function AnswerPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="bg-white rounded-xl shadow p-6 mb-8">
-        <Link href={`/post/${postId}`} className="text-blue-500 hover:underline mb-4 block">
+        <Link href={getPostUrl(postId)} className="text-blue-500 hover:underline mb-4 block">
           ← Back to question
         </Link>
         <h1 className="text-2xl font-bold text-gray-900 mb-4">{post.question}</h1>

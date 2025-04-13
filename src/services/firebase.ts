@@ -569,45 +569,6 @@ export const PostService = {
   },
 };
 
-export class UserService {
-  static async getUserProfile(userID: string): Promise<UserProfile | null> {
-    try {
-      console.log('[UserService.getUserProfile] Fetching profile for user:', userID);
-      
-      const userRef = doc(db, 'users', userID);
-      const userDoc = await getDoc(userRef);
-
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        console.log('[UserService.getUserProfile] Found user profile:', {
-          userID: userData.userID,
-          name: userData.name,
-          email: userData.email?.substring(0, 3) + '***',
-          membershipTier: userData.membershipTier
-        });
-        return userData as UserProfile;
-      }
-      
-      console.log('[UserService.getUserProfile] No user profile found for:', userID);
-      return null;
-    } catch (error) {
-      console.error('[UserService.getUserProfile] Error fetching user profile:', error);
-      throw error;
-    }
-  }
-
-  static async checkPremiumStatus(userId: string): Promise<boolean> {
-    try {
-      const userDoc = await getDoc(doc(db, 'users', userId));
-      const userData = userDoc.data() as UserProfile;
-      return userData?.membershipTier === 'premium';
-    } catch (error) {
-      console.error('Error checking premium status:', error);
-      throw error;
-    }
-  }
-}
-
 // Helper function to track a user's answer in the userAnswers collection
 export async function trackUserAnswer(userID: string, postID: string) {
   try {

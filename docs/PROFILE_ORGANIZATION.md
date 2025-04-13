@@ -196,3 +196,5 @@ A: Yes, the template-based approach allows us to add new organization methods an
 
 ### Q: How will this handle the various ways content might evolve?
 A: The multiple organization methods (complexity, chronological, sequence) provide flexibility for different content types, and the section-based approach allows users to group content in ways that make sense for their specific knowledge areas. 
+
+https://www.figma.com/community/plugin/1434599500152464568/figma-to-cursor

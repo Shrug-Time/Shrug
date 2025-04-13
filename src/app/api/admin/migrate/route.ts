@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { migrateAnswerUserIds } from '@/scripts/migrateAnswerUserIds';
 import { auth } from '@/firebase';
-import { UserService } from '@/services/firebase';
+import { PostService } from '@/services/firebase';
+import { UserService } from '@/services/userService';
 
 /**
  * API endpoint to run migrations
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Check if the user is an admin
-    const userProfile = await UserService.getUserProfile(user.uid);
+    const userProfile = await UserService.getUserByFirebaseUid(user.uid);
     
     if (!userProfile || userProfile.membershipTier !== 'premium') {
       return NextResponse.json(

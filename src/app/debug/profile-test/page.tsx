@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { auth } from '@/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { PostService, UserService } from '@/services/firebase';
+import { PostService } from '@/services/firebase';
+import { UserService } from '@/services/userService';
 
 export default function ProfileTest() {
   const [userId, setUserId] = useState<string>('');
@@ -57,8 +58,14 @@ export default function ProfileTest() {
     try {
       console.log(`Fetching profile for user ID: ${inputUserId}`);
       
-      // Fetch user profile
-      const profile = await UserService.getUserProfile(inputUserId);
+      // Try to fetch user profile using both methods
+      let profile = await UserService.getUserByFirebaseUid(inputUserId);
+      
+      // If not found by firebase uid, try by username
+      if (!profile) {
+        profile = await UserService.getUserByUsername(inputUserId);
+      }
+      
       setUserProfile(profile);
       console.log('User profile:', profile);
 

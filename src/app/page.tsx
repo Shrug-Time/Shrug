@@ -24,7 +24,6 @@ const calculateTotalLikes = (post: Post) => {
 export default function Home() {
   const { user } = useAuth();
   const { toggleLike } = useTotemV2();
-  console.log('[Home] Context initialized:', { hasUser: !!user, hasToggleLike: !!toggleLike });
   
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -81,12 +80,10 @@ export default function Home() {
   };
 
   const handleTotemLikeClick = async (post: Post, answerIdx: number, totemName: string) => {
-    console.log('[Home] handleTotemLikeClick called:', { postId: post.id, totemName });
     await toggleLike(post.id, totemName);
   };
 
   const handleTotemUnlikeClick = async (post: Post, answerIdx: number, totemName: string) => {
-    console.log('[Home] handleTotemUnlikeClick called:', { postId: post.id, totemName });
     await toggleLike(post.id, totemName);
   };
 

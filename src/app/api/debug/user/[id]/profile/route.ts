@@ -1,63 +1,31 @@
+import { UserService } from '@/services/userService';
 import { NextRequest, NextResponse } from 'next/server';
-import { UserService } from '@/services/firebase';
-import { UserService as AppUserService } from '@/services/userService';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    // Ensure params.id is properly awaited
-    const { id } = await params;
-    const userId = id;
+    const userID = params.id;
     
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'User ID is required' },
-        { status: 400 }
-      );
-    }
-    
-    console.log(`[API] Fetching profile for user: ${userId}`);
-    
-    // Try to get user by Firebase UID first
-    let profile = await AppUserService.getUserByFirebaseUid(userId);
+    // First try the standardized version
+    let userProfile = await UserService.getUserByFirebaseUid(userID);
     
     // If not found, try by username
-    if (!profile) {
-      profile = await AppUserService.getUserByUsername(userId);
+    if (!userProfile) {
+      userProfile = await UserService.getUserByUsername(userID);
     }
     
-    // Fall back to legacy service if needed
-    if (!profile) {
-      profile = await UserService.getUserProfile(userId);
+    // If still not found, return 404
+    if (!userProfile) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
     
-    if (!profile) {
-      return NextResponse.json(
-        { exists: false, message: `No profile found for user ID: ${userId}` },
-        { status: 404 }
-      );
-    }
-    
-    // Mask sensitive information
-    const maskedProfile = { ...profile };
-    if (maskedProfile.email) {
-      maskedProfile.email = `${maskedProfile.email.substring(0, 3)}***${maskedProfile.email.substring(maskedProfile.email.indexOf('@'))}`;
-    }
-    
-    return NextResponse.json({
-      exists: true,
-      profile: maskedProfile
-    });
+    return NextResponse.json({ userProfile });
   } catch (error) {
     console.error('Error in user profile API:', error);
     return NextResponse.json(
-      { 
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : null
-      },
+      { error: 'Failed to fetch user profile' },
       { status: 500 }
     );
   }
