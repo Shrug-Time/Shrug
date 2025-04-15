@@ -4,13 +4,7 @@ import React from 'react';
 import { useTotem } from '@/contexts/TotemContext';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Post } from '@/types/models';
-import { TotemDetail } from '@/components/totem/TotemDetail';
-import { Card } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import { TotemButton } from '@/components/totem/TotemButton';
-import { Button } from '@/components/ui/button';
-import { CalendarIcon, LinkIcon, ChatBubbleOvalLeftEllipsisIcon, UserCircleIcon } from '@heroicons/react/24/outline';
-import { formatDateFromTimestamp } from '@/utils/date';
 import { getTotemLikes, getUserDisplayName } from '@/utils/componentHelpers';
 import { formatDistanceToNow } from 'date-fns';
 

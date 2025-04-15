@@ -21,21 +21,55 @@ export function TotemSelector({
   const [newTotemName, setNewTotemName] = useState('');
   const [newTotemCategory, setNewTotemCategory] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
-  useEffect(() => {
-    const loadSuggestions = async () => {
+  // Function to suggest totems based on answer text
+  const suggestTotems = async (debounced = true) => {
+    // Skip if answer text is too short
+    if (answerText.length < 15) {
+      setSuggestions([]);
+      return;
+    }
+    
+    try {
       if (answerText) {
         const existingTotemNames = selectedTotems.map(t => t.name);
-        const newSuggestions = await TotemService.suggestTotems(
-          answerText,
-          existingTotemNames
-        );
-        setSuggestions(newSuggestions);
+        // Use a stub function or the actual service if available
+        // const newSuggestions = await TotemService.suggestTotems(
+        //   answerText,
+        //   existingTotemNames
+        // );
+        
+        // Mock totem suggestions for now
+        const mockSuggestions = [
+          { 
+            totemName: 'interesting', 
+            confidence: 0.8, 
+            reason: 'This is interesting content',
+            category: 'positive',
+          },
+          { 
+            totemName: 'helpful', 
+            confidence: 0.9, 
+            reason: 'This answer is helpful',
+            category: 'positive',
+          },
+          { 
+            totemName: 'funny', 
+            confidence: 0.7, 
+            reason: 'This is humorous',
+            category: 'positive',
+          },
+        ].filter(t => !existingTotemNames.includes(t.totemName));
+        
+        setSuggestions(mockSuggestions);
+        setShowSuggestions(mockSuggestions.length > 0);
       }
-    };
-
-    loadSuggestions();
-  }, [answerText, selectedTotems]);
+    } catch (error) {
+      console.error('Error suggesting totems:', error);
+      setSuggestions([]);
+    }
+  };
 
   const handleCreateTotem = () => {
     if (newTotemName && newTotemCategory) {

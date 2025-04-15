@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PostService } from '@/services/firebase';
-import { UserService } from '@/services/userService';
+// import { PostService } from '@/services/firebase';
+// import { UserService } from '@/services/userService';
 
+/*
 // Define a more flexible type for handling both old and new field names during transition
 interface FlexiblePost {
   id: string;
@@ -104,4 +105,12 @@ export async function GET(
       { status: 500 }
     );
   }
+}
+*/
+
+// Temporary placeholder API during refactoring
+export async function GET(
+  request: NextRequest
+) {
+  return NextResponse.json({ message: "API temporarily disabled during refactoring" }, { status: 503 });
 } 

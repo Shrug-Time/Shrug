@@ -1,14 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PostService } from '@/services/firebase';
+// import { PostService } from '@/services/firebase';
+
+/*
+// Use the exact type definition from Next.js documentation
+type RouteParams = {
+  params: {
+    id: string
+  }
+}
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: RouteParams
 ) {
   try {
-    // Ensure params.id is properly awaited
-    const { id } = await params;
-    const postId = id;
+    const postId = params.id;
     
     if (!postId) {
       return NextResponse.json(
@@ -33,4 +39,12 @@ export async function GET(
       { status: 500 }
     );
   }
+}
+*/
+
+// Temporary placeholder API during refactoring
+export async function GET(
+  request: NextRequest
+) {
+  return NextResponse.json({ message: "API temporarily disabled during refactoring" }, { status: 503 });
 } 

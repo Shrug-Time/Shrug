@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { doc, updateDoc, arrayUnion, arrayRemove, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '@/firebase';
 import type { UserProfile } from '@/types/models';
 import { useUser } from '@/hooks/useUser';
 import { UserService } from '@/services/userService';
@@ -24,7 +22,7 @@ export function FollowButton({ currentUserId, targetUserId, className = '', onEr
   const [isLoading, setIsLoading] = useState(true);
 
   // Hide button if viewing own profile
-  if (!profile || profile.userID === targetUserId) {
+  if (!profile || profile.firebaseUid === targetUserId) {
     return null;
   }
 
@@ -32,8 +30,7 @@ export function FollowButton({ currentUserId, targetUserId, className = '', onEr
   useEffect(() => {
     const checkFollowStatus = async () => {
       try {
-        const userDoc = await getDoc(doc(db, 'users', currentUserId));
-        const userData = userDoc.data() as UserProfile;
+        const userData = await UserService.getUserByFirebaseUid(currentUserId);
         setIsFollowing(userData?.following?.includes(targetUserId) ?? false);
         setIsLoading(false);
       } catch (error) {
@@ -45,25 +42,6 @@ export function FollowButton({ currentUserId, targetUserId, className = '', onEr
     checkFollowStatus();
   }, [currentUserId, targetUserId, onError]);
 
-  const ensureUserExists = async (userId: string, isTarget: boolean = false) => {
-    const userRef = doc(db, 'users', userId);
-    const userDoc = await getDoc(userRef);
-    
-    if (!userDoc.exists()) {
-      // Create a basic user document if it doesn't exist
-      await setDoc(userRef, {
-        userID: userId,
-        name: isTarget ? targetUserId : userId, // Use userID as name if not available
-        followers: [],
-        following: [],
-        createdAt: new Date(),
-        verificationStatus: 'unverified',
-        membershipTier: 'free',
-      });
-    }
-    return userDoc.exists() ? userDoc.data() as UserProfile : null;
-  };
-
   const handleFollow = async () => {
     if (currentUserId === targetUserId) {
       onError?.('You cannot follow your own account');
@@ -73,27 +51,14 @@ export function FollowButton({ currentUserId, targetUserId, className = '', onEr
     try {
       setIsLoading(true);
       
-      // Ensure both users exist and get their data
-      const [currentUserData, targetUserData] = await Promise.all([
-        ensureUserExists(currentUserId),
-        ensureUserExists(targetUserId, true)
-      ]);
-
-      const currentUserRef = doc(db, 'users', currentUserId);
-      const targetUserRef = doc(db, 'users', targetUserId);
-
-      const updates = {
-        following: isFollowing 
-          ? currentUserData?.following?.filter(id => id !== targetUserId)
-          : [...(currentUserData?.following || []), targetUserId]
-      };
+      if (isFollowing) {
+        // Unfollow the user
+        await UserService.unfollowUser(currentUserId, targetUserId);
+      } else {
+        // Follow the user
+        await UserService.followUser(currentUserId, targetUserId);
+      }
       
-      await updateDoc(currentUserRef, updates);
-      await updateDoc(targetUserRef, {
-        followers: isFollowing 
-          ? arrayRemove(currentUserId)
-          : arrayUnion(currentUserId)
-      });
       setIsFollowing(!isFollowing);
       onFollowChange?.();
     } catch (error) {

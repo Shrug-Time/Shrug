@@ -1,95 +1,95 @@
-import { db } from '@/firebase';
-import { collection, getDocs, doc, updateDoc, writeBatch } from 'firebase/firestore';
-import type { Post } from '@/types/models';
-import { normalizePost } from '@/utils/dataTransform';
-
 /**
- * Migration script to add answerUserIds field to all posts
- * This helps with more efficient querying of posts by user ID
+ * THIS MIGRATION SCRIPT IS NO LONGER NEEDED
+ * 
+ * Since the database has been cleared, there's no legacy data to migrate.
+ * Keeping this file for reference only.
  */
-export async function migrateAnswerUserIds() {
+
+/*
+import dotenv from 'dotenv';
+import path from 'path';
+// Load environment variables
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+import { normalizePost } from '../utils/normalizers';
+
+// Initialize Firebase if not already initialized
+if (getApps().length === 0) {
+  const serviceAccount = JSON.parse(
+    process.env.FIREBASE_SERVICE_ACCOUNT_KEY || '{}'
+  );
+  
+  initializeApp({
+    credential: cert(serviceAccount),
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  });
+}
+
+const db = getFirestore();
+
+async function migrateAnswerUserIds() {
   try {
-    console.log('Starting migration: Adding answerUserIds field to posts');
+    console.log('Starting migration of answer user IDs...');
     
     // Get all posts
-    const postsRef = collection(db, 'posts');
-    const snapshot = await getDocs(postsRef);
+    const postsSnapshot = await db.collection('posts').get();
+    console.log(`Found ${postsSnapshot.size} posts to process`);
     
-    console.log(`Found ${snapshot.docs.length} posts to process`);
+    let updatedPostsCount = 0;
+    let totalAnswersProcessed = 0;
     
-    // Process in batches for better performance
-    const BATCH_SIZE = 500;
-    let processedCount = 0;
-    let updatedCount = 0;
-    let errorCount = 0;
-    
-    // Process posts in batches
-    for (let i = 0; i < snapshot.docs.length; i += BATCH_SIZE) {
-      const batch = writeBatch(db);
-      const batchDocs = snapshot.docs.slice(i, i + BATCH_SIZE);
-      
-      console.log(`Processing batch ${Math.floor(i / BATCH_SIZE) + 1} (${batchDocs.length} posts)`);
-      
-      for (const postDoc of batchDocs) {
-        try {
-          // Normalize the post data
-          const post = normalizePost(postDoc.id, postDoc.data());
-          
-          // Extract unique user IDs from answers
-          const answerUserIds = [...new Set(
-            post.answers
-              .map(answer => answer.userId)
-              .filter(Boolean)
-          )];
-          
-          // Only update if there are answer user IDs
-          if (answerUserIds.length > 0) {
-            batch.update(doc(db, 'posts', post.id), { answerUserIds });
-            updatedCount++;
-          }
-          
-          processedCount++;
-        } catch (error) {
-          console.error(`Error processing post ${postDoc.id}:`, error);
-          errorCount++;
-        }
-      }
-      
-      // Commit the batch
+    // Process each post
+    for (const postDoc of postsSnapshot.docs) {
       try {
-        await batch.commit();
-        console.log(`Committed batch ${Math.floor(i / BATCH_SIZE) + 1}`);
+        // Convert Firestore document to normalized post
+        const post = normalizePost(postDoc.id, postDoc.data());
+        
+        // Get unique user IDs from answers using type assertion for legacy data
+        const answerUserIds = [...new Set(
+          post.answers
+            .map(answer => {
+              const answerAny = answer as any;
+              return answerAny.userId || answerAny.authorId || '';
+            })
+            .filter(Boolean)
+        )];
+        
+        // Skip if no user IDs found
+        if (answerUserIds.length === 0) {
+          console.log(`Skipping post ${postDoc.id} - no user IDs found in answers`);
+          continue;
+        }
+        
+        console.log(`Processing post ${postDoc.id} with ${post.answers.length} answers and ${answerUserIds.length} unique user IDs`);
+        
+        // Update the post document with the user IDs for faster queries
+        await postDoc.ref.update({
+          answerUserIds: answerUserIds
+        });
+        
+        updatedPostsCount++;
+        totalAnswersProcessed += post.answers.length;
+        
       } catch (error) {
-        console.error(`Error committing batch ${Math.floor(i / BATCH_SIZE) + 1}:`, error);
-        errorCount += batchDocs.length;
+        console.error(`Error processing post ${postDoc.id}:`, error);
       }
     }
     
-    console.log('Migration complete:');
-    console.log(`- Processed: ${processedCount} posts`);
-    console.log(`- Updated: ${updatedCount} posts`);
-    console.log(`- Errors: ${errorCount} posts`);
+    console.log(`Migration complete. Updated ${updatedPostsCount} posts with ${totalAnswersProcessed} answers total.`);
     
-    return {
-      processed: processedCount,
-      updated: updatedCount,
-      errors: errorCount
-    };
   } catch (error) {
     console.error('Migration failed:', error);
-    throw error;
   }
 }
 
-// Run the migration if this script is executed directly
-if (require.main === module) {
-  migrateAnswerUserIds()
-    .then(result => {
-      console.log('Migration completed successfully:', result);
-      process.exit(0);
-    })
-    .catch(error => {
-      console.error('Migration failed:', error);
-      process.exit(1);
-    });
-} 
+// Run the migration
+migrateAnswerUserIds().then(() => {
+  console.log('Migration script completed');
+  process.exit(0);
+}).catch(error => {
+  console.error('Migration script failed:', error);
+  process.exit(1);
+});
+*/ 

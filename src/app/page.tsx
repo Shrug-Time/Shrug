@@ -7,8 +7,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { QuestionList } from '@/components/questions/QuestionList';
 import { useRouter } from 'next/navigation';
 import { Post } from '@/types/models';
-import { PostService } from '@/services/firebase';
+import { PostService } from '@/services/standardized';
 import { getTotemLikes } from '@/utils/componentHelpers';
+import { QueryConstraint } from 'firebase/firestore';
 
 type FeedType = 'for-you' | 'popular' | 'latest';
 
@@ -34,35 +35,68 @@ export default function Home() {
     const fetchPosts = async () => {
       setIsLoading(true);
       try {
-        let result;
+        let fetchedPosts: Post[] = [];
+        
         switch (activeTab) {
           case 'latest':
-            result = await PostService.getPosts('createdAt', 10);
+            // Use standardized service with createdAt ordering
+            const latestResult = await PostService.getPaginatedPosts(
+              [], // No additional constraints
+              10  // Page size
+            );
+            fetchedPosts = latestResult.posts || [];
             break;
+            
           case 'popular':
-            result = await PostService.getPosts('lastInteraction', 10);
+            // Use standardized service with lastInteraction ordering
+            const constraints: QueryConstraint[] = []; // No additional constraints
+            const popularResult = await PostService.getPaginatedPosts(
+              constraints,
+              10
+            );
+            fetchedPosts = popularResult.posts || [];
+            // Sort by total likes (since lastInteraction may not strictly correlate with popularity)
+            fetchedPosts = [...fetchedPosts].sort((a, b) => {
+              const aLikes = calculateTotalLikes(a);
+              const bLikes = calculateTotalLikes(b);
+              return bLikes - aLikes;
+            });
             break;
+            
           case 'for-you':
             if (user?.uid) {
-              const userPosts = await PostService.getUserPosts(user.uid);
-              result = { items: userPosts, lastDoc: null };
+              // Get user's posts
+              const userPostsResult = await PostService.getUserPosts(user.uid, 10);
+              
+              // Get posts user has answered
+              const userAnswersResult = await PostService.getUserAnswers(user.uid, 10);
+              
+              // Combine and deduplicate posts
+              const combinedPosts = [
+                ...(userPostsResult.posts || []),
+                ...(userAnswersResult.posts || [])
+              ];
+              
+              // Remove duplicates by post ID
+              const uniquePostIds = new Set<string>();
+              fetchedPosts = combinedPosts.filter(post => {
+                if (uniquePostIds.has(post.id)) return false;
+                uniquePostIds.add(post.id);
+                return true;
+              });
             } else {
               // Fallback to latest posts if not authenticated
-              result = await PostService.getPosts('createdAt', 10);
+              const fallbackResult = await PostService.getPaginatedPosts([], 10);
+              fetchedPosts = fallbackResult.posts || [];
             }
             break;
+            
           default:
-            result = await PostService.getPosts('createdAt', 10);
+            const defaultResult = await PostService.getPaginatedPosts([], 10);
+            fetchedPosts = defaultResult.posts || [];
         }
 
-        // Sort posts by total likes within each tab
-        const sortedPosts = [...result.items].sort((a, b) => {
-          const aLikes = calculateTotalLikes(a);
-          const bLikes = calculateTotalLikes(b);
-          return bLikes - aLikes;
-        });
-
-        setPosts(sortedPosts);
+        setPosts(fetchedPosts);
       } catch (error) {
         console.error('Error fetching posts:', error);
         // Set empty posts array on error

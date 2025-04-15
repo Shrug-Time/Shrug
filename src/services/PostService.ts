@@ -91,10 +91,17 @@ export class PostService {
 
       // Sort by createdAt on client side
       posts.sort((a, b) => {
-        const aAnswer = (a.answers || []).find(ans => ans.userId === userID);
-        const bAnswer = (b.answers || []).find(ans => ans.userId === userID);
-        const aTime = aAnswer?.createdAt instanceof Timestamp ? aAnswer.createdAt.toMillis() : 0;
-        const bTime = bAnswer?.createdAt instanceof Timestamp ? bAnswer.createdAt.toMillis() : 0;
+        const aAnswer = (a.answers || []).find(ans => (ans as any).userId === userID);
+        const bAnswer = (b.answers || []).find(ans => (ans as any).userId === userID);
+        
+        // Use type assertion for the timestamp check
+        const aTime = aAnswer?.createdAt && typeof aAnswer.createdAt === 'object' ? 
+          ((aAnswer.createdAt as any).toMillis ? (aAnswer.createdAt as any).toMillis() : 0) : 0;
+        
+        const bTime = bAnswer?.createdAt && typeof bAnswer.createdAt === 'object' ? 
+          ((bAnswer.createdAt as any).toMillis ? (bAnswer.createdAt as any).toMillis() : 0) : 0;
+        
+        // Sort in descending order (newest first)
         return bTime - aTime;
       });
 

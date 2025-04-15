@@ -6,7 +6,7 @@
  * and normalizes data formats.
  */
 
-import type { UserProfile, Post, Answer, Totem, TotemAssociation, TotemLike, UserTotemInteraction } from '@/types/models';
+import type { UserProfile, Post, Answer, Totem, TotemAssociation, TotemLike } from '@/types/models';
 import { COMMON_FIELDS, USER_FIELDS, POST_FIELDS, ANSWER_FIELDS, TOTEM_ASSOCIATION_FIELDS } from '@/constants/fields';
 
 /**
@@ -104,7 +104,7 @@ export function validateUserProfile(profile: Partial<UserProfile>): UserProfile 
     
     // Profile content
     email: normalizeString(profile.email),
-    bio: profile.bio ? normalizeString(profile.bio) : undefined,
+    bio: normalizeString(profile.bio),
     photoURL: profile.photoURL ? normalizeString(profile.photoURL) : undefined,
     
     // Status fields
@@ -247,74 +247,34 @@ export function validateAnswer(answer: Partial<Answer>): Answer {
  * @returns Normalized Totem
  */
 export function validateTotem(totem: Partial<Totem>): Totem {
-  // Validate required fields
-  validateRequired(totem.id, 'id');
-  validateRequired(totem.name, 'name');
+  // Generate default if needed
+  if (!totem.name) {
+    throw new Error('Totem name is required');
+  }
   
   const now = Date.now();
-  
-  // Normalize like history
-  const normalizedLikeHistory = normalizeArray<TotemLike>(totem.likeHistory).map(like => ({
-    firebaseUid: normalizeString(like.firebaseUid),
-    originalTimestamp: normalizeTimestamp(like.originalTimestamp, now),
-    lastUpdatedAt: normalizeTimestamp(like.lastUpdatedAt, now),
-    isActive: like.isActive ?? false,
-    value: like.value ?? 1,
-  }));
   
   // Build normalized totem
   return {
     id: normalizeString(totem.id),
     name: normalizeString(totem.name),
-    description: totem.description ? normalizeString(totem.description) : undefined,
-    imageUrl: totem.imageUrl ? normalizeString(totem.imageUrl) : undefined,
     
-    // Like history
-    likeHistory: normalizedLikeHistory,
+    // Metadata
+    description: normalizeString(totem.description),
+    imageUrl: normalizeString(totem.imageUrl),
     
-    // Properties
-    crispness: typeof totem.crispness === 'number' ? totem.crispness : 100,
-    category: totem.category || {
-      id: 'general',
-      name: 'General',
-      description: '',
-      children: [],
-      usageCount: 0
-    },
+    // Classification
+    category: totem.category,
     decayModel: totem.decayModel || 'MEDIUM',
-    usageCount: typeof totem.usageCount === 'number' ? totem.usageCount : 0,
     
-    // Relationships
-    relationships: normalizeArray(totem.relationships),
+    // Stats
+    crispness: typeof totem.crispness === 'number' ? totem.crispness : 100,
+    likeHistory: normalizeArray(totem.likeHistory),
+    usageCount: typeof totem.usageCount === 'number' ? totem.usageCount : 0,
     
     // Timestamps
     createdAt: normalizeTimestamp(totem.createdAt, now),
     updatedAt: normalizeTimestamp(totem.updatedAt, now),
     lastInteraction: normalizeTimestamp(totem.lastInteraction, now),
-  };
-}
-
-/**
- * Validates and normalizes a UserTotemInteraction object
- * @param interaction UserTotemInteraction data to validate
- * @returns Normalized UserTotemInteraction
- */
-export function validateUserTotemInteraction(interaction: Partial<UserTotemInteraction>): UserTotemInteraction {
-  // Validate required fields
-  validateRequired(interaction.firebaseUid, 'firebaseUid');
-  validateRequired(interaction.totemId, 'totemId');
-  validateRequired(interaction.interactionType, 'interactionType');
-  
-  const now = Date.now();
-  
-  // Build normalized interaction
-  return {
-    firebaseUid: normalizeString(interaction.firebaseUid),
-    totemId: normalizeString(interaction.totemId),
-    interactionType: interaction.interactionType || 'viewed',
-    count: typeof interaction.count === 'number' ? interaction.count : 1,
-    firstInteraction: normalizeTimestamp(interaction.firstInteraction, now),
-    lastInteraction: normalizeTimestamp(interaction.lastInteraction, now),
-    contextCount: interaction.contextCount || {},
   };
 } 

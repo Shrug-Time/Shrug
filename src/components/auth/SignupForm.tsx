@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
-import { auth, db } from '@/firebase';
+import { auth } from '@/firebase';
+import { UserService } from '@/services/userService';
 
 interface SignupFormProps {
   onSuccess: () => void;
@@ -29,14 +29,10 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
       // Send verification email
       await sendEmailVerification(user);
 
-      // Create user profile in Firestore
-      await setDoc(doc(db, 'users', user.uid), {
-        userID: user.uid,
-        email: user.email,
-        name: name || email.split('@')[0],
-        createdAt: new Date(),
-        verificationStatus: 'pending',
-        membershipTier: 'free',
+      // Create user profile using UserService
+      await UserService.createDefaultProfile({
+        displayName: name,
+        email: user.email
       });
 
       // Show verification sent screen

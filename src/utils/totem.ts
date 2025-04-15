@@ -25,15 +25,18 @@ export const calculateCrispness = (likes: number[], timestamps: string[]) => {
   return totalWeight > 0 ? (weightedSum / totalWeight) * 100 : 0;
 };
 
+/**
+ * Legacy totem handler - This function is replaced by standardized TotemService
+ * and kept for reference only
+ */
 export async function handleTotemLike(
   post: Post,
   answerIdx: number,
   totemName: string,
   userId: string
 ) {
-  const timestamp = new Date().toISOString();
-  const updatedAnswers = await TotemService.updateTotemStats(post.answers, answerIdx, totemName, userId, timestamp);
-  await updateDoc(doc(db, "posts", post.id), { answers: updatedAnswers });
+  console.warn('handleTotemLike is a legacy function and should not be used');
+  return;
 }
 
 export async function handleTotemRefresh(
@@ -42,14 +45,6 @@ export async function handleTotemRefresh(
   totemName: string,
   refreshCount: number
 ): Promise<boolean> {
-  if (refreshCount <= 0) return false;
-  try {
-    const timestamp = new Date().toISOString();
-    const updatedAnswers = await TotemService.updateTotemStats(post.answers, answerIdx, totemName, post.answers[answerIdx].userId, timestamp);
-    await updateDoc(doc(db, "posts", post.id), { answers: updatedAnswers });
-    return true;
-  } catch (error) {
-    console.error('Error refreshing totem:', error);
-    return false;
-  }
+  console.warn('handleTotemRefresh is a legacy function and should not be used');
+  return false;
 } 

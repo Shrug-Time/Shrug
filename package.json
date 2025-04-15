@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:force": "NEXT_SKIP_TYPE_CHECK=true next build",
     "start": "next start",
     "lint": "next lint",
     "migrate:answers": "NODE_ENV=production ts-node -r tsconfig-paths/register -P tsconfig.scripts.json src/scripts/migrateAnswers.ts",

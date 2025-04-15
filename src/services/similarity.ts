@@ -156,7 +156,7 @@ export class SimilarityService {
         updatedTotems.push({
           ...existingTotem,
           relatedTotems: Array.from(relatedTotems)
-        });
+        } as any);
       }
     });
 

@@ -92,24 +92,25 @@ export class TotemService {
       
       const totemsRef = collection(db, this.TOTEMS_COLLECTION);
       const totemDoc = doc(totemsRef);
-      const now = createTimestamp();
+      const now = Date.now();
       
-      // Prepare totem data with timestamps and defaults
-      const newTotemData: Partial<Totem> = {
-        ...totemData,
-        id: totemDoc.id,
-        name: totemData.name.trim(),
+      // Create the new totem object
+      const newTotem = {
+        name: totemData.name.toLowerCase().trim(),
+        description: totemData.description || '',
+        category: totemData.category || 'other',
+        createdBy: (totemData as any).createdBy || 'system',
         likeHistory: [],
         crispness: 100, // Default crispness
         usageCount: 0,
-        [COMMON_FIELDS.CREATED_AT]: now,
-        [COMMON_FIELDS.UPDATED_AT]: now,
-        [COMMON_FIELDS.LAST_INTERACTION]: now
-      };
+        createdAt: now,
+        updatedAt: now,
+        lastInteraction: now
+      } as Partial<Totem>;
       
       // Ensure category is set
-      if (!newTotemData.category) {
-        newTotemData.category = {
+      if (!newTotem.category) {
+        newTotem.category = {
           id: 'general',
           name: 'General',
           description: '',
@@ -119,12 +120,12 @@ export class TotemService {
       }
       
       // Set decay model if not specified
-      if (!newTotemData.decayModel) {
-        newTotemData.decayModel = 'MEDIUM';
+      if (!newTotem.decayModel) {
+        newTotem.decayModel = 'MEDIUM';
       }
       
       // Validate data before saving
-      const validatedData = validateTotem(newTotemData);
+      const validatedData = validateTotem(newTotem);
       
       // Save to database
       await setDoc(totemDoc, validatedData);
@@ -192,16 +193,21 @@ export class TotemService {
         const now = createTimestamp();
         
         // Find the totem association in the post
-        let totemAssociationIndex = post.totemAssociations?.findIndex(
-          assoc => assoc.totemName === totemName
-        );
+        let totemAssociationIndex = -1;
+        if (post.totemAssociations) {
+          totemAssociationIndex = post.totemAssociations.findIndex(
+            assoc => assoc.totemName === totemName
+          );
+        }
+        
+        // Make sure totemAssociations exists
+        const associations = post.totemAssociations || [];
         
         // If totem association doesn't exist, create it
-        if (totemAssociationIndex === -1 || totemAssociationIndex === undefined) {
-          post.totemAssociations = post.totemAssociations || [];
-          post.totemAssociations.push({
-            totemId: totem.id,
-            totemName: totem.name,
+        if (totemAssociationIndex === -1) {
+          associations.push({
+            totemId: totem.id || '',
+            totemName: totem.name || '',
             relevanceScore: 1.0,
             firebaseUid: firebaseUid,
             appliedAt: now,
@@ -209,69 +215,75 @@ export class TotemService {
             contestedByFirebaseUids: []
           });
         } else {
-          // Update existing association
-          const association = post.totemAssociations[totemAssociationIndex];
-          
-          // Add user to endorsers if not already there
-          if (!association.endorsedByFirebaseUids.includes(firebaseUid)) {
-            association.endorsedByFirebaseUids.push(firebaseUid);
+          // Update the existing association safely
+          const association = associations[totemAssociationIndex];
+          if (association) {
+            // Add user to endorsers if not already there
+            if (!association.endorsedByFirebaseUids.includes(firebaseUid)) {
+              association.endorsedByFirebaseUids.push(firebaseUid);
+            }
+            
+            // Remove user from contesters if present
+            const contestIndex = association.contestedByFirebaseUids.indexOf(firebaseUid);
+            if (contestIndex !== -1) {
+              association.contestedByFirebaseUids.splice(contestIndex, 1);
+            }
           }
-          
-          // Remove from contesters if present
-          association.contestedByFirebaseUids = association.contestedByFirebaseUids.filter(id => id !== firebaseUid);
         }
         
-        // Update the post
+        // Update the post with the new/updated associations
         transaction.update(postRef, {
-          totemAssociations: post.totemAssociations,
-          [COMMON_FIELDS.UPDATED_AT]: now,
-          [COMMON_FIELDS.LAST_INTERACTION]: now
+          totemAssociations: associations,
+          updatedAt: now,
+          lastInteraction: now
         });
         
-        // Update the totem
-        const totemRef = doc(db, this.TOTEMS_COLLECTION, totem.id);
-        
-        // Check if user already has a like record
-        const existingLikeIndex = totem.likeHistory.findIndex(like => like.firebaseUid === firebaseUid);
-        
-        if (existingLikeIndex === -1) {
-          // Add new like
-          const newLike: TotemLike = {
-            firebaseUid,
-            originalTimestamp: now,
-            lastUpdatedAt: now,
-            isActive: true,
-            value: 1
-          };
+        // Update the totem - add null check for totem.id
+        if (totem.id) {
+          const totemRef = doc(db, this.TOTEMS_COLLECTION, totem.id);
           
-          transaction.update(totemRef, {
-            likeHistory: arrayUnion(newLike),
-            usageCount: increment(1),
-            [COMMON_FIELDS.UPDATED_AT]: now,
-            [COMMON_FIELDS.LAST_INTERACTION]: now
-          });
-        } else {
-          // Update existing like to be active
-          const updatedLikeHistory = [...totem.likeHistory];
-          updatedLikeHistory[existingLikeIndex] = {
-            ...updatedLikeHistory[existingLikeIndex],
-            isActive: true,
-            lastUpdatedAt: now
-          };
+          // Check if user already has a like record
+          const existingLikeIndex = totem.likeHistory.findIndex(like => like.firebaseUid === firebaseUid);
           
-          transaction.update(totemRef, {
-            likeHistory: updatedLikeHistory,
-            [COMMON_FIELDS.UPDATED_AT]: now,
-            [COMMON_FIELDS.LAST_INTERACTION]: now
-          });
+          if (existingLikeIndex === -1) {
+            // Add new like
+            const newLike: TotemLike = {
+              firebaseUid,
+              originalTimestamp: now,
+              lastUpdatedAt: now,
+              isActive: true,
+              value: 1
+            };
+            
+            transaction.update(totemRef, {
+              likeHistory: arrayUnion(newLike),
+              usageCount: increment(1),
+              updatedAt: now,
+              lastInteraction: now
+            });
+          } else {
+            // Update existing like to be active
+            const updatedLikeHistory = [...totem.likeHistory];
+            updatedLikeHistory[existingLikeIndex] = {
+              ...updatedLikeHistory[existingLikeIndex],
+              isActive: true,
+              lastUpdatedAt: now
+            };
+            
+            transaction.update(totemRef, {
+              likeHistory: updatedLikeHistory,
+              updatedAt: now,
+              lastInteraction: now
+            });
+          }
         }
         
         // Return updated post
         return {
           ...post,
           id: postId,
-          [COMMON_FIELDS.UPDATED_AT]: now,
-          [COMMON_FIELDS.LAST_INTERACTION]: now
+          updatedAt: now,
+          lastInteraction: now
         };
       });
     } catch (error) {
@@ -311,58 +323,70 @@ export class TotemService {
         const now = createTimestamp();
         
         // Find the totem association in the post
-        const totemAssociationIndex = post.totemAssociations?.findIndex(
-          assoc => assoc.totemName === totemName
-        );
-        
-        if (totemAssociationIndex !== -1 && totemAssociationIndex !== undefined) {
-          // Update existing association
-          const association = post.totemAssociations[totemAssociationIndex];
-          
-          // Remove user from endorsers
-          association.endorsedByFirebaseUids = association.endorsedByFirebaseUids.filter(id => id !== firebaseUid);
-          
-          // Add to contesters if not already there
-          if (!association.contestedByFirebaseUids.includes(firebaseUid)) {
-            association.contestedByFirebaseUids.push(firebaseUid);
-          }
-          
-          // Update the post
-          transaction.update(postRef, {
-            totemAssociations: post.totemAssociations,
-            [COMMON_FIELDS.UPDATED_AT]: now,
-            [COMMON_FIELDS.LAST_INTERACTION]: now
-          });
+        let totemAssociationIndex = -1;
+        if (post.totemAssociations) {
+          totemAssociationIndex = post.totemAssociations.findIndex(
+            assoc => assoc.totemName === totemName
+          );
         }
         
-        // Update the totem
-        const totemRef = doc(db, this.TOTEMS_COLLECTION, totem.id);
+        // Make sure totemAssociations exists
+        const associations = post.totemAssociations || [];
         
-        // Find user's like in the history
-        const existingLikeIndex = totem.likeHistory.findIndex(like => like.firebaseUid === firebaseUid);
+        if (totemAssociationIndex !== -1) {
+          // Update existing association safely
+          const association = associations[totemAssociationIndex];
+          if (association) {
+            // Remove user from endorsers if present
+            const endorseIndex = association.endorsedByFirebaseUids.indexOf(firebaseUid);
+            if (endorseIndex !== -1) {
+              association.endorsedByFirebaseUids.splice(endorseIndex, 1);
+            }
+            
+            // Add user to contesters if not already there
+            if (!association.contestedByFirebaseUids.includes(firebaseUid)) {
+              association.contestedByFirebaseUids.push(firebaseUid);
+            }
+          }
+        }
         
-        if (existingLikeIndex !== -1) {
-          // Set the like to inactive
-          const updatedLikeHistory = [...totem.likeHistory];
-          updatedLikeHistory[existingLikeIndex] = {
-            ...updatedLikeHistory[existingLikeIndex],
-            isActive: false,
-            lastUpdatedAt: now
-          };
+        // Update the post with the new associations
+        transaction.update(postRef, {
+          totemAssociations: associations,
+          updatedAt: now,
+          lastInteraction: now
+        });
+        
+        // Update the totem - add null check for totem.id
+        if (totem.id) {
+          const totemRef = doc(db, this.TOTEMS_COLLECTION, totem.id);
           
-          transaction.update(totemRef, {
-            likeHistory: updatedLikeHistory,
-            [COMMON_FIELDS.UPDATED_AT]: now,
-            [COMMON_FIELDS.LAST_INTERACTION]: now
-          });
+          // Find user's like in the history
+          const existingLikeIndex = totem.likeHistory.findIndex(like => like.firebaseUid === firebaseUid);
+          
+          if (existingLikeIndex !== -1) {
+            // Set the like to inactive
+            const updatedLikeHistory = [...totem.likeHistory];
+            updatedLikeHistory[existingLikeIndex] = {
+              ...updatedLikeHistory[existingLikeIndex],
+              isActive: false,
+              lastUpdatedAt: now
+            };
+            
+            transaction.update(totemRef, {
+              likeHistory: updatedLikeHistory,
+              updatedAt: now,
+              lastInteraction: now
+            });
+          }
         }
         
         // Return updated post
         return {
           ...post,
           id: postId,
-          [COMMON_FIELDS.UPDATED_AT]: now,
-          [COMMON_FIELDS.LAST_INTERACTION]: now
+          updatedAt: now,
+          lastInteraction: now
         };
       });
     } catch (error) {

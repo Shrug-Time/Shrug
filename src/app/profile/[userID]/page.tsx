@@ -5,18 +5,14 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Toast } from '@/components/common/Toast';
 import { QuestionList } from '@/components/questions/QuestionList';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
-import { PostService } from '@/services/firebase';
+import { PostService } from '@/services/standardized';
 import { UserService } from '@/services/userService';
 import { handleTotemLike as utilHandleTotemLike, handleTotemRefresh as utilHandleTotemRefresh } from '@/utils/totem';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import type { Post, UserProfile } from '@/types/models';
 import { useState } from 'react';
 import { USER_FIELDS } from '@/constants/fields';
-import { detectUserIdentifierType, extractUserIdentifier } from '@/utils/userIdHelpers';
-
-interface PageProps {
-  params: { userID: string };
-}
+import { detectUserIdentifierType } from '@/utils/userIdHelpers';
 
 // Create a client with configuration for better UX
 const queryClient = new QueryClient({
@@ -91,9 +87,26 @@ function ProfileContent({ userID }: { userID: string }) {
           userIdentifier = userData.firebaseUid || userID;
         }
         
-        const posts = await PostService.getUserPosts(userIdentifier);
-        console.log(`Fetched ${posts.length} posts for user ${userIdentifier}`);
-        return posts;
+        // Use standardized PostService methods
+        const userPostsResult = await PostService.getUserPosts(userIdentifier);
+        const userAnswersResult = await PostService.getUserAnswers(userIdentifier);
+        
+        // Combine posts and answers
+        const combinedPosts = [
+          ...(userPostsResult.posts || []),
+          ...(userAnswersResult.posts || [])
+        ];
+        
+        // Remove duplicates
+        const uniquePostIds = new Set<string>();
+        const uniquePosts = combinedPosts.filter(post => {
+          if (uniquePostIds.has(post.id)) return false;
+          uniquePostIds.add(post.id);
+          return true;
+        });
+        
+        console.log(`Fetched ${uniquePosts.length} posts for user ${userIdentifier}`);
+        return uniquePosts;
       } catch (error) {
         console.error('Error fetching user posts:', error);
         setToastMessage({ 
@@ -255,11 +268,14 @@ function ProfileContent({ userID }: { userID: string }) {
   );
 }
 
-export default function UserProfilePage({ params }: PageProps) {
+export default function UserProfilePage() {
+  const params = useParams();
+  const userID = params.userID as string;
+
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <ProfileContent userID={params.userID} />
+        <ProfileContent userID={userID} />
       </QueryClientProvider>
     </ErrorBoundary>
   );

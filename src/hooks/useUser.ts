@@ -51,15 +51,6 @@ export function useUser() {
           throw new Error(validation.error);
         }
       }
-      // For backward compatibility, also check userID field
-      else if (updates.userID && updates.userID !== profile.userID) {
-        const validation = await UserService.validateUsername(updates.userID, profile.userID);
-        if (!validation.isValid) {
-          throw new Error(validation.error);
-        }
-        // Map userID to username for standardization
-        updates.username = updates.userID;
-      }
 
       const updatedProfile = await UserService.updateProfile(auth.currentUser.uid, updates);
       setProfile(updatedProfile);

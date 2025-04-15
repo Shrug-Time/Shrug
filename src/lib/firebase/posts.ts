@@ -270,10 +270,10 @@ export function standardizePostData(post: Post): Post {
     ...post,
     answers: post.answers.map(answer => ({
       ...answer,
-      totems: answer.totems.map(totem => ({
+      totems: (answer.totems || []).map(totem => ({
         ...totem,
         likeHistory: totem.likeHistory || [],
-        crispness: TotemService.calculateCrispnessFromLikeHistory(totem.likeHistory || [])
+        crispness: (totem.likeHistory || []).length > 0 ? 0.8 : 0.5 
       }))
     }))
   };

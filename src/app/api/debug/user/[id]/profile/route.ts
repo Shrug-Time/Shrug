@@ -1,6 +1,7 @@
-import { UserService } from '@/services/userService';
 import { NextRequest, NextResponse } from 'next/server';
+// import { UserService } from '@/services/userService';
 
+/*
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -29,4 +30,12 @@ export async function GET(
       { status: 500 }
     );
   }
+}
+*/
+
+// Temporary placeholder API during refactoring
+export async function GET(
+  request: NextRequest
+) {
+  return NextResponse.json({ message: "API temporarily disabled during refactoring" }, { status: 503 });
 } 

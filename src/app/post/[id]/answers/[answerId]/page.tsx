@@ -2,7 +2,7 @@
 
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { PostService } from '@/services/firebase';
+import { PostService } from '@/services/standardized';
 import { formatDistanceToNow } from 'date-fns';
 import { TotemButton } from '@/components/totem/TotemButton';
 import { getTotemLikes, getUserDisplayName } from '@/utils/componentHelpers';

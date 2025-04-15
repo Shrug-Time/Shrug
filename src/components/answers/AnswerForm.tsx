@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@/hooks/useUser';
 import type { Post, Totem } from '@/types/models';
-import { PostService } from '@/services/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db, sendVerificationEmail, auth } from '@/firebase';
+import { PostService } from '@/services/standardized/PostService';
+import { auth, sendVerificationEmail } from '@/firebase';
 
 interface AnswerFormProps {
   selectedQuestion: Post;
@@ -58,13 +57,15 @@ export function AnswerForm({ selectedQuestion, onAnswerSubmitted }: AnswerFormPr
         selectedTotems
       });
       
-      await PostService.createAnswer(selectedQuestion.id, {
+      await PostService.addAnswer(selectedQuestion.id, {
         text: answer.trim(),
         firebaseUid: profile.firebaseUid,
         username: profile.username,
-        name: profile.name,
+        name: profile.name || profile.username,
         isVerified: profile.verificationStatus === 'email_verified',
-        totems: selectedTotems,
+        isPremium: profile.membershipTier === 'premium',
+        totems: selectedTotems || [],
+        createdAt: now,
         updatedAt: now,
         lastInteraction: now
       });
@@ -87,7 +88,6 @@ export function AnswerForm({ selectedQuestion, onAnswerSubmitted }: AnswerFormPr
       return;
     }
 
-    const now = Date.now();
     const newTotemObj: Totem = {
       id: newTotem.trim(),
       name: newTotem.trim(),
@@ -95,10 +95,7 @@ export function AnswerForm({ selectedQuestion, onAnswerSubmitted }: AnswerFormPr
       crispness: 100,
       category: { id: 'general', name: 'General', description: '', children: [], usageCount: 0 },
       decayModel: 'MEDIUM',
-      usageCount: 0,
-      createdAt: now,
-      updatedAt: now,
-      lastInteraction: now
+      usageCount: 0
     };
 
     setSelectedTotems(prev => [...prev, newTotemObj]);

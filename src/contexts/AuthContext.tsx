@@ -1,17 +1,17 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { 
   auth, 
-  db,
   sendVerificationEmail as sendVerificationEmailFn 
 } from '@/firebase';
 import { User } from 'firebase/auth';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { UserService } from '@/services/userService';
+import type { VerificationStatus } from '@/types/models';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   isVerified: boolean;
-  verificationStatus: 'unverified' | 'email_verified' | 'phone_verified' | 'social_verified' | 'pending' | null;
+  verificationStatus: VerificationStatus | 'pending' | null;
   sendVerificationEmail: () => Promise<void>;
   refreshVerificationStatus: () => Promise<void>;
 }
@@ -31,7 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isVerified, setIsVerified] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState<AuthContextType['verificationStatus']>(null);
 
-  // Function to check verification status from Firestore
+  // Function to check verification status from user profile
   const checkVerificationStatus = async (user: User | null) => {
     if (!user) {
       setIsVerified(false);
@@ -49,33 +49,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsVerified(true);
         setVerificationStatus('email_verified');
         
-        // Update Firestore if needed
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (userDoc.exists() && userDoc.data().verificationStatus !== 'email_verified') {
-          await updateDoc(doc(db, 'users', user.uid), {
+        // Get the user profile from UserService
+        const userProfile = await UserService.getUserByFirebaseUid(user.uid);
+        
+        // Update the profile if needed
+        if (userProfile && userProfile.verificationStatus !== 'email_verified') {
+          await UserService.updateProfile(user.uid, {
             verificationStatus: 'email_verified'
           });
         }
         return;
       }
 
-      // Then check Firestore for additional verification methods
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        const status = userData.verificationStatus;
+      // Then check the user profile for verification status
+      const userProfile = await UserService.getUserByFirebaseUid(user.uid);
+      if (userProfile) {
+        const status = userProfile.verificationStatus;
         
         // Check if user is verified through any method
         const verified = status === 'email_verified' || 
-                        status === 'phone_verified' || 
-                        status === 'social_verified';
+                        status === 'verified';
         
         setIsVerified(verified);
         setVerificationStatus(status);
         
-        // If Firebase says verified but Firestore doesn't, update Firestore
+        // If Firebase says verified but profile doesn't, update profile
         if (currentUser?.emailVerified && status !== 'email_verified') {
-          await updateDoc(doc(db, 'users', user.uid), {
+          await UserService.updateProfile(user.uid, {
             verificationStatus: 'email_verified'
           });
           setVerificationStatus('email_verified');

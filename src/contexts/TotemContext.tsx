@@ -2,9 +2,8 @@ import React, { createContext, useContext, useCallback, useState, useEffect } fr
 import { useAuth } from '@/contexts/AuthContext';
 import { TotemService } from '@/services/totem';
 import { UserService } from '@/services/userService';
+import { PostService } from '@/services/firebase';
 import { TotemRefreshModal } from '@/components/totem/TotemRefreshModal';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/firebase';
 import type { Post } from '@/types/models';
 
 interface TotemContextType {
@@ -89,15 +88,13 @@ export function TotemProvider({ children }: { children: React.ReactNode }) {
     setLoadingStates(prev => ({ ...prev, [key]: true }));
 
     try {
-      // Fetch the post data directly
-      const postRef = doc(db, "posts", postId);
-      const postDoc = await getDoc(postRef);
+      // Fetch the post data using the PostService
+      const post = await PostService.getPost(postId);
       
-      if (!postDoc.exists()) {
+      if (!post) {
         return;
       }
 
-      const post = postDoc.data() as Post;
       const answer = post.answers.find(a => 
         a.totems.some(t => t.name === totemName)
       );

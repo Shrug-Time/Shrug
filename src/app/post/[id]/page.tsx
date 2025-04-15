@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useUser } from '@/hooks/useUser';
-import { PostService } from '@/services/firebase';
+import { PostService } from '@/services/standardized';
 import { CreatePostForm } from '@/components/posts/CreatePostForm';
 import { QuestionAnswers } from '@/components/questions/QuestionAnswers';
 import type { Post } from '@/types/models';

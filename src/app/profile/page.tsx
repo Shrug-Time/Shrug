@@ -1,13 +1,12 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { auth, db } from '@/lib/firebase';
-import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import type { UserProfile, Post } from '@/types/models';
 import { QuestionList } from '@/components/questions/QuestionList';
 import { useUser } from '@/hooks/useUser';
-import { PostService } from '@/services/PostService';
+import { PostService } from '@/services/standardized';
+import { UserService } from '@/services/userService';
 
 export default function ProfilePage() {
   const { profile, isLoading: isLoadingProfile, error: profileError, updateProfile } = useUser();
@@ -23,27 +22,14 @@ export default function ProfilePage() {
   const [isLoadingPosts, setIsLoadingPosts] = useState(false);
   const router = useRouter();
 
-  // Simple function to load user's posts
+  // Load user's posts using the standardized PostService
   const loadUserPosts = async () => {
     if (!profile?.firebaseUid) return;
     
     setIsLoadingPosts(true);
     try {
-      const postsRef = collection(db, 'posts');
-      const q = query(
-        postsRef,
-        where('firebaseUid', '==', profile.firebaseUid),
-        orderBy('createdAt', 'desc'),
-        limit(10)
-      );
-      
-      const querySnapshot = await getDocs(q);
-      const posts = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Post[];
-      
-      setUserPosts(posts);
+      const result = await PostService.getUserPosts(profile.firebaseUid, 10);
+      setUserPosts(result.posts || []);
     } catch (error) {
       console.error('Error loading posts:', error);
     } finally {
@@ -51,26 +37,14 @@ export default function ProfilePage() {
     }
   };
 
-  // Simple function to load posts where user has answered
+  // Load posts where user has answered using the standardized PostService
   const loadUserAnswers = async () => {
     if (!profile?.firebaseUid) return;
     
     setIsLoadingPosts(true);
     try {
-      const postsRef = collection(db, 'posts');
-      const q = query(
-        postsRef,
-        where('answerFirebaseUids', 'array-contains', profile.firebaseUid),
-        orderBy('lastEngagement', 'desc')
-      );
-      
-      const querySnapshot = await getDocs(q);
-      const posts = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Post[];
-      
-      setUserAnswers(posts);
+      const result = await PostService.getUserAnswers(profile.firebaseUid, 10);
+      setUserAnswers(result.posts || []);
     } catch (error) {
       console.error('Error loading answers:', error);
     } finally {

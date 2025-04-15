@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { doc, setDoc, collection, Timestamp, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/firebase';
 import type { Post } from '@/types/models';
 import { useAuth } from '@/contexts/AuthContext';
+import { PostService } from '@/services/standardized/PostService';
 
 interface CreatePostFormProps {
   firebaseUid: string;
@@ -46,31 +45,25 @@ export function CreatePostForm({
     setError(null);
     
     try {
-      const postsRef = collection(db, 'posts');
-      const newPostRef = doc(postsRef);
-      const now = new Date();
+      const now = Date.now();
       
       const newPost: Partial<Post> = {
-        id: newPostRef.id,
         question: question.trim(),
         firebaseUid,
         username,
         name,
         categories,
-        createdAt: now.getTime(),
-        updatedAt: now.getTime(),
+        createdAt: now,
+        updatedAt: now,
+        lastInteraction: now,
         totemAssociations: [],
         answers: [],
         answerFirebaseUids: [],
         answerUsernames: []
       };
       
-      await setDoc(newPostRef, {
-        ...newPost,
-        createdAt: Timestamp.fromDate(now),
-        updatedAt: Timestamp.fromDate(now),
-        lastInteraction: serverTimestamp()
-      });
+      // Use the PostService to create the post
+      await PostService.createPost(newPost);
       
       onPostCreated();
     } catch (err) {

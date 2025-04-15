@@ -16,6 +16,9 @@ export interface Totem {
   category?: TotemCategory;
   decayModel?: DecayModel;
   usageCount?: number;
+  createdAt?: number;
+  updatedAt?: number;
+  lastInteraction?: number;
 }
 
 export interface Answer {
