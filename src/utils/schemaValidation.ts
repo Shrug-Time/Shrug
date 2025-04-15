@@ -6,8 +6,8 @@
  * and normalizes data formats.
  */
 
-import type { UserProfile, Post, Answer, Totem, TotemAssociation, TotemLike } from '@/types/models';
-import { COMMON_FIELDS, USER_FIELDS, POST_FIELDS, ANSWER_FIELDS } from '@/constants/fields';
+import type { UserProfile, Post, Answer, Totem, TotemAssociation, TotemLike, UserTotemInteraction } from '@/types/models';
+import { COMMON_FIELDS, USER_FIELDS, POST_FIELDS, ANSWER_FIELDS, TOTEM_ASSOCIATION_FIELDS } from '@/constants/fields';
 
 /**
  * Validates and converts timestamps to numeric milliseconds format
@@ -113,7 +113,7 @@ export function validateUserProfile(profile: Partial<UserProfile>): UserProfile 
     
     // Usage limits
     refreshesRemaining: typeof profile.refreshesRemaining === 'number' ? profile.refreshesRemaining : 0,
-    refreshResetTime: normalizeString(profile.refreshResetTime),
+    refreshResetTime: normalizeTimestamp(profile.refreshResetTime, now),
     
     // Social connections
     followers: normalizeArray<string>(profile.followers, []),
@@ -144,7 +144,7 @@ export function validateUserProfile(profile: Partial<UserProfile>): UserProfile 
 export function validatePost(post: Partial<Post>): Post {
   // Validate required fields
   validateRequired(post.id, 'id');
-  validateRequired(post.question || post.text, 'question');
+  validateRequired(post.question, 'question');
   
   const now = Date.now();
   
@@ -164,21 +164,32 @@ export function validatePost(post: Partial<Post>): Post {
       .filter(name => name && name.trim() !== '')
   )];
   
+  // Normalize totem associations
+  const normalizedTotemAssociations = normalizeArray<Partial<TotemAssociation>>(post.totemAssociations).map(assoc => ({
+    totemId: normalizeString(assoc.totemId),
+    totemName: normalizeString(assoc.totemName),
+    relevanceScore: typeof assoc.relevanceScore === 'number' ? assoc.relevanceScore : 0,
+    firebaseUid: normalizeString(assoc.firebaseUid),
+    appliedAt: normalizeTimestamp(assoc.appliedAt, now),
+    endorsedByFirebaseUids: normalizeArray<string>(assoc.endorsedByFirebaseUids, []),
+    contestedByFirebaseUids: normalizeArray<string>(assoc.contestedByFirebaseUids, [])
+  }));
+  
   // Build normalized post
   return {
     id: normalizeString(post.id),
-    question: normalizeString(post.question || post.text),
+    question: normalizeString(post.question),
     
-    // Standardized user fields
-    firebaseUid: normalizeString(post.firebaseUid || post.userId),
+    // User fields
+    firebaseUid: normalizeString(post.firebaseUid),
     username: normalizeString(post.username),
-    name: normalizeString(post.name || post.userName),
+    name: normalizeString(post.name),
     
     // Content categorization
     categories: normalizeArray<string>(post.categories, []),
     
     // Totem associations
-    totemAssociations: normalizeArray<TotemAssociation>(post.totemAssociations, []),
+    totemAssociations: normalizedTotemAssociations,
     
     // Engagement metrics
     score: post.score,
@@ -192,12 +203,6 @@ export function validatePost(post: Partial<Post>): Post {
     createdAt: normalizeTimestamp(post.createdAt, now),
     updatedAt: normalizeTimestamp(post.updatedAt, now),
     lastInteraction: normalizeTimestamp(post.lastInteraction, now),
-    
-    // Legacy fields
-    userId: normalizeString(post.userId),
-    userName: normalizeString(post.userName),
-    answerUserIds: answerFirebaseUids,
-    text: normalizeString(post.text || post.question),
   };
 }
 
@@ -208,7 +213,7 @@ export function validatePost(post: Partial<Post>): Post {
  */
 export function validateAnswer(answer: Partial<Answer>): Answer {
   // Generate ID if not provided
-  const id = answer.id || `${answer.firebaseUid || answer.userId}_${Date.now()}`;
+  const id = answer.id || `${answer.firebaseUid}_${Date.now()}`;
   
   const now = Date.now();
   
@@ -217,10 +222,10 @@ export function validateAnswer(answer: Partial<Answer>): Answer {
     id,
     text: normalizeString(answer.text),
     
-    // Standardized user fields
-    firebaseUid: normalizeString(answer.firebaseUid || answer.userId),
+    // User fields
+    firebaseUid: normalizeString(answer.firebaseUid),
     username: normalizeString(answer.username),
-    name: normalizeString(answer.name || answer.userName),
+    name: normalizeString(answer.name),
     
     // Associated totems
     totems: normalizeArray(answer.totems, []),
@@ -233,10 +238,6 @@ export function validateAnswer(answer: Partial<Answer>): Answer {
     createdAt: normalizeTimestamp(answer.createdAt, now),
     updatedAt: normalizeTimestamp(answer.updatedAt, now),
     lastInteraction: normalizeTimestamp(answer.lastInteraction, now),
-    
-    // Legacy fields
-    userId: normalizeString(answer.userId),
-    userName: normalizeString(answer.userName),
   };
 }
 
@@ -254,7 +255,7 @@ export function validateTotem(totem: Partial<Totem>): Totem {
   
   // Normalize like history
   const normalizedLikeHistory = normalizeArray<TotemLike>(totem.likeHistory).map(like => ({
-    userId: normalizeString(like.userId),
+    firebaseUid: normalizeString(like.firebaseUid),
     originalTimestamp: normalizeTimestamp(like.originalTimestamp, now),
     lastUpdatedAt: normalizeTimestamp(like.lastUpdatedAt, now),
     isActive: like.isActive ?? false,
@@ -268,7 +269,10 @@ export function validateTotem(totem: Partial<Totem>): Totem {
     description: totem.description ? normalizeString(totem.description) : undefined,
     imageUrl: totem.imageUrl ? normalizeString(totem.imageUrl) : undefined,
     
+    // Like history
     likeHistory: normalizedLikeHistory,
+    
+    // Properties
     crispness: typeof totem.crispness === 'number' ? totem.crispness : 100,
     category: totem.category || {
       id: 'general',
@@ -280,16 +284,37 @@ export function validateTotem(totem: Partial<Totem>): Totem {
     decayModel: totem.decayModel || 'MEDIUM',
     usageCount: typeof totem.usageCount === 'number' ? totem.usageCount : 0,
     
-    relationships: normalizeArray(totem.relationships, []),
+    // Relationships
+    relationships: normalizeArray(totem.relationships),
     
     // Timestamps
     createdAt: normalizeTimestamp(totem.createdAt, now),
     updatedAt: normalizeTimestamp(totem.updatedAt, now),
     lastInteraction: normalizeTimestamp(totem.lastInteraction, now),
-    
-    // Legacy fields
-    userId: normalizeString(totem.userId),
-    userName: normalizeString(totem.userName),
-    lastLike: normalizeTimestamp(totem.lastLike, 0),
+  };
+}
+
+/**
+ * Validates and normalizes a UserTotemInteraction object
+ * @param interaction UserTotemInteraction data to validate
+ * @returns Normalized UserTotemInteraction
+ */
+export function validateUserTotemInteraction(interaction: Partial<UserTotemInteraction>): UserTotemInteraction {
+  // Validate required fields
+  validateRequired(interaction.firebaseUid, 'firebaseUid');
+  validateRequired(interaction.totemId, 'totemId');
+  validateRequired(interaction.interactionType, 'interactionType');
+  
+  const now = Date.now();
+  
+  // Build normalized interaction
+  return {
+    firebaseUid: normalizeString(interaction.firebaseUid),
+    totemId: normalizeString(interaction.totemId),
+    interactionType: interaction.interactionType || 'viewed',
+    count: typeof interaction.count === 'number' ? interaction.count : 1,
+    firstInteraction: normalizeTimestamp(interaction.firstInteraction, now),
+    lastInteraction: normalizeTimestamp(interaction.lastInteraction, now),
+    contextCount: interaction.contextCount || {},
   };
 } 

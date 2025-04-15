@@ -17,7 +17,7 @@ import {
   startAfter,
   runTransaction
 } from 'firebase/firestore';
-import type { Post, UserProfile, Answer, TotemAssociation, Totem, TotemLike } from '@/types/models';
+import type { Post, Answer, TotemAssociation, Totem, TotemLike } from '@/types/models';
 import { COMMON_FIELDS, USER_FIELDS, POST_FIELDS, ANSWER_FIELDS, TOTEM_ASSOCIATION_FIELDS } from '@/constants/fields';
 import { TotemService } from '@/services/totem';
 
@@ -60,11 +60,9 @@ export const PostService = {
     try {
       const postsRef = collection(db, 'posts');
       
-      // Use standardized field names but maintain backward compatibility
+      // Use standardized answerUserIds field
       const constraints: QueryConstraint[] = [
-        // This query needs to be updated when we have fully migrated to the new schema
-        // Currently using the legacy array-contains which isn't optimal
-        where('answers', 'array-contains', { userID }),
+        where(POST_FIELDS.ANSWER_USER_IDS, 'array-contains', userID),
         orderBy(COMMON_FIELDS.CREATED_AT, 'desc'),
         limit(POSTS_PER_PAGE)
       ];
@@ -121,13 +119,6 @@ export const PostService = {
         orderBy(COMMON_FIELDS.LAST_INTERACTION, 'desc')
       );
       
-      // Fallback to legacy userId field if needed during transition
-      const legacyAuthorQuery = query(
-        postsRef,
-        where(USER_FIELDS.LEGACY_USER_ID, '==', userID),
-        orderBy(COMMON_FIELDS.LAST_INTERACTION, 'desc')
-      );
-      
       // Use standardized answerUserIds field to find posts user has answered
       const answersQuery = query(
         postsRef,
@@ -142,12 +133,6 @@ export const PostService = {
         // Standardized author query
         getDocs(authorQuery).catch(err => {
           console.error(`[getUserPosts] Error in standardized author query:`, err);
-          return { docs: [] };
-        }),
-        
-        // Legacy author query
-        getDocs(legacyAuthorQuery).catch(err => {
-          console.error(`[getUserPosts] Error in legacy author query:`, err);
           return { docs: [] };
         }),
         
@@ -166,7 +151,6 @@ export const PostService = {
       // Extract results from each query
       const [
         authorQuerySnapshot,
-        legacyAuthorQuerySnapshot,
         answersQuerySnapshot
       ] = queryResults;
       
@@ -179,15 +163,6 @@ export const PostService = {
       
       // Add posts from standardized author query
       authorQuerySnapshot.docs.forEach(doc => {
-        const postData = doc.data();
-        createdPosts.push(this.standardizePostData({
-          id: doc.id,
-          ...postData
-        }));
-      });
-      
-      // Add posts from legacy author query
-      legacyAuthorQuerySnapshot.docs.forEach(doc => {
         const postData = doc.data();
         createdPosts.push(this.standardizePostData({
           id: doc.id,
@@ -234,7 +209,7 @@ export const PostService = {
         // Extract unique user IDs from answers
         const answerUserIds = [...new Set(
           (post.answers || [])
-            .map(answer => answer.userId || answer.firebaseUid)
+            .map(answer => answer.firebaseUid)
             .filter(Boolean)
         )];
         
@@ -265,19 +240,13 @@ export const PostService = {
       const post = postDoc.data() as Post;
       const now = Date.now();
       
-      // Create a standardized answer with both new and legacy fields
+      // Create a standardized answer with only the standard fields
       const newAnswer: Answer = {
         ...answer,
-        id: `${answer.firebaseUid || answer.userId}_${now}`, // Generate a unique ID for the answer
+        id: `${answer.firebaseUid}_${now}`, // Generate a unique ID for the answer
         createdAt: now,
         updatedAt: now,
-        lastInteraction: now,
-        
-        // Ensure both new and legacy fields are set
-        firebaseUid: answer.firebaseUid || answer.userId || '',
-        userId: answer.userId || answer.firebaseUid || '',
-        name: answer.name || answer.userName || '',
-        userName: answer.userName || answer.name || ''
+        lastInteraction: now
       };
 
       // Get existing answerUserIds or initialize as empty array
@@ -332,13 +301,13 @@ export const PostService = {
     const now = Date.now();
     let createdAt = postData.createdAt;
     
-    // Convert string timestamps to numbers
-    if (typeof createdAt === 'string') {
-      createdAt = new Date(createdAt).getTime();
-    }
-    // Convert Firestore timestamps to numbers
-    else if (createdAt && typeof createdAt === 'object' && 'seconds' in createdAt) {
+    // Convert Firestore timestamps to numbers if needed
+    if (createdAt && typeof createdAt === 'object' && 'seconds' in createdAt) {
       createdAt = createdAt.seconds * 1000;
+    } else if (typeof createdAt === 'string') {
+      createdAt = new Date(createdAt).getTime();
+    } else if (!createdAt) {
+      createdAt = now;
     }
     
     // Process totem associations
@@ -351,10 +320,10 @@ export const PostService = {
           totemId: totem, // Use totem name as ID for backward compatibility
           totemName: totem,
           relevanceScore: 1.0,
-          appliedBy: postData.firebaseUid || postData.userId || '',
+          firebaseUid: postData.firebaseUid || '',
           appliedAt: createdAt || now,
-          endorsedBy: [],
-          contestedBy: []
+          endorsedByFirebaseUids: [],
+          contestedByFirebaseUids: []
         });
       });
     }
@@ -379,11 +348,11 @@ export const PostService = {
         : (answer.createdAt || now);
         
       return {
-        id: answer.id || `${answer.userId || answer.firebaseUid}_${answerCreatedAt}`,
+        id: answer.id || `${answer.firebaseUid}_${answerCreatedAt}`,
         text: answer.text || '',
-        firebaseUid: answer.firebaseUid || answer.userId || '',
-        username: answer.username || answer.userID || '',
-        name: answer.name || answer.userName || '',
+        firebaseUid: answer.firebaseUid || '',
+        username: answer.username || '',
+        name: answer.name || '',
         createdAt: answerCreatedAt,
         updatedAt: answer.updatedAt || answerCreatedAt,
         lastInteraction: answer.lastInteraction || answerCreatedAt,
@@ -411,13 +380,12 @@ export const PostService = {
     // Return the standardized post
     return {
       id: postData.id || '',
-      firebaseUid: postData.firebaseUid || postData.userId || '',
-      username: postData.username || postData.userID || '',
-      name: postData.name || postData.userName || '',
+      firebaseUid: postData.firebaseUid || '',
+      username: postData.username || '',
+      name: postData.name || '',
       
-      // Post content - handle both text and question fields
-      question: postData.question || postData.text || '',
-      text: postData.text || postData.question || '',
+      // Post content
+      question: postData.question || '',
       
       // Content categorization
       categories: postData.categories || [],
@@ -432,16 +400,12 @@ export const PostService = {
       answers: standardizedAnswers,
       answerFirebaseUids,
       answerUsernames,
+      answerUserIds: answerFirebaseUids,
       
       // Timestamps
       createdAt: createdAt || now,
       updatedAt: postData.updatedAt || createdAt || now,
-      lastInteraction: postData.lastInteraction || postData.lastEngagement || createdAt || now,
-      
-      // Legacy fields for backward compatibility
-      userId: postData.userId || postData.firebaseUid || '',
-      userName: postData.userName || postData.name || '',
-      answerUserIds: answerFirebaseUids
+      lastInteraction: postData.lastInteraction || postData.lastEngagement || createdAt || now
     };
   },
 
@@ -455,7 +419,7 @@ export const PostService = {
         const postId = postDoc.id;
         
         // Get unique user IDs from answers
-        const userIds = new Set(post.answers.map(answer => answer.userId));
+        const userIds = new Set(post.answers.map(answer => answer.firebaseUid));
         
         // Create userAnswers entries for each user
         for (const userId of userIds) {
@@ -472,7 +436,7 @@ export const PostService = {
     }
   },
 
-  // New method to check the structure of a post document
+  // Method to check the structure of a post document
   async checkPostStructure(postId: string) {
     try {
       console.log(`[checkPostStructure] Checking structure of post ${postId}`);
@@ -490,15 +454,15 @@ export const PostService = {
       // Check the structure of the post
       const structure = {
         id: postId,
-        hasUserId: !!data.userId,
-        userId: data.userId,
+        hasFirebaseUid: !!data.firebaseUid,
+        firebaseUid: data.firebaseUid,
         hasQuestion: !!data.question,
         hasAnswers: Array.isArray(data.answers),
         answersCount: Array.isArray(data.answers) ? data.answers.length : 0,
         hasAnswerUserIds: Array.isArray(data.answerUserIds),
         answerUserIdsCount: Array.isArray(data.answerUserIds) ? data.answerUserIds.length : 0,
         createdAt: data.createdAt,
-        lastEngagement: data.lastEngagement
+        lastInteraction: data.lastInteraction
       };
       
       console.log(`[checkPostStructure] Post structure:`, structure);
@@ -508,9 +472,9 @@ export const PostService = {
         const firstAnswer = data.answers[0];
         const answerStructure = {
           hasText: !!firstAnswer.text,
-          hasUserId: !!firstAnswer.userId,
-          userId: firstAnswer.userId,
-          hasUserName: !!firstAnswer.userName,
+          hasFirebaseUid: !!firstAnswer.firebaseUid,
+          firebaseUid: firstAnswer.firebaseUid,
+          hasUsername: !!firstAnswer.username,
           hasTotems: Array.isArray(firstAnswer.totems),
           totemsCount: Array.isArray(firstAnswer.totems) ? firstAnswer.totems.length : 0
         };
@@ -548,17 +512,11 @@ export const PostService = {
       const querySnapshot = await getDocs(q);
       const items = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Post[];
       
+      // Return standardized posts
       return {
-        items: items.map(post => ({
+        items: items.map(post => this.standardizePostData({
           ...post,
-          answers: post.answers.map(answer => ({
-            ...answer,
-            totems: answer.totems.map(totem => ({
-              ...totem,
-              likeHistory: totem.likeHistory || [],
-              crispness: TotemService.calculateCrispnessFromLikeHistory(totem.likeHistory || [])
-            }))
-          }))
+          id: post.id
         })),
         lastDoc: querySnapshot.docs[querySnapshot.docs.length - 1]
       };
@@ -585,7 +543,7 @@ export async function trackUserAnswer(userID: string, postID: string) {
 
 // Helper function to check if a user has liked a totem
 const hasUserLiked = (totem: Totem, userId: string): boolean => {
-  return totem.likeHistory?.some(like => like.userId === userId && like.isActive) || false;
+  return totem.likeHistory?.some(like => like.firebaseUid === userId && like.isActive) || false;
 };
 
 // Helper functions for totem operations

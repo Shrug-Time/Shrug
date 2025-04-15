@@ -6,11 +6,9 @@
  */
 
 import { USER_FIELDS, POST_FIELDS, TOTEM_FIELDS } from '@/constants/fields';
-import { extractUserIdentifier } from './userIdHelpers';
 
 /**
  * Gets a display name for a user from an object containing user fields
- * Tries standardized fields first, then falls back to legacy fields
  * 
  * @param obj Any object containing user name information
  * @returns A display name string, or 'Anonymous' if none is found
@@ -18,23 +16,18 @@ import { extractUserIdentifier } from './userIdHelpers';
 export function getUserDisplayName(obj: any): string {
   if (!obj) return 'Anonymous';
   
-  // Try standardized fields first
+  // Try standardized fields
   if (obj[USER_FIELDS.NAME]) return obj[USER_FIELDS.NAME];
-  
-  // Then try legacy fields
-  if (obj[USER_FIELDS.LEGACY_USER_NAME]) return obj[USER_FIELDS.LEGACY_USER_NAME];
   
   // If username is available, use that
   if (obj[USER_FIELDS.USERNAME]) return obj[USER_FIELDS.USERNAME];
-  if (obj[USER_FIELDS.LEGACY_USER_ID]) return obj[USER_FIELDS.LEGACY_USER_ID];
   
-  // Finally try direct property access for backward compatibility
-  return obj.name || obj.userName || obj.username || obj.userID || 'Anonymous';
+  // Direct property access
+  return obj.name || obj.username || 'Anonymous';
 }
 
 /**
  * Gets a Firebase UID from an object containing user fields
- * Tries standardized fields first, then falls back to legacy fields
  * 
  * @param obj Any object containing user ID information
  * @returns A Firebase UID string, or empty string if none is found
@@ -42,19 +35,15 @@ export function getUserDisplayName(obj: any): string {
 export function getFirebaseUid(obj: any): string {
   if (!obj) return '';
   
-  // Try standardized fields first
+  // Try standardized fields
   if (obj[USER_FIELDS.FIREBASE_UID]) return obj[USER_FIELDS.FIREBASE_UID];
   
-  // Then try legacy fields
-  if (obj[USER_FIELDS.LEGACY_USER_ID_LOWERCASE]) return obj[USER_FIELDS.LEGACY_USER_ID_LOWERCASE];
-  
-  // Finally try direct property access for backward compatibility
-  return obj.firebaseUid || obj.userId || '';
+  // Direct property access
+  return obj.firebaseUid || '';
 }
 
 /**
  * Gets a username from an object containing user fields
- * Tries standardized fields first, then falls back to legacy fields
  * 
  * @param obj Any object containing username information
  * @returns A username string, or empty string if none is found
@@ -62,14 +51,11 @@ export function getFirebaseUid(obj: any): string {
 export function getUsername(obj: any): string {
   if (!obj) return '';
   
-  // Try standardized fields first
+  // Try standardized fields
   if (obj[USER_FIELDS.USERNAME]) return obj[USER_FIELDS.USERNAME];
   
-  // Then try legacy fields
-  if (obj[USER_FIELDS.LEGACY_USER_ID]) return obj[USER_FIELDS.LEGACY_USER_ID];
-  
-  // Finally try direct property access for backward compatibility
-  return obj.username || obj.userID || '';
+  // Direct property access
+  return obj.username || '';
 }
 
 /**
@@ -95,21 +81,21 @@ export function getTotemCrispness(totem: any): number {
 }
 
 /**
- * Checks if a user has liked a totem, handling both standardized and legacy fields
+ * Checks if a user has liked a totem
  * 
  * @param totem Totem object
- * @param userId User ID to check
+ * @param firebaseUid User ID to check
  * @returns True if the user has liked the totem, false otherwise
  */
-export function hasUserLikedTotem(totem: any, userId: string): boolean {
-  if (!totem || !userId) {
+export function hasUserLikedTotem(totem: any, firebaseUid: string): boolean {
+  if (!totem || !firebaseUid) {
     return false;
   }
   
-  // Only use likeHistory
+  // Use likeHistory for checking likes
   if (totem.likeHistory && Array.isArray(totem.likeHistory)) {
-    const existingLike = totem.likeHistory.find((like: { userId: string; isActive: boolean }) => 
-      like.userId === userId
+    const existingLike = totem.likeHistory.find((like: { firebaseUid: string; isActive: boolean }) => 
+      like.firebaseUid === firebaseUid
     );
     
     // If there's no like history entry, the user hasn't liked the totem

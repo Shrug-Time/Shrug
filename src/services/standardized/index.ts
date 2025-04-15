@@ -1,35 +1,65 @@
 /**
- * Standardized Services Index
+ * Standardized Services
  * 
- * This file exports all standardized services that follow schema standards.
- * Use these services for all database operations to ensure data consistency.
+ * This module provides a consistent interface to all standardized data services.
+ * These services ensure data conforms to the schema standards and abstracts
+ * the database operations with proper error handling and validation.
  */
 
-export { UserService } from './UserService';
-export { PostService } from './PostService';
-export { TotemService } from './TotemService';
+import { UserService } from '../userService';
+import { PostService } from './PostService';
+import { TotemService } from './TotemService';
+import * as serviceHelpers from '@/utils/serviceHelpers';
+
+// Re-export individual services
+export { UserService, PostService, TotemService };
+
+// Export service helper functions
+export const {
+  createTimestamp,
+  handleServiceError,
+  getUserProfile,
+  getPost,
+  getPaginatedPosts,
+  getUserAnswers,
+  getUserPosts
+} = serviceHelpers;
+
+// Default export for convenient importing
+export default {
+  user: UserService,
+  post: PostService,
+  totem: TotemService,
+  
+  // Helper functions
+  helpers: serviceHelpers
+};
 
 /**
- * Migration Guide
+ * Fresh Start Approach Guide
  * 
- * To migrate from legacy services to standardized services:
+ * In line with our implementation plan, we've taken a fresh start approach
+ * with NO legacy field support. All legacy data has been dropped and we've
+ * standardized on:
  * 
- * 1. Import from standardized services:
- *    - Old: import { PostService } from '@/services/firebase';
- *    - New: import { PostService } from '@/services/standardized';
+ * 1. Using 'firebaseUid' consistently for all user references
+ * 2. Using numeric timestamps (milliseconds) for all date fields
+ * 3. Applying strict validation for all data
  * 
- * 2. Update function calls if needed:
- *    - Methods are similar but may have slightly different parameter names
- *    - All methods now use firebaseUid consistently instead of userId
- *    - All methods handle timestamp conversion and validation automatically
+ * Key changes in this implementation:
+ * - All legacy fields have been REMOVED
+ * - NO backward compatibility with old field names
+ * - The database has been RESET to start fresh
+ * - All services use the standardized fields only
  * 
- * 3. Ensure your code uses the standardized field names:
- *    - Use 'firebaseUid' instead of 'userId'
- *    - Timestamps are consistently in milliseconds since epoch
+ * When using these services:
+ * - Always use 'firebaseUid' as the user identifier
+ * - Use numeric timestamps in milliseconds format
+ * - Follow the field naming conventions in the schema standards
  * 
- * Benefits of using standardized services:
- * - Consistent data formats
- * - Automatic validation
- * - Proper error handling
- * - Optimized for performance
+ * This approach ensures:
+ * - Cleaner codebase
+ * - Better performance
+ * - Easier maintenance
+ * - No technical debt
  */ 

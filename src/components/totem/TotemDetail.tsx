@@ -1,65 +1,48 @@
 "use client";
 
-import { Post, TotemLike, Totem } from '@/types/models';
-import { auth } from '@/firebase';
-import { TotemButton } from '@/components/totem/TotemButtonV2';
-import { formatDistanceToNow } from 'date-fns';
+import React from 'react';
+import { useTotem } from '@/contexts/TotemContext';
 import Link from 'next/link';
-import { InfiniteScroll } from '@/components/common/InfiniteScroll';
-import { useCallback, useEffect, useState, useMemo } from 'react';
-import { TOTEM_FIELDS } from '@/constants/fields';
-import { useRouter } from 'next/navigation';
-import { onAuthStateChanged } from 'firebase/auth';
-import { useTotemV2 } from '@/contexts/TotemContextV2';
-import { useAuth } from '@/contexts/AuthContext';
-import { hasUserLikedTotem, getTotemLikes, getTotemCrispness, getUserDisplayName } from '@/utils/componentHelpers';
-import dateHelpers from '@/utils/dateHelpers';
-
-const { toDate } = dateHelpers;
+import type { Post } from '@/types/models';
+import { TotemButton } from '@/components/totem/TotemButton';
 
 interface TotemDetailProps {
   post: Post;
   totemName: string;
-  onLike: () => Promise<void>;
-  onUnlike: () => Promise<void>;
 }
 
-export function TotemDetail({ post, totemName, onLike, onUnlike }: TotemDetailProps) {
-  const { user } = useAuth();
-  const { isLiked } = useTotemV2();
+export function TotemDetail({ post, totemName }: TotemDetailProps) {
+  const { isLiked } = useTotem();
 
-  // Find the answer containing the totem
-  const answer = post.answers.find(answer => 
-    answer.totems?.some(totem => totem.name === totemName)
-  );
+  // Find the totem in the post's answers
+  const totem = post.answers
+    .flatMap(answer => answer.totems)
+    .find(t => t.name === totemName);
 
-  if (!answer) {
-    return <div>Totem not found in this post</div>;
-  }
-
-  const totem = answer.totems.find(t => t.name === totemName);
   if (!totem) {
-    return <div>Totem not found in this post</div>;
+    return null;
   }
 
-  const totemIsLiked = user ? isLiked(post.id, totemName) : false;
+  const liked = isLiked(post.id, totemName);
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="bg-white rounded-lg shadow p-6">
-        <h1 className="text-2xl font-bold mb-4">{post.question}</h1>
-        <div className="text-gray-600 mb-4">
-          {answer.text}
-        </div>
-        <div className="flex items-center justify-between">
-          <TotemButton
-            totemName={totem.name}
-            postId={post.id}
-          />
-          <div className="text-sm text-gray-500">
-            {formatDistanceToNow(toDate(answer.createdAt), { addSuffix: true })} by {getUserDisplayName(answer)}
-          </div>
-        </div>
+    <div className="bg-white rounded-xl shadow p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-semibold text-gray-900">
+          {totemName}
+        </h2>
+        <TotemButton
+          totemName={totemName}
+          postId={post.id}
+        />
+      </div>
+      
+      <div className="text-gray-600">
+        {post.question}
+      </div>
+      
+      <div className="mt-4 text-sm text-gray-500">
+        {post.answers.length} answers
       </div>
     </div>
   );

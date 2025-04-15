@@ -1,106 +1,120 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { TotemDetail } from '@/components/totem/TotemDetail';
-import type { Post } from '@/types/models';
-import { getPost } from '@/lib/firebase/posts';
-import { useTotemV2 } from '@/contexts/TotemContextV2';
+import React from 'react';
+import { useTotem } from '@/contexts/TotemContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { db } from '@/firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
+import type { Post } from '@/types/models';
+import { TotemDetail } from '@/components/totem/TotemDetail';
+import { Card } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { TotemButton } from '@/components/totem/TotemButton';
+import { Button } from '@/components/ui/button';
+import { CalendarIcon, LinkIcon, ChatBubbleOvalLeftEllipsisIcon, UserCircleIcon } from '@heroicons/react/24/outline';
+import { formatDateFromTimestamp } from '@/utils/date';
+import { getTotemLikes, getUserDisplayName } from '@/utils/componentHelpers';
+import { formatDistanceToNow } from 'date-fns';
+
+// Helper function to safely convert various date formats to a Date object
+const getDate = (timestamp: any): Date => {
+  if (timestamp instanceof Date) return timestamp;
+  if (typeof timestamp === 'number') return new Date(timestamp);
+  if (typeof timestamp === 'string') return new Date(timestamp);
+  return new Date();
+};
 
 interface TotemPageClientProps {
-  initialPost: Post;
+  posts: Post[];
   totemName: string;
 }
 
-export function TotemPageClient({ initialPost, totemName }: TotemPageClientProps) {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+export function TotemPageClient({ posts, totemName }: TotemPageClientProps) {
   const { user } = useAuth();
-  const { toggleLike } = useTotemV2();
+  const { isLiked } = useTotem();
 
-  useEffect(() => {
-    // Initial fetch
-    const fetchPost = async () => {
-      setIsLoading(true);
-      try {
-        const updatedPost = await getPost(initialPost.id);
-        if (updatedPost) {
-          // Update local state if needed
-        }
-      } catch (error) {
-        console.error('Error fetching post:', error);
-        setError('Failed to load post data');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  // Filter posts to only show those with this totem
+  const relevantPosts = posts.filter(post => 
+    post.answers.some(answer => 
+      answer.totems.some(t => t.name === totemName)
+    )
+  );
 
-    fetchPost();
-
-    // Set up real-time listener
-    const postRef = doc(db, 'posts', initialPost.id);
-    const unsubscribe = onSnapshot(postRef, (doc) => {
-      if (doc.exists()) {
-        const updatedPost = doc.data() as Post;
-        // Update local state if needed
-      }
-    });
-
-    return () => unsubscribe();
-  }, [initialPost.id]);
-
-  const handleLikeTotem = async () => {
-    if (!user) {
-      setError('You must be logged in to like a totem');
-      return;
+  // Group posts by question and sort by likes
+  const postsByQuestion = relevantPosts.reduce((acc, post) => {
+    const key = post.question;
+    if (!acc[key]) {
+      acc[key] = [];
     }
+    
+    // Calculate total likes for this totem in this post
+    const totalLikes = post.answers.reduce((sum, answer) => {
+      const totem = answer.totems.find(t => t.name === totemName);
+      return sum + (totem ? getTotemLikes(totem) : 0);
+    }, 0);
+    
+    acc[key].push({ post, totalLikes });
+    return acc;
+  }, {} as Record<string, Array<{ post: Post; totalLikes: number }>>);
 
-    setIsLoading(true);
-    setError(null);
-    try {
-      await toggleLike(initialPost.id, totemName);
-    } catch (error) {
-      console.error('Error liking totem:', error);
-      setError(error instanceof Error ? error.message : 'Failed to like totem');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleUnlikeTotem = async () => {
-    if (!user) {
-      setError('You must be logged in to unlike a totem');
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-    try {
-      await toggleLike(initialPost.id, totemName);
-    } catch (error) {
-      console.error('Error unliking totem:', error);
-      setError(error instanceof Error ? error.message : 'Failed to unlike totem');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
-
-  if (error) {
-    return <div className="text-red-500">{error}</div>;
-  }
+  // Sort posts within each question by total likes
+  Object.keys(postsByQuestion).forEach(question => {
+    postsByQuestion[question].sort((a, b) => b.totalLikes - a.totalLikes);
+  });
 
   return (
-    <TotemDetail
-      post={initialPost}
-      totemName={totemName}
-      onLike={handleLikeTotem}
-      onUnlike={handleUnlikeTotem}
-    />
+    <div className="space-y-6">
+      <div className="bg-white rounded-xl shadow p-6">
+        <h1 className="text-2xl font-bold text-gray-900 mb-4">
+          {totemName}
+        </h1>
+        <p className="text-gray-600">
+          {relevantPosts.length} posts using this totem
+        </p>
+      </div>
+
+      <div className="space-y-8">
+        {Object.entries(postsByQuestion).map(([question, questionPosts]) => (
+          <div key={question} className="space-y-4">
+            <h2 className="text-xl font-semibold text-gray-900">{question}</h2>
+            <div className="space-y-4">
+              {questionPosts.map(({ post }) => (
+                <div key={post.id} className="bg-white rounded-xl shadow p-4">
+                  {/* Show all answers that use this totem */}
+                  {post.answers
+                    .filter(answer => answer.totems.some(t => t.name === totemName))
+                    .map((answer, index) => {
+                      const totem = answer.totems.find(t => t.name === totemName);
+                      if (!totem) return null;
+                      
+                      return (
+                        <div key={`${post.id}-${index}`} className="mb-4 last:mb-0">
+                          <div className="text-gray-600 mb-4">
+                            {answer.text}
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                              <TotemButton
+                                totemName={totemName}
+                                postId={post.id}
+                              />
+                              {answer.totems.length > 1 && (
+                                <span className="text-sm text-gray-500">
+                                  +{answer.totems.length - 1} more totems
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {formatDistanceToNow(getDate(post.createdAt), { addSuffix: true })} by {getUserDisplayName(answer)}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 } 

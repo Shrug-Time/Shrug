@@ -18,7 +18,7 @@ export const COMMON_FIELDS = {
  * User related field names
  */
 export const USER_FIELDS = {
-  // Standard fields
+  // Identity fields
   FIREBASE_UID: 'firebaseUid',
   USERNAME: 'username',
   NAME: 'name',
@@ -44,11 +44,6 @@ export const USER_FIELDS = {
   
   // Expertise
   EXPERTISE: 'expertise',
-  
-  // Legacy fields for backward compatibility
-  LEGACY_USER_ID: 'userID',
-  LEGACY_USER_ID_LOWERCASE: 'userId',
-  LEGACY_USER_NAME: 'userName',
 } as const;
 
 /**
@@ -75,16 +70,9 @@ export const POST_FIELDS = {
   // Answers
   ANSWERS: 'answers',
   ANSWER_COUNT: 'answerCount',
-  ANSWER_USER_IDS: 'answerUserIds',
   ANSWER_FIREBASE_UIDS: 'answerFirebaseUids',
   ANSWER_USERNAMES: 'answerUsernames',
-  
-  // Legacy fields
-  LEGACY_AUTHOR_ID: 'authorId',
-  LEGACY_USER_ID: 'userId',
-  LEGACY_USER_NAME: 'userName',
-  LEGACY_USER_ID_UPPERCASE: 'userID',
-  LEGACY_LAST_ENGAGEMENT: 'lastEngagement',
+  ANSWER_USER_IDS: 'answerUserIds',
 } as const;
 
 /**
@@ -109,11 +97,6 @@ export const ANSWER_FIELDS = {
   // Status indicators
   IS_VERIFIED: 'isVerified',
   IS_PREMIUM: 'isPremium',
-  
-  // Legacy fields
-  LEGACY_USER_ID: 'userId',
-  LEGACY_USER_NAME: 'userName',
-  LEGACY_USER_ID_UPPERCASE: 'userID',
 } as const;
 
 /**
@@ -121,11 +104,15 @@ export const ANSWER_FIELDS = {
  */
 export const TOTEM_FIELDS = {
   // Basic fields
+  ID: 'id',
   NAME: 'name',
   TOTEM_NAME: 'totemName',
+  DESCRIPTION: 'description',
+  IMAGE_URL: 'imageUrl',
   
   // Interaction metrics
   LIKE_HISTORY: 'likeHistory',
+  FIREBASE_UID: 'firebaseUid',
   CRISPNESS: 'crispness',
   USAGE_COUNT: 'usageCount',
   
@@ -142,7 +129,6 @@ export const TOTEM_FIELDS = {
  */
 export const TOTEM_RELATIONSHIP_FIELDS = {
   TOTEM_ID: 'totemId',
-  TOTEM_NAME: 'totemName',
   RELATIONSHIP_TYPE: 'relationshipType',
   STRENGTH: 'strength',
   SOURCES_COUNT: 'sourcesCount',
@@ -155,29 +141,21 @@ export const TOTEM_ASSOCIATION_FIELDS = {
   TOTEM_ID: 'totemId',
   TOTEM_NAME: 'totemName',
   RELEVANCE_SCORE: 'relevanceScore',
-  USER_ENDORSED: 'userEndorsed',
-  AI_GENERATED: 'aiGenerated',
-  APPLIED_BY: 'appliedBy',
+  FIREBASE_UID: 'firebaseUid',
   APPLIED_AT: 'appliedAt',
-  ENDORSED_BY: 'endorsedBy',
-  CONTESTED_BY: 'contestedBy',
+  ENDORSED_BY_FIREBASE_UIDS: 'endorsedByFirebaseUids',
+  CONTESTED_BY_FIREBASE_UIDS: 'contestedByFirebaseUids',
 } as const;
 
 /**
- * Legacy field mapping for reference during standardization
+ * User totem interaction field names
  */
-export const LEGACY_FIELD_MAPPING = {
-  // User field mappings
-  USER: {
-    [USER_FIELDS.LEGACY_USER_ID]: USER_FIELDS.USERNAME,
-    [USER_FIELDS.LEGACY_USER_ID_LOWERCASE]: USER_FIELDS.FIREBASE_UID,
-    [USER_FIELDS.LEGACY_USER_NAME]: USER_FIELDS.NAME,
-  },
-  
-  // Post field mappings
-  POST: {
-    [POST_FIELDS.LEGACY_USER_ID]: POST_FIELDS.FIREBASE_UID,
-    [POST_FIELDS.LEGACY_USER_NAME]: POST_FIELDS.NAME,
-    [POST_FIELDS.LEGACY_AUTHOR_ID]: POST_FIELDS.FIREBASE_UID,
-  }
+export const USER_TOTEM_INTERACTION_FIELDS = {
+  FIREBASE_UID: 'firebaseUid',
+  TOTEM_ID: 'totemId',
+  INTERACTION_TYPE: 'interactionType',
+  COUNT: 'count',
+  FIRST_INTERACTION: 'firstInteraction',
+  LAST_INTERACTION: 'lastInteraction',
+  CONTEXT_COUNT: 'contextCount',
 } as const; 

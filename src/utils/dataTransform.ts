@@ -27,12 +27,11 @@ export function timestampToMillis(timestamp: Timestamp | Date | number | undefin
  * Normalizes a Totem object to ensure all properties exist
  */
 export function normalizeTotem(totem: Partial<Totem>): Totem {
-  const now = Date.now();
   return {
     id: totem.id || '',
     name: totem.name || '',
-    description: totem.description,
-    imageUrl: totem.imageUrl,
+    description: totem.description || '',
+    imageUrl: totem.imageUrl || '',
     likeHistory: totem.likeHistory || [],
     crispness: totem.crispness || 0,
     category: totem.category || {
@@ -43,14 +42,7 @@ export function normalizeTotem(totem: Partial<Totem>): Totem {
       usageCount: 0
     },
     decayModel: totem.decayModel || 'MEDIUM',
-    usageCount: totem.usageCount || 0,
-    relationships: totem.relationships || [],
-    userId: totem.userId,
-    userName: totem.userName,
-    lastLike: totem.lastLike,
-    createdAt: totem.createdAt || now,
-    updatedAt: totem.updatedAt || now,
-    lastInteraction: totem.lastInteraction || now
+    usageCount: totem.usageCount || 0
   };
 }
 
@@ -60,11 +52,11 @@ export function normalizeTotem(totem: Partial<Totem>): Totem {
 export function normalizeAnswer(answer: Record<string, any>): Answer {
   const now = Date.now();
   return {
-    id: answer.id || `${answer.firebaseUid || answer.userId}_${now}`,
+    id: answer.id || `${answer.firebaseUid}_${now}`,
     text: answer.text || '',
-    firebaseUid: answer.firebaseUid || answer.userId || '',
-    username: answer.username || answer.userName || '',
-    name: answer.name || answer.userName || '',
+    firebaseUid: answer.firebaseUid || '',
+    username: answer.username || '',
+    name: answer.name || '',
     totems: Array.isArray(answer.totems)
       ? answer.totems.map(normalizeTotem)
       : [],
@@ -72,9 +64,7 @@ export function normalizeAnswer(answer: Record<string, any>): Answer {
     updatedAt: typeof answer.updatedAt === 'number' ? answer.updatedAt : now,
     lastInteraction: typeof answer.lastInteraction === 'number' ? answer.lastInteraction : now,
     isVerified: answer.isVerified || false,
-    isPremium: answer.isPremium || false,
-    userId: answer.userId || answer.firebaseUid || '',
-    userName: answer.userName || answer.name || ''
+    isPremium: answer.isPremium || false
   };
 }
 
@@ -101,17 +91,16 @@ export function normalizePost(id: string, data: Record<string, any>): Post {
   return {
     id,
     question: data.question || '',
-    firebaseUid: data.firebaseUid || data.userId || '',
-    username: data.username || data.userName || '',
-    name: data.name || data.userName || '',
+    firebaseUid: data.firebaseUid || '',
+    username: data.username || '',
+    name: data.name || '',
     categories: Array.isArray(data.categories) ? data.categories : [],
     totemAssociations: Array.isArray(data.totemAssociations) ? data.totemAssociations : [],
     score: data.score,
     answers,
     answerFirebaseUids,
     answerUsernames,
-    userId: data.userId || data.firebaseUid || '',
-    userName: data.userName || data.name || '',
+    answerUserIds: answerFirebaseUids,
     createdAt: typeof data.createdAt === 'number' ? data.createdAt : now,
     updatedAt: typeof data.updatedAt === 'number' ? data.updatedAt : now,
     lastInteraction: typeof data.lastInteraction === 'number' ? data.lastInteraction : now

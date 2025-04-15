@@ -1,6 +1,6 @@
-import { Post } from '@/types/modelsV2';
+import { Post } from '@/types/models';
 import { formatDistanceToNow } from 'date-fns';
-import { TotemButton } from '@/components/totem/TotemButtonV2';
+import { TotemButton } from '@/components/totem/TotemButton';
 import { getTotemLikes } from '@/utils/componentHelpers';
 
 interface QuestionListProps {

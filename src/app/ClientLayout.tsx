@@ -4,7 +4,7 @@ import { QueryProvider } from '@/providers/QueryProvider';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { Navbar } from '@/components/layout/Navbar';
 import { ReactNode } from 'react';
-import { TotemProviderV2 } from '@/contexts/TotemContextV2';
+import { TotemProvider } from '@/contexts/TotemContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { VerificationBanner } from '@/components/auth/VerificationBanner';
 
@@ -13,13 +13,13 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
     <ErrorBoundary>
       <AuthProvider>
         <QueryProvider>
-          <TotemProviderV2>
+          <TotemProvider>
             <Navbar />
             <div className="container mx-auto px-4">
               <VerificationBanner />
             </div>
             {children}
-          </TotemProviderV2>
+          </TotemProvider>
         </QueryProvider>
       </AuthProvider>
     </ErrorBoundary>

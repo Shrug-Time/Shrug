@@ -1,6 +1,6 @@
 import { Post, Answer, Totem } from '@/types/models';
 import { formatDistanceToNow } from 'date-fns';
-import { TotemButton } from '@/components/totem/TotemButtonV2';
+import { TotemButton } from '@/components/totem/TotemButton';
 import { getTotemLikes, getUserDisplayName } from '@/utils/componentHelpers';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';

@@ -1,7 +1,7 @@
-import { db } from './firebase';
+import { db } from '@/firebase';
 import { collection, getDocs, query, where, doc, getDoc, updateDoc, arrayUnion, increment, Timestamp } from 'firebase/firestore';
 import { Post, TotemLike, Answer, Totem } from '@/types/models';
-import { auth } from './firebase';
+import { auth } from '@/firebase';
 import { TotemService } from '@/services/totem';
 
 function convertTimestamps(obj: any): any {

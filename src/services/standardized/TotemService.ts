@@ -164,12 +164,12 @@ export class TotemService {
    * Like a totem for a specific post
    * @param postId Post ID
    * @param totemName Totem name
-   * @param userId User ID performing the like
+   * @param firebaseUid User ID performing the like
    * @returns Updated post with totem likes
    */
-  static async likeTotem(postId: string, totemName: string, userId: string): Promise<Post> {
+  static async likeTotem(postId: string, totemName: string, firebaseUid: string): Promise<Post> {
     try {
-      if (!postId || !totemName || !userId) {
+      if (!postId || !totemName || !firebaseUid) {
         throw new Error('Post ID, totem name, and user ID are required');
       }
       
@@ -203,22 +203,22 @@ export class TotemService {
             totemId: totem.id,
             totemName: totem.name,
             relevanceScore: 1.0,
-            appliedBy: userId,
+            firebaseUid: firebaseUid,
             appliedAt: now,
-            endorsedBy: [userId],
-            contestedBy: []
+            endorsedByFirebaseUids: [firebaseUid],
+            contestedByFirebaseUids: []
           });
         } else {
           // Update existing association
           const association = post.totemAssociations[totemAssociationIndex];
           
           // Add user to endorsers if not already there
-          if (!association.endorsedBy.includes(userId)) {
-            association.endorsedBy.push(userId);
+          if (!association.endorsedByFirebaseUids.includes(firebaseUid)) {
+            association.endorsedByFirebaseUids.push(firebaseUid);
           }
           
           // Remove from contesters if present
-          association.contestedBy = association.contestedBy.filter(id => id !== userId);
+          association.contestedByFirebaseUids = association.contestedByFirebaseUids.filter(id => id !== firebaseUid);
         }
         
         // Update the post
@@ -232,12 +232,12 @@ export class TotemService {
         const totemRef = doc(db, this.TOTEMS_COLLECTION, totem.id);
         
         // Check if user already has a like record
-        const existingLikeIndex = totem.likeHistory.findIndex(like => like.userId === userId);
+        const existingLikeIndex = totem.likeHistory.findIndex(like => like.firebaseUid === firebaseUid);
         
         if (existingLikeIndex === -1) {
           // Add new like
           const newLike: TotemLike = {
-            userId,
+            firebaseUid,
             originalTimestamp: now,
             lastUpdatedAt: now,
             isActive: true,
@@ -283,12 +283,12 @@ export class TotemService {
    * Unlike a totem for a specific post
    * @param postId Post ID
    * @param totemName Totem name
-   * @param userId User ID performing the unlike
+   * @param firebaseUid User ID performing the unlike
    * @returns Updated post
    */
-  static async unlikeTotem(postId: string, totemName: string, userId: string): Promise<Post> {
+  static async unlikeTotem(postId: string, totemName: string, firebaseUid: string): Promise<Post> {
     try {
-      if (!postId || !totemName || !userId) {
+      if (!postId || !totemName || !firebaseUid) {
         throw new Error('Post ID, totem name, and user ID are required');
       }
       
@@ -320,11 +320,11 @@ export class TotemService {
           const association = post.totemAssociations[totemAssociationIndex];
           
           // Remove user from endorsers
-          association.endorsedBy = association.endorsedBy.filter(id => id !== userId);
+          association.endorsedByFirebaseUids = association.endorsedByFirebaseUids.filter(id => id !== firebaseUid);
           
           // Add to contesters if not already there
-          if (!association.contestedBy.includes(userId)) {
-            association.contestedBy.push(userId);
+          if (!association.contestedByFirebaseUids.includes(firebaseUid)) {
+            association.contestedByFirebaseUids.push(firebaseUid);
           }
           
           // Update the post
@@ -339,7 +339,7 @@ export class TotemService {
         const totemRef = doc(db, this.TOTEMS_COLLECTION, totem.id);
         
         // Find user's like in the history
-        const existingLikeIndex = totem.likeHistory.findIndex(like => like.userId === userId);
+        const existingLikeIndex = totem.likeHistory.findIndex(like => like.firebaseUid === firebaseUid);
         
         if (existingLikeIndex !== -1) {
           // Set the like to inactive

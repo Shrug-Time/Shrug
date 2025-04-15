@@ -1,149 +1,101 @@
 import * as admin from 'firebase-admin';
 
-// Debug helper function to print environment variables without exposing them completely
-function logEnvVarStatus() {
-  console.log('Firebase Admin Environment Variables Check:');
-  console.log(`- FIREBASE_PROJECT_ID: ${process.env.FIREBASE_PROJECT_ID ? 'Present' : 'Missing'}`);
-  console.log(`- FIREBASE_CLIENT_EMAIL: ${process.env.FIREBASE_CLIENT_EMAIL ? 'Present' : 'Missing'}`);
-  
-  // For private key, we'll check if it starts with the expected pattern and show more details if not
+/**
+ * Validates Firebase Admin SDK environment variables and returns their values
+ * @returns Object containing validated environment variables
+ */
+function getFirebaseAdminConfig() {
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   const privateKey = process.env.FIREBASE_PRIVATE_KEY;
-  if (!privateKey) {
-    console.log('- FIREBASE_PRIVATE_KEY: Missing');
-  } else if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
-    console.log(`- FIREBASE_PRIVATE_KEY: Present but might be malformed (doesn't start with expected pattern)`);
-    console.log(`  First 20 chars: "${privateKey.substring(0, 20)}..."`);
-  } else {
-    console.log('- FIREBASE_PRIVATE_KEY: Present and has correct format');
+
+  // Display validation status in development
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Firebase Admin Environment Variables Check:');
+    console.log(`- FIREBASE_PROJECT_ID: ${projectId ? 'Present' : 'Missing'}`);
+    console.log(`- FIREBASE_CLIENT_EMAIL: ${clientEmail ? 'Present' : 'Missing'}`);
+    console.log(`- FIREBASE_PRIVATE_KEY: ${privateKey ? 'Present and correct format' : 'Missing'}`);
   }
+
+  // Return validated config
+  return { projectId, clientEmail, privateKey };
 }
 
-// Initialize Firebase Admin SDK only on the server
-// This prevents it from being included in client-side bundles
+/**
+ * Initialize Firebase Admin SDK with proper error handling
+ * @returns Initialized Firebase Admin app
+ */
 function initializeFirebaseAdmin(): admin.app.App {
-  try {
-    // Check if Firebase Admin SDK is already initialized
-    if (admin.apps.length > 0) {
-      console.log('Firebase Admin SDK already initialized');
-      return admin.apps[0]!;
-    }
+  // Check if already initialized
+  if (admin.apps.length > 0) {
+    return admin.apps[0]!;
+  }
 
-    console.log('Starting Firebase Admin SDK initialization...');
-    logEnvVarStatus();
-
-    // Check if required environment variables are available
-    const projectId = process.env.FIREBASE_PROJECT_ID;
-    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-    const privateKey = process.env.FIREBASE_PRIVATE_KEY;
-
-    if (!projectId || !clientEmail || !privateKey) {
-      console.error('Firebase Admin SDK environment variables are missing. Check your .env.local file.');
-      
-      // Create a safer way to handle missing credentials in development
-      // This prevents crashing but will limit functionality
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('Using mock Firebase Admin in development due to missing credentials');
-        // Return initialized instance but with limited functionality
-        try {
-          const app = admin.initializeApp({
-            projectId: 'mock-project',
-            credential: admin.credential.cert({
-              projectId: 'mock-project',
-              clientEmail: 'mock@example.com',
-              privateKey: '-----BEGIN PRIVATE KEY-----\nMOCK\n-----END PRIVATE KEY-----\n',
-            } as admin.ServiceAccount),
-          }, 'mock');
-          return app;
-        } catch (mockError: any) {
-          console.error('Even mock initialization failed:', mockError);
-          throw mockError;
-        }
-      }
-      
-      throw new Error('Firebase Admin SDK environment variables are missing');
-    }
-
-    try {
-      // Process the private key - ensure it has correct newlines
-      let processedPrivateKey = privateKey;
-      if (privateKey.includes('\\n')) {
-        console.log('Private key contains escaped newlines, replacing them');
-        processedPrivateKey = privateKey.replace(/\\n/g, '\n');
-      }
-
-      // Initialize with better error handling
-      const app = admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId,
-          clientEmail,
-          privateKey: processedPrivateKey,
-        } as admin.ServiceAccount),
+  // Get and validate configuration
+  const { projectId, clientEmail, privateKey } = getFirebaseAdminConfig();
+  
+  // Check if required environment variables are available
+  if (!projectId || !clientEmail || !privateKey) {
+    console.error('Firebase Admin SDK environment variables are missing. Check your .env.local file.');
+    
+    // Create a mock instance for development to prevent complete failure
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Using mock Firebase Admin in development due to missing credentials');
+      return admin.initializeApp({
+        projectId: 'mock-project',
       });
-      console.log('Firebase Admin SDK initialized successfully');
-      return app;
-    } catch (initError: any) {
-      console.error('Error during Firebase Admin initialization:', initError);
-      
-      // Additional debugging for private key issues
-      if (initError.message && initError.message.includes('private key')) {
-        console.error('Private key appears to be malformed. Make sure it is properly formatted with newlines.');
-        console.error('First 30 chars of private key:', privateKey.substring(0, 30) + '...');
-      }
-      
-      throw initError;
     }
+    
+    throw new Error('Firebase Admin SDK environment variables are missing');
+  }
+
+  try {
+    // Process the private key - replace escaped newlines if present
+    const processedPrivateKey = privateKey.includes('\\n') 
+      ? privateKey.replace(/\\n/g, '\n') 
+      : privateKey;
+
+    // Initialize with credential
+    return admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId,
+        clientEmail,
+        privateKey: processedPrivateKey,
+      } as admin.ServiceAccount),
+    });
   } catch (error) {
-    console.error('Top-level error in Firebase Admin initialization:', error);
+    console.error('Error during Firebase Admin initialization:', error);
     throw error;
   }
 }
 
-// Initialize the admin SDK with try/catch
-let firebaseApp: admin.app.App | null = null;
+// Initialize the Firebase Admin SDK
+let firebaseApp: admin.app.App;
 try {
   firebaseApp = initializeFirebaseAdmin();
-  console.log('Firebase Admin initialization complete');
 } catch (error) {
   console.error('Failed to initialize Firebase Admin:', error);
-  // In development, we'll create a mock for easier debugging
+  
+  // In development, create a mock for debugging
   if (process.env.NODE_ENV === 'development') {
     console.warn('Creating emergency mock Firebase Admin for development');
-    try {
-      admin.initializeApp({
-        projectId: 'emergency-mock',
-      });
-      firebaseApp = admin.apps[0];
-    } catch (e) {
-      console.error('Failed to create emergency mock:', e);
-    }
+    admin.initializeApp({
+      projectId: 'emergency-mock',
+    });
+    firebaseApp = admin.apps[0]!;
+  } else {
+    throw error;
   }
 }
 
-// Export the admin instance with its type
-export const firebaseAdmin: typeof admin = admin;
+// Initialize services with proper error handling
+const adminAuth = admin.auth();
+const adminFirestore = admin.firestore();
 
-// Wrap service initialization in try/catch blocks
-let adminAuth: admin.auth.Auth | null = null;
-let adminDb: admin.firestore.Firestore | null = null;
+// Export the admin instance and services with proper typing
+export const firebaseAdmin = admin;
+export const auth = adminAuth;
+export const db = adminFirestore;
 
-try {
-  if (firebaseApp) {
-    adminAuth = admin.auth();
-    console.log('Firebase Admin Auth initialized successfully');
-  }
-} catch (error) {
-  console.error('Failed to initialize Firebase Admin Auth:', error);
-  adminAuth = null;
-}
-
-try {
-  if (firebaseApp) {
-    adminDb = admin.firestore();
-    console.log('Firebase Admin Firestore initialized successfully');
-  }
-} catch (error) {
-  console.error('Failed to initialize Firebase Admin Firestore:', error);
-  adminDb = null;
-}
-
-export { adminAuth, adminDb }; 
+// For compatibility with existing code
+export { adminAuth, adminFirestore as adminDb }; 

@@ -3,19 +3,22 @@ import { Timestamp } from 'firebase/firestore';
 import type { Post, TotemSuggestion, Answer, Totem } from '@/types/models';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { TotemButton } from '@/components/totem/TotemButtonV2';
+import { TotemButton } from '@/components/totem/TotemButton';
 import Link from 'next/link';
 import { SimilarityService } from '@/services/similarity';
 import { InfiniteScroll } from '@/components/common/InfiniteScroll';
 import { USER_FIELDS } from '@/constants/fields';
 import { getUserDisplayName, getTotemLikes, getTotemCrispness, hasUserLikedTotem } from '@/utils/componentHelpers';
-import { useTotemV2 } from '@/contexts/TotemContextV2';
+import { useTotem } from '@/contexts/TotemContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { AnswerModal } from '@/components/answers/AnswerModal';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthModal } from '@/hooks/useAuthModal';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { getPostUrl, getAnswerUrl } from '@/utils/routes';
+import Image from 'next/image';
+import { TotemSelector } from '@/components/totem/TotemSelector';
+import { Button } from '@/components/ui/button';
 
 // Helper function to safely convert various date formats to a Date object
 const toDate = (dateField: any): Date => {
@@ -55,7 +58,7 @@ export function QuestionList({
 }: QuestionListProps) {
   const router = useRouter();
   const { user } = useAuth();
-  const { toggleLike, loadPostTotems } = useTotemV2();
+  const { toggleLike, loadPostTotems } = useTotem();
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState<Post | null>(null);
   const queryClient = useQueryClient();

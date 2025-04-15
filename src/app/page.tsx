@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useTotemV2 } from '@/contexts/TotemContextV2';
+import { useTotem } from '@/contexts/TotemContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { QuestionList } from '@/components/questions/QuestionList';
 import { useRouter } from 'next/navigation';
@@ -23,7 +23,7 @@ const calculateTotalLikes = (post: Post) => {
 
 export default function Home() {
   const { user } = useAuth();
-  const { toggleLike } = useTotemV2();
+  const { toggleLike } = useTotem();
   
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);

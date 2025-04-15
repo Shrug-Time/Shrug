@@ -1,12 +1,13 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { AuthProvider } from '@/contexts/AuthContext';
-import { TotemProviderV2 } from '@/contexts/TotemContextV2';
-import { TotemButton } from '@/components/totem/TotemButtonV2';
-import { db } from '@/firebase';
+import { TotemProvider } from '@/contexts/TotemContext';
+import { TotemButton } from '@/components/totem/TotemButton';
 import { doc, setDoc } from 'firebase/firestore';
-import type { Post } from '@/types/modelsV2';
+import { db } from '@/firebase';
+import type { Post } from '@/types/models';
 
 // Test post data
 const testPost: Post = {
@@ -14,6 +15,7 @@ const testPost: Post = {
   question: 'Test Question',
   answers: [
     {
+      id: 'test-answer-1',
       text: 'Test Answer',
       totems: [
         {
@@ -29,7 +31,8 @@ const testPost: Post = {
       ],
       firebaseUid: 'test-user-1',
       username: 'testuser',
-      name: 'Test User'
+      name: 'Test User',
+      createdAt: Date.now()
     }
   ],
   createdAt: Date.now(),
@@ -58,7 +61,7 @@ export default function TestTotemPage() {
 
   return (
     <AuthProvider>
-      <TotemProviderV2>
+      <TotemProvider>
         <div className="container mx-auto p-4">
           <h1 className="text-2xl font-bold mb-4">Test Totem Page</h1>
           <div className="space-y-4">
@@ -78,7 +81,7 @@ export default function TestTotemPage() {
             </div>
           </div>
         </div>
-      </TotemProviderV2>
+      </TotemProvider>
     </AuthProvider>
   );
 } 
