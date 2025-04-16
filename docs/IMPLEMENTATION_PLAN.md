@@ -104,10 +104,10 @@ We're making the basic features work better and more reliably - like upgrading t
 2. **Premium Content Access** (3-5 days)
    - Implement dual-layer monetization approach:
      - Platform subscription tiers (free vs. premium)
-     - Creator-controlled Paid Content
+     - Creator-controlled content gating
 
    **Platform Subscription Implementation**:
-   - Implement membership tier verification system
+   - Implement membership tier (free vs. premium) verification system
    - Add ad-free experience for premium subscribers
    - Set up tiered usage limits (refreshes) based on membership
    - Create subscription management UI and backend
