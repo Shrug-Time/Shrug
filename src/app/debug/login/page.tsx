@@ -1,14 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import { signIn, auth } from '@/firebase';
+import { signIn, signInWithGoogle, auth } from '@/firebase';
+// Keep this import commented until Apple authentication is enabled
+// import { signInWithApple } from '@/firebase';
 import { useRouter } from 'next/navigation';
 
 export default function DebugLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [socialLoading, setSocialLoading] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const router = useRouter();
 
@@ -19,7 +23,7 @@ export default function DebugLogin() {
     setSuccess(false);
 
     try {
-      await signIn(email, password);
+      await signIn(email, password, rememberMe);
       setSuccess(true);
       
       // Get the current user
@@ -41,6 +45,73 @@ export default function DebugLogin() {
       setLoading(false);
     }
   };
+
+  const handleGoogleLogin = async () => {
+    setError(null);
+    setSocialLoading('google');
+    setSuccess(false);
+    
+    try {
+      await signInWithGoogle();
+      setSuccess(true);
+      
+      // Get the current user
+      const user = auth.currentUser;
+      console.log('Logged in user (Google):', user ? {
+        uid: user.uid,
+        email: user.email,
+        emailVerified: user.emailVerified,
+        displayName: user.displayName
+      } : 'No user');
+      
+      // Redirect after a short delay
+      setTimeout(() => {
+        router.push('/debug/profile-test');
+      }, 2000);
+    } catch (err) {
+      console.error('Google login error:', err);
+      // Check for popup blocked error
+      if (err instanceof Error && err.message.includes('Popup was blocked')) {
+        setError('Popup was blocked. Please allow popups for this site and try again.');
+      } else {
+        setError(err instanceof Error ? err.message : 'An error occurred during Google sign-in');
+      }
+    } finally {
+      setSocialLoading(null);
+    }
+  };
+
+  /* Keep this function commented until Apple authentication is enabled
+  const handleAppleLogin = async () => {
+    setError(null);
+    setSocialLoading('apple');
+    setSuccess(false);
+    
+    try {
+      await signInWithApple();
+      setSuccess(true);
+      
+      // Get the current user
+      const user = auth.currentUser;
+      console.log('Logged in user (Apple):', user ? {
+        uid: user.uid,
+        email: user.email,
+        emailVerified: user.emailVerified,
+        displayName: user.displayName
+      } : 'No user');
+      
+      // Redirect after a short delay
+      setTimeout(() => {
+        router.push('/debug/profile-test');
+      }, 2000);
+    } catch (err) {
+      console.error('Apple login error:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred during Apple sign-in');
+    } finally {
+      setSocialLoading(null);
+    }
+  };
+  */
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
@@ -88,16 +159,61 @@ export default function DebugLogin() {
             />
           </div>
           
+          <div className="mb-6 flex items-center">
+            <input
+              type="checkbox"
+              id="remember-me"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
+            />
+            <label htmlFor="remember-me" className="ml-2 text-sm text-gray-700">
+              Remember me
+            </label>
+          </div>
+          
           <div className="flex items-center justify-between">
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || socialLoading !== null}
               className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full disabled:opacity-50"
             >
               {loading ? 'Logging in...' : 'Log In'}
             </button>
           </div>
         </form>
+        
+        <div className="mt-6">
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="bg-white px-2 text-gray-500">Or continue with</span>
+            </div>
+          </div>
+          
+          <div className="mt-4">
+            <button
+              onClick={handleGoogleLogin}
+              disabled={loading || socialLoading !== null}
+              className="w-full bg-white border border-gray-300 text-gray-700 font-medium py-2 px-4 rounded focus:outline-none focus:shadow-outline hover:bg-gray-50 disabled:opacity-50 flex justify-center items-center"
+            >
+              {socialLoading === 'google' ? 'Signing in...' : 'Google'}
+            </button>
+            
+            {/* Apple login button is disabled for now */}
+            {/*
+            <button
+              onClick={handleAppleLogin}
+              disabled={loading || socialLoading !== null}
+              className="bg-white border border-gray-300 text-gray-700 font-medium py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full hover:bg-gray-50 disabled:opacity-50 flex justify-center items-center"
+            >
+              {socialLoading === 'apple' ? 'Signing in...' : 'Apple'}
+            </button>
+            */}
+          </div>
+        </div>
         
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">

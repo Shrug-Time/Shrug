@@ -1,141 +1,157 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { 
   auth, 
-  sendVerificationEmail as sendVerificationEmailFn 
+  sendVerificationEmail as sendVerificationEmailFn,
+  getAuthRedirectResult,
+  signOut as firebaseSignOut
 } from '@/firebase';
 import { User } from 'firebase/auth';
 import { UserService } from '@/services/userService';
-import type { VerificationStatus } from '@/types/models';
+import type { VerificationStatus, UserProfile } from '@/types/models';
 
 interface AuthContextType {
   user: User | null;
+  userProfile: UserProfile | null;
   loading: boolean;
   isVerified: boolean;
   verificationStatus: VerificationStatus | 'pending' | null;
   sendVerificationEmail: () => Promise<void>;
   refreshVerificationStatus: () => Promise<void>;
+  logout: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType>({
-  user: null,
-  loading: true,
-  isVerified: false,
-  verificationStatus: null,
-  sendVerificationEmail: async () => {},
-  refreshVerificationStatus: async () => {}
-});
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isVerified, setIsVerified] = useState(false);
-  const [verificationStatus, setVerificationStatus] = useState<AuthContextType['verificationStatus']>(null);
+  const [verificationStatus, setVerificationStatus] = useState<VerificationStatus | 'pending' | null>(null);
 
-  // Function to check verification status from user profile
-  const checkVerificationStatus = async (user: User | null) => {
-    if (!user) {
-      setIsVerified(false);
-      setVerificationStatus(null);
-      return;
-    }
-
-    try {
-      // Reload the user to get the latest emailVerified status
-      await user.reload();
-      const currentUser = auth.currentUser;
-      
-      // First check Firebase Auth's emailVerified flag
-      if (currentUser?.emailVerified) {
-        setIsVerified(true);
-        setVerificationStatus('email_verified');
-        
-        // Get the user profile from UserService
-        const userProfile = await UserService.getUserByFirebaseUid(user.uid);
-        
-        // Update the profile if needed
-        if (userProfile && userProfile.verificationStatus !== 'email_verified') {
-          await UserService.updateProfile(user.uid, {
-            verificationStatus: 'email_verified'
-          });
+  // Check for redirect result on initial load
+  useEffect(() => {
+    const checkRedirectResult = async () => {
+      try {
+        const result = await getAuthRedirectResult();
+        if (result && result.user) {
+          console.log("User signed in after redirect:", result.user.email);
+          
+          // Check if user profile exists
+          let profile = await UserService.getUserByFirebaseUid(result.user.uid);
+          
+          // Create profile if it doesn't exist
+          if (!profile) {
+            profile = await UserService.createDefaultProfile({
+              displayName: result.user.displayName,
+              email: result.user.email
+            });
+          }
         }
-        return;
+      } catch (error) {
+        console.error("Error processing redirect sign-in:", error);
       }
+    };
+    
+    checkRedirectResult();
+  }, []);
 
-      // Then check the user profile for verification status
-      const userProfile = await UserService.getUserByFirebaseUid(user.uid);
-      if (userProfile) {
-        const status = userProfile.verificationStatus;
-        
-        // Check if user is verified through any method
-        const verified = status === 'email_verified' || 
-                        status === 'verified';
-        
-        setIsVerified(verified);
-        setVerificationStatus(status);
-        
-        // If Firebase says verified but profile doesn't, update profile
-        if (currentUser?.emailVerified && status !== 'email_verified') {
-          await UserService.updateProfile(user.uid, {
-            verificationStatus: 'email_verified'
-          });
-          setVerificationStatus('email_verified');
-          setIsVerified(true);
+  // Listen for auth state changes
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(async (authUser) => {
+      setUser(authUser);
+      
+      if (authUser) {
+        try {
+          // Get user profile
+          let profile = await UserService.getUserByFirebaseUid(authUser.uid);
+          
+          // Create profile if it doesn't exist
+          if (!profile) {
+            profile = await UserService.createDefaultProfile({
+              displayName: authUser.displayName,
+              email: authUser.email
+            });
+          }
+          
+          setUserProfile(profile);
+          
+          // Set verification status
+          if (authUser.emailVerified) {
+            setVerificationStatus(profile.verificationStatus);
+          } else {
+            setVerificationStatus('unverified');
+          }
+        } catch (error) {
+          console.error("Error fetching user profile:", error);
         }
       } else {
-        setIsVerified(false);
-        setVerificationStatus('unverified');
+        setUserProfile(null);
+        setVerificationStatus(null);
       }
-    } catch (error) {
-      console.error('Error checking verification status:', error);
-      setIsVerified(false);
+      
+      setLoading(false);
+    });
+    
+    return () => unsubscribe();
+  }, []);
+
+  const sendVerificationEmail = async () => {
+    if (user) {
+      await sendVerificationEmailFn();
     }
   };
 
-  // Function to send verification email
-  const sendVerificationEmail = async () => {
+  const refreshVerificationStatus = async () => {
+    if (user) {
+      await user.reload();
+      const updatedUser = auth.currentUser;
+      setUser(updatedUser);
+      
+      if (updatedUser?.emailVerified) {
+        const profile = await UserService.getUserByFirebaseUid(updatedUser.uid);
+        if (profile) {
+          // Update user profile with email verified status if needed
+          if (profile.verificationStatus === 'unverified') {
+            await UserService.updateProfile(updatedUser.uid, {
+              verificationStatus: 'email_verified'
+            });
+            setVerificationStatus('email_verified');
+          } else {
+            setVerificationStatus(profile.verificationStatus);
+          }
+        }
+      }
+    }
+  };
+
+  const logout = async () => {
     try {
-      await sendVerificationEmailFn();
-      setVerificationStatus('pending');
+      await firebaseSignOut();
+      // User state will be reset by the auth state listener
     } catch (error) {
-      console.error('Error sending verification email:', error);
+      console.error("Error signing out:", error);
       throw error;
     }
   };
 
-  // Function to refresh verification status
-  const refreshVerificationStatus = async () => {
-    if (user) {
-      await user.reload();
-      const refreshedUser = auth.currentUser;
-      setUser(refreshedUser);
-      await checkVerificationStatus(refreshedUser);
-    }
+  const value = {
+    user,
+    userProfile,
+    loading,
+    isVerified: user?.emailVerified || false,
+    verificationStatus,
+    sendVerificationEmail,
+    refreshVerificationStatus,
+    logout
   };
 
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (authUser) => {
-      setUser(authUser);
-      await checkVerificationStatus(authUser);
-      setLoading(false);
-    });
-
-    return unsubscribe;
-  }, []);
-
-  return (
-    <AuthContext.Provider value={{ 
-      user, 
-      loading, 
-      isVerified, 
-      verificationStatus,
-      sendVerificationEmail,
-      refreshVerificationStatus
-    }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  return useContext(AuthContext);
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 } 

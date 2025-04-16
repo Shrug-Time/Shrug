@@ -1,6 +1,18 @@
 // src/firebase.ts
 import { initializeApp, getApps, FirebaseApp, getApp } from "firebase/app";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendEmailVerification, onAuthStateChanged, Auth, User, UserCredential } from "firebase/auth";
+import { 
+  getAuth, 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  sendEmailVerification, 
+  onAuthStateChanged, 
+  Auth, 
+  User, 
+  UserCredential,
+  GoogleAuthProvider,
+  signInWithPopup,
+  getRedirectResult
+} from "firebase/auth";
 import { getFirestore, doc, setDoc, getDoc, updateDoc, Timestamp, Firestore, onSnapshot, DocumentData, DocumentReference } from "firebase/firestore";
 
 /**
@@ -51,6 +63,18 @@ if (typeof window !== 'undefined') {
 export const db = firestore as Firestore;
 export const auth = authInstance as Auth;
 
+// Initialize social auth providers
+const googleProvider = new GoogleAuthProvider();
+// Configure Google provider for a better user experience
+googleProvider.setCustomParameters({
+  // Force account selection even when one account is available
+  prompt: 'select_account',
+  // Request minimal profile access to speed up the auth process
+  login_hint: 'user@example.com',
+  // Display in popup mode where possible
+  display: 'popup'
+});
+
 /**
  * Creates a new user document or updates verification status of existing user
  * @param user The Firebase user object
@@ -99,9 +123,16 @@ export const checkOrCreateUser = async (user: User | null): Promise<DocumentData
  * Signs in a user with email and password
  * @param email User's email address
  * @param password User's password
+ * @param rememberMe Whether to persist the user session
  * @returns Firebase UserCredential object
  */
-export const signIn = async (email: string, password: string): Promise<UserCredential> => {
+export const signIn = async (email: string, password: string, rememberMe: boolean = false): Promise<UserCredential> => {
+  // Set persistence based on rememberMe flag
+  if (auth) {
+    const { setPersistence, browserSessionPersistence, browserLocalPersistence } = await import('firebase/auth');
+    await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
+  }
+  
   return signInWithEmailAndPassword(auth, email, password);
 };
 
@@ -134,6 +165,55 @@ export const sendVerificationEmail = async (): Promise<void> => {
   const user = auth.currentUser;
   if (!user) throw new Error("No user logged in");
   await sendEmailVerification(user);
+};
+
+/**
+ * Signs in a user with Google using a popup window
+ * @returns Promise resolving to UserCredential
+ */
+export const signInWithGoogle = async (): Promise<UserCredential> => {
+  try {
+    // Force the prompt to stay in a popup
+    googleProvider.setCustomParameters({
+      prompt: 'select_account',
+      display: 'popup'
+    });
+    return await signInWithPopup(auth, googleProvider);
+  } catch (error: any) {
+    // Check if the error is because popup was blocked
+    if (error.code === 'auth/popup-blocked') {
+      console.error('Popup was blocked by the browser. Please allow popups for this site.');
+      throw new Error('Popup was blocked. Please allow popups for this site and try again.');
+    }
+    throw error;
+  }
+};
+
+/**
+ * Gets the result from a redirect sign-in operation
+ * @returns UserCredential or null if no redirect result
+ */
+export const getAuthRedirectResult = async (): Promise<UserCredential | null> => {
+  try {
+    return await getRedirectResult(auth);
+  } catch (error) {
+    console.error("Error getting redirect result:", error);
+    return null;
+  }
+};
+
+/**
+ * Signs out the currently authenticated user
+ * @returns Promise that resolves when sign-out is complete
+ */
+export const signOut = async (): Promise<void> => {
+  try {
+    const { signOut } = await import('firebase/auth');
+    return signOut(auth);
+  } catch (error) {
+    console.error('Error signing out:', error);
+    throw error;
+  }
 };
 
 // Export additional Firebase utilities
