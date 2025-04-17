@@ -80,7 +80,7 @@ export function ContentGatingControls({
       <div className="p-4 border rounded-lg bg-yellow-50 text-yellow-800">
         <h3 className="font-semibold mb-2">Email Verification Required</h3>
         <p className="text-sm">
-          To gate content as premium, you need to verify your email address. 
+          To make your content exclusive, you need to verify your email address. 
           Please check your inbox for a verification email or request a new one from your profile settings.
         </p>
       </div>
@@ -89,7 +89,7 @@ export function ContentGatingControls({
 
   return (
     <div className="p-4 border rounded-lg">
-      <h3 className="font-semibold mb-3">Premium Content Settings</h3>
+      <h3 className="font-semibold mb-3">Content Access Settings</h3>
       
       {error && (
         <div className="mb-3 p-2 bg-red-100 text-red-700 rounded text-sm">
@@ -99,9 +99,9 @@ export function ContentGatingControls({
       
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm">Make this content premium-only?</p>
+          <p className="text-sm">Make this content paid/exclusive?</p>
           <p className="text-xs text-gray-500 mt-1">
-            Premium content is only accessible to subscribers.
+            Creator-exclusive content requires a separate payment to access.
           </p>
         </div>
         
@@ -139,7 +139,7 @@ export function ContentGatingControls({
       
       <div className="mt-4 pt-3 border-t text-xs text-gray-500">
         <p>
-          Premium content helps you monetize your expertise. Subscribers can access all premium content across the platform.
+          Creator-exclusive content allows you to monetize your expertise. This is separate from Shrug's platform subscription.
         </p>
       </div>
     </div>

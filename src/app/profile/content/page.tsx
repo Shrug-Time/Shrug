@@ -59,22 +59,22 @@ export default function ContentPage() {
                     : 'bg-gray-100 text-gray-700'
                 }`}
               >
-                Premium Only
+                Exclusive Only
               </button>
             </div>
           </div>
           
           <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-6">
             <div className="p-4 border-b">
-              <h2 className="font-semibold">Content Gating</h2>
+              <h2 className="font-semibold">Content Access Control</h2>
               <p className="text-sm text-gray-600">
-                Make your content premium-only to monetize your expertise.
+                Make your content exclusive to monetize your expertise.
               </p>
             </div>
             <div className="p-4">
               <p className="mb-4 text-sm">
-                Content gating allows you to restrict access to your premium content. 
-                Only subscribers will be able to view gated content.
+                Content access control allows you to create paid content that requires separate purchase. 
+                Only paying supporters will be able to view your exclusive content.
               </p>
               
               <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
@@ -86,7 +86,7 @@ export default function ContentPage() {
                 </div>
                 <select className="form-select rounded-md border-gray-300 shadow-sm">
                   <option value="public">Public (Everyone)</option>
-                  <option value="premium">Premium Only</option>
+                  <option value="premium">Exclusive (Paid)</option>
                 </select>
               </div>
             </div>
