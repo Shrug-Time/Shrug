@@ -117,6 +117,12 @@ We're making the basic features work better and more reliably - like upgrading t
    - Build payment infrastructure for individual content purchases
    - Create neutral pricing tools that enable creator autonomy
    - Implement access control for gated content viewing
+   
+   **Progressive Verification Approach**:
+   - Launch Phase: Require only email verification for content gating
+   - Growth Phase: Add follower count requirements and manual verification
+   - Maturity Phase: Implement multi-factor verification (social, ID, phone)
+   - Design system with flexible eligibility criteria that can evolve
 
    **Integration Requirements**:
    - Design unified checkout experience for both monetization types

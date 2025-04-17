@@ -10,6 +10,7 @@ import { Post } from '@/types/models';
 import { PostService } from '@/services/standardized';
 import { getTotemLikes } from '@/utils/componentHelpers';
 import { QueryConstraint } from 'firebase/firestore';
+import { AdBanner } from '@/components/ads/AdBanner';
 
 type FeedType = 'for-you' | 'popular' | 'latest';
 
@@ -123,6 +124,8 @@ export default function Home() {
 
   return (
     <main className="container mx-auto px-4 py-8">
+      <AdBanner />
+      
       <div className="flex space-x-4 mb-6">
         <button
           onClick={() => setActiveTab('latest')}
