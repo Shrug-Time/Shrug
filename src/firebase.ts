@@ -1,4 +1,3 @@
-
 // This file is dynamically modified during build to prevent SSR issues
 // This file is dynamically modified during build to prevent SSR issues
 
@@ -32,10 +31,11 @@ import { getFirestore, doc, setDoc, getDoc, updateDoc, Timestamp, Firestore, onS
  * Firebase configuration using environment variables
  * Values are loaded from .env.local or environment variables at build time
  */
-// Skip Firebase initialization during SSR/build
-const isBuildTime = process.env.NODE_ENV === 'production' && typeof window === 'undefined';
+// Only skip Firebase initialization during SSR, but always use real API keys
+const isBrowser = typeof window !== 'undefined';
+const isServerSide = typeof window === 'undefined';
       
-const firebaseConfig = isBuildTime ? { apiKey: 'DUMMY_KEY_FOR_BUILD' } : {
+const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
@@ -50,7 +50,6 @@ let firestore: Firestore | null = null;
 let authInstance: Auth | null = null;
 
 // Check for server-side rendering (including build process)
-const isBrowser = typeof window !== 'undefined';
 const isConfigValid = !!firebaseConfig.apiKey && !!firebaseConfig.authDomain && !!firebaseConfig.projectId;
 
 // Only initialize Firebase if we're in the browser and config is valid
