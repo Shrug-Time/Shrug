@@ -11,6 +11,13 @@ export function useUser() {
   const router = useRouter();
 
   useEffect(() => {
+    if (!auth) {
+      setProfile(null);
+      setIsLoading(false);
+      setError('Firebase auth is not initialized');
+      return () => {};
+    }
+    
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       try {
         if (!user) {
@@ -40,7 +47,7 @@ export function useUser() {
   }, [router]);
 
   const updateProfile = async (updates: Partial<UserProfile>) => {
-    if (!auth.currentUser || !profile) return;
+    if (!auth || !auth.currentUser || !profile) return;
 
     try {
       setIsLoading(true);

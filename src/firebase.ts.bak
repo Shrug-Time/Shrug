@@ -1,5 +1,3 @@
-
-// This file is dynamically modified during build to prevent SSR issues
 // This file is dynamically modified during build to prevent SSR issues
 
 // This file is dynamically modified during build to prevent SSR issues
@@ -243,7 +241,6 @@ export const signOut = async (): Promise<void> => {
 
 // Export additional Firebase utilities
 export { doc, setDoc, getDoc, updateDoc, Timestamp, onSnapshot };
-
 
 
 

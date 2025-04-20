@@ -1,13 +1,12 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { 
-  auth, 
   sendVerificationEmail as sendVerificationEmailFn,
-  getAuthRedirectResult,
   signOut as firebaseSignOut
 } from '@/firebase';
 import { User } from 'firebase/auth';
 import { UserService } from '@/services/userService';
 import type { VerificationStatus, UserProfile } from '@/types/models';
+import useFirebase from '@/hooks/useFirebase';
 
 interface AuthContextType {
   user: User | null;
@@ -23,6 +22,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const { auth, isInitialized } = useFirebase();
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,8 +30,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Check for redirect result on initial load
   useEffect(() => {
+    if (!auth || !isInitialized) return;
+
     const checkRedirectResult = async () => {
       try {
+        // Dynamically import getAuthRedirectResult to avoid SSR issues
+        const { getAuthRedirectResult } = await import('@/firebase');
         const result = await getAuthRedirectResult();
         if (result && result.user) {
           console.log("User signed in after redirect:", result.user.email);
@@ -53,10 +57,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
     
     checkRedirectResult();
-  }, []);
+  }, [auth, isInitialized]);
 
   // Listen for auth state changes
   useEffect(() => {
+    if (!auth || !isInitialized) return;
+
     const unsubscribe = auth.onAuthStateChanged(async (authUser) => {
       setUser(authUser);
       
@@ -93,7 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     
     return () => unsubscribe();
-  }, []);
+  }, [auth, isInitialized]);
 
   const sendVerificationEmail = async () => {
     if (user) {
@@ -102,23 +108,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const refreshVerificationStatus = async () => {
-    if (user) {
-      await user.reload();
-      const updatedUser = auth.currentUser;
-      setUser(updatedUser);
-      
-      if (updatedUser?.emailVerified) {
-        const profile = await UserService.getUserByFirebaseUid(updatedUser.uid);
-        if (profile) {
-          // Update user profile with email verified status if needed
-          if (profile.verificationStatus === 'unverified') {
-            await UserService.updateProfile(updatedUser.uid, {
-              verificationStatus: 'email_verified'
-            });
-            setVerificationStatus('email_verified');
-          } else {
-            setVerificationStatus(profile.verificationStatus);
-          }
+    if (!auth || !user) return;
+    
+    await user.reload();
+    const updatedUser = auth.currentUser;
+    setUser(updatedUser);
+    
+    if (updatedUser?.emailVerified) {
+      const profile = await UserService.getUserByFirebaseUid(updatedUser.uid);
+      if (profile) {
+        // Update user profile with email verified status if needed
+        if (profile.verificationStatus === 'unverified') {
+          await UserService.updateProfile(updatedUser.uid, {
+            verificationStatus: 'email_verified'
+          });
+          setVerificationStatus('email_verified');
+        } else {
+          setVerificationStatus(profile.verificationStatus);
         }
       }
     }
@@ -137,7 +143,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = {
     user,
     userProfile,
-    loading,
+    loading: loading || !isInitialized,
     isVerified: user?.emailVerified || false,
     verificationStatus,
     sendVerificationEmail,

@@ -43,6 +43,7 @@ export default function ContentGatingPage() {
               <ContentGatingControls
                 contentId={item.id}
                 creatorId={user.uid}
+                contentType={item.type}
                 initialIsGated={false}
                 onGatingChange={(isGated) => {
                   console.log(`Content ${item.id} gating status: ${isGated}`);

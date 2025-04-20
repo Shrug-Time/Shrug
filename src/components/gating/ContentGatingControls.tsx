@@ -4,6 +4,7 @@ import { useContentGating } from '@/contexts/ContentGatingContext';
 interface ContentGatingControlsProps {
   contentId: string;
   creatorId: string;
+  contentType: string;
   initialIsGated?: boolean;
   onGatingChange?: (isGated: boolean) => void;
 }
@@ -11,6 +12,7 @@ interface ContentGatingControlsProps {
 export function ContentGatingControls({
   contentId,
   creatorId,
+  contentType,
   initialIsGated = false,
   onGatingChange
 }: ContentGatingControlsProps) {
@@ -62,6 +64,18 @@ export function ContentGatingControls({
     }
   };
 
+  // If the content is not an Answer, render a card with basic content info but no gating controls
+  if (contentType !== 'Answer') {
+    return (
+      <div className="p-4 border rounded-lg">
+        <h3 className="font-semibold mb-3">Content Access Settings</h3>
+        <div className="text-sm text-gray-500">
+          This content is shared publicly.
+        </div>
+      </div>
+    );
+  }
+
   if (isEligible === null) {
     return (
       <div className="p-4 border rounded-lg bg-gray-50">
@@ -78,11 +92,17 @@ export function ContentGatingControls({
   if (isEligible === false) {
     return (
       <div className="p-4 border rounded-lg bg-yellow-50 text-yellow-800">
-        <h3 className="font-semibold mb-2">Email Verification Required</h3>
+        <h3 className="font-semibold mb-2">Content Access Controls</h3>
         <p className="text-sm">
-          To make your content exclusive, you need to verify your email address. 
-          Please check your inbox for a verification email or request a new one from your profile settings.
+          There may be an issue connecting to your account. 
+          You can try refreshing the page or signing out and back in.
         </p>
+        <button
+          onClick={handleToggleGating}
+          className="mt-3 px-3 py-1 bg-yellow-600 hover:bg-yellow-700 text-white rounded-md text-sm"
+        >
+          Enable Content Gating Anyway
+        </button>
       </div>
     );
   }

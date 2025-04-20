@@ -113,19 +113,16 @@ export const ContentGatingProvider = ({ children }: { children: ReactNode }) => 
       // LAUNCH PHASE IMPLEMENTATION: 
       // During initial launch, we'll use very simple criteria:
       // - User must be authenticated
-      // - Email must be verified
       // 
-      // In the future, this will be enhanced to include:
-      // - Minimum follower count
-      // - Account age requirements
-      // - Manual verification by admins
-      // - ID verification
+      // During development, we'll consider all authenticated users eligible
+      // regardless of email verification status
       
-      // For now, we'll consider all authenticated users with verified emails eligible
-      if (!user) return false;
+      // For now, we'll consider all authenticated users eligible
+      return !!user;
       
-      // Check if email is verified
-      return user.emailVerified;
+      // Later we'll re-enable this check:
+      // if (!user) return false;
+      // return user.emailVerified;
       
       // Eventually this will be replaced with more robust checks:
       // const userProfile = await UserService.getUserByFirebaseUid(creatorId);

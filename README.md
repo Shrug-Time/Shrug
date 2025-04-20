@@ -49,6 +49,7 @@ src/
 - [Implementation Plan](docs/IMPLEMENTATION_PLAN.md) - Current development roadmap
 - [Architecture](docs/ARCHITECTURE.md) - System design and data models
 - [Development](docs/DEVELOPMENT.md) - Development guidelines and patterns
+- [Vercel Deployment](docs/VERCEL_DEPLOYMENT.md) - Detailed instructions for deploying to Vercel
 - [Changelog](docs/CHANGELOG.md) - Version history and future plans
 
 ## Implementation Plan
@@ -62,6 +63,6 @@ To learn more about Next.js, take a look at the following resources:
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
 ## Deploy on Vercel
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The Shrug platform is configured for deployment on Vercel. We've added custom build configurations to handle ESLint issues and ensure smooth deployment.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+For detailed deployment instructions, see our [Vercel Deployment Guide](docs/VERCEL_DEPLOYMENT.md).
