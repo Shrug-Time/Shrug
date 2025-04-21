@@ -56,31 +56,47 @@ export default function DebugLogin() {
     }
   };
 
-  async function handleGoogleLogin() {
+  const handleGoogleLogin = async () => {
+    if (!auth) {
+      setError("Authentication service is not initialized");
+      return;
+    }
+    
     try {
-      if (!auth) {
-        throw new Error('Firebase auth is not initialized');
-      }
+      setSocialLoading('google');
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
-      router.push('/debug');
-    } catch (error) {
-      console.error('Google login error:', error);
+      setSuccess(true);
+      router.push('/debug/profile');
+    } catch (error: any) {
+      console.error("Google login error:", error);
+      setError(error.message || "Failed to log in with Google");
+    } finally {
+      setSocialLoading(null);
     }
-  }
+  };
 
-  async function handleAppleLogin() {
+  const handleAppleLogin = async () => {
+    // This function is intentionally kept for future implementation
+    // but not currently used in the UI
+    if (!auth) {
+      setError("Authentication service is not initialized");
+      return;
+    }
+    
     try {
-      if (!auth) {
-        throw new Error('Firebase auth is not initialized');
-      }
+      setSocialLoading('apple');
       const provider = new OAuthProvider('apple.com');
       await signInWithPopup(auth, provider);
-      router.push('/debug');
-    } catch (error) {
-      console.error('Apple login error:', error);
+      setSuccess(true);
+      router.push('/debug/profile');
+    } catch (error: any) {
+      console.error("Apple login error:", error);
+      setError(error.message || "Failed to log in with Apple");
+    } finally {
+      setSocialLoading(null);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
