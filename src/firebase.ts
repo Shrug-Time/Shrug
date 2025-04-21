@@ -31,62 +31,58 @@ import { getFirestore, doc, setDoc, getDoc, updateDoc, Timestamp, Firestore, onS
  * Firebase configuration using environment variables
  * Values are loaded from .env.local or environment variables at build time
  */
-// Only skip Firebase initialization during SSR, but always use real API keys
+// Only initialize Firebase in the browser environment
 const isBrowser = typeof window !== 'undefined';
-const isServerSide = typeof window === 'undefined';
-      
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
-};
 
-// Singleton pattern for Firebase initialization
+// Firebase app instances
 let firebaseApp: FirebaseApp | null = null;
 let firestore: Firestore | null = null;
 let authInstance: Auth | null = null;
+let googleProvider: GoogleAuthProvider | null = null;
 
-// Check for server-side rendering (including build process)
-const isConfigValid = !!firebaseConfig.apiKey && !!firebaseConfig.authDomain && !!firebaseConfig.projectId;
-
-// Only initialize Firebase if we're in the browser and config is valid
-if (isBrowser && isConfigValid) {
+// Initialize Firebase only in browser environment
+if (isBrowser) {
   try {
-    firebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
-    firestore = getFirestore(firebaseApp);
-    authInstance = getAuth(firebaseApp);
+    const firebaseConfig = {
+      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+      messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+      appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
+    };
+
+    // Check if required config values exist
+    const isConfigValid = !!firebaseConfig.apiKey && !!firebaseConfig.authDomain && !!firebaseConfig.projectId;
+
+    if (isConfigValid) {
+      // Initialize Firebase only once
+      firebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
+      firestore = getFirestore(firebaseApp);
+      authInstance = getAuth(firebaseApp);
+
+      // Initialize Google provider
+      googleProvider = new GoogleAuthProvider();
+      googleProvider.setCustomParameters({
+        prompt: 'select_account',
+        login_hint: 'user@example.com',
+        display: 'popup'
+      });
+    } else {
+      console.error('Firebase configuration is missing required environment variables!');
+      console.error('Make sure you have included these in your .env.local file:');
+      console.error('  NEXT_PUBLIC_FIREBASE_API_KEY');
+      console.error('  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN');
+      console.error('  NEXT_PUBLIC_FIREBASE_PROJECT_ID');
+    }
   } catch (error) {
     console.error('Firebase initialization error:', error);
   }
-} else if (!isConfigValid && isBrowser) {
-  console.error('Firebase configuration is missing required environment variables!');
-  console.error('Make sure you have included these in your .env.local file:');
-  console.error('  NEXT_PUBLIC_FIREBASE_API_KEY');
-  console.error('  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN');
-  console.error('  NEXT_PUBLIC_FIREBASE_PROJECT_ID');
 }
 
 // Export initialized instances with null fallbacks to prevent runtime errors
 export const db = firestore;
 export const auth = authInstance;
-
-// Only create provider in browser context
-let googleProvider: GoogleAuthProvider | null = null;
-if (isBrowser && auth) {
-  googleProvider = new GoogleAuthProvider();
-  // Configure Google provider for a better user experience
-  googleProvider.setCustomParameters({
-    // Force account selection even when one account is available
-    prompt: 'select_account',
-    // Request minimal profile access to speed up the auth process
-    login_hint: 'user@example.com',
-    // Display in popup mode where possible
-    display: 'popup'
-  });
-}
 
 /**
  * Creates a new user document or updates verification status of existing user
