@@ -10,6 +10,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuthModal } from '@/hooks/useAuthModal';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { getAnswerUrl, getPostUrl } from '@/utils/routes';
+import { ReportButton } from '@/components/reports/ReportButton';
 
 // Helper function to safely convert various date formats to a Date object
 const toDate = (dateField: any): Date => {
@@ -145,8 +146,16 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
                       </span>
                     )}
                   </div>
-                  <div className="text-sm text-gray-500">
-                    {formatDistanceToNow(toDate(answers[0].answer.createdAt), { addSuffix: true })} by {getUserDisplayName(answers[0].answer)}
+                  <div className="flex items-center space-x-3">
+                    <div className="text-sm text-gray-500">
+                      {formatDistanceToNow(toDate(answers[0].answer.createdAt), { addSuffix: true })} by {getUserDisplayName(answers[0].answer)}
+                    </div>
+                    <ReportButton 
+                      contentId={answers[0].answer.id} 
+                      contentType="answer" 
+                      iconOnly={true}
+                      parentId={post.id}
+                    />
                   </div>
                 </div>
               </div>

@@ -2,11 +2,16 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
+import { useUser } from '@/hooks/useUser';
+import { getAdminReportsUrl } from '@/utils/routes';
 
 export function ProfileSidebar() {
   const pathname = usePathname();
   const { user } = useAuth();
   const { isPremium } = useSubscription();
+  const { profile } = useUser();
+
+  const isAdmin = profile?.membershipTier === 'admin';
 
   if (!user) return null;
   
@@ -85,6 +90,19 @@ export function ProfileSidebar() {
           </svg>
           Analytics
         </Link>
+        
+        {isAdmin && (
+          <Link 
+            href={getAdminReportsUrl()} 
+            className={`flex items-center px-4 py-3 text-gray-700 ${isActive('/admin/reports')}`}
+          >
+            <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"></path>
+            </svg>
+            Content Reports
+            <span className="ml-2 bg-red-100 text-red-800 text-xs font-medium px-2 py-0.5 rounded">Admin</span>
+          </Link>
+        )}
       </nav>
     </aside>
   );
