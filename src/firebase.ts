@@ -1,3 +1,15 @@
+// This file is dynamically modified during build to prevent SSR issues
+// This file is dynamically modified during build to prevent SSR issues
+
+// This file is dynamically modified during build to prevent SSR issues
+
+// This file is dynamically modified during build to prevent SSR issues
+
+// This file is dynamically modified during build to prevent SSR issues
+
+// This file is dynamically modified during build to prevent SSR issues
+
+// This file is dynamically modified during build to prevent SSR issues
 // src/firebase.ts
 import { initializeApp, getApps, FirebaseApp, getApp } from "firebase/app";
 import { 
@@ -19,61 +31,58 @@ import { getFirestore, doc, setDoc, getDoc, updateDoc, Timestamp, Firestore, onS
  * Firebase configuration using environment variables
  * Values are loaded from .env.local or environment variables at build time
  */
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
-};
+// Only initialize Firebase in the browser environment
+const isBrowser = typeof window !== 'undefined';
 
-// Validate that required environment variables are present
-if (!firebaseConfig.apiKey || !firebaseConfig.authDomain || !firebaseConfig.projectId) {
-  console.error('Firebase configuration is missing required environment variables!');
-  console.error('Make sure you have included these in your .env.local file:');
-  console.error('  NEXT_PUBLIC_FIREBASE_API_KEY');
-  console.error('  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN');
-  console.error('  NEXT_PUBLIC_FIREBASE_PROJECT_ID');
-}
-
-// Singleton pattern for Firebase initialization
+// Firebase app instances
 let firebaseApp: FirebaseApp | null = null;
 let firestore: Firestore | null = null;
 let authInstance: Auth | null = null;
+let googleProvider: GoogleAuthProvider | null = null;
 
-// Initialize Firebase only once, and only in the browser
-if (typeof window !== 'undefined') {
+// Initialize Firebase only in browser environment
+if (isBrowser) {
   try {
-    firebaseApp = getApp();
-  } catch (e) {
-    if (!getApps().length) {
-      firebaseApp = initializeApp(firebaseConfig);
+    const firebaseConfig = {
+      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+      messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+      appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
+    };
+
+    // Check if required config values exist
+    const isConfigValid = !!firebaseConfig.apiKey && !!firebaseConfig.authDomain && !!firebaseConfig.projectId;
+
+    if (isConfigValid) {
+      // Initialize Firebase only once
+      firebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
+      firestore = getFirestore(firebaseApp);
+      authInstance = getAuth(firebaseApp);
+
+      // Initialize Google provider
+      googleProvider = new GoogleAuthProvider();
+      googleProvider.setCustomParameters({
+        prompt: 'select_account',
+        login_hint: 'user@example.com',
+        display: 'popup'
+      });
     } else {
-      firebaseApp = getApp();
+      console.error('Firebase configuration is missing required environment variables!');
+      console.error('Make sure you have included these in your .env.local file:');
+      console.error('  NEXT_PUBLIC_FIREBASE_API_KEY');
+      console.error('  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN');
+      console.error('  NEXT_PUBLIC_FIREBASE_PROJECT_ID');
     }
+  } catch (error) {
+    console.error('Firebase initialization error:', error);
   }
-  
-  // Initialize Firestore and Auth only once
-  firestore = getFirestore(firebaseApp);
-  authInstance = getAuth(firebaseApp);
 }
 
-// Export initialized instances with type assertions
-export const db = firestore as Firestore;
-export const auth = authInstance as Auth;
-
-// Initialize social auth providers
-const googleProvider = new GoogleAuthProvider();
-// Configure Google provider for a better user experience
-googleProvider.setCustomParameters({
-  // Force account selection even when one account is available
-  prompt: 'select_account',
-  // Request minimal profile access to speed up the auth process
-  login_hint: 'user@example.com',
-  // Display in popup mode where possible
-  display: 'popup'
-});
+// Export initialized instances with null fallbacks to prevent runtime errors
+export const db = firestore;
+export const auth = authInstance;
 
 /**
  * Creates a new user document or updates verification status of existing user
@@ -81,7 +90,7 @@ googleProvider.setCustomParameters({
  * @returns The user document data or null if no user
  */
 export const checkOrCreateUser = async (user: User | null): Promise<DocumentData | null> => {
-  if (!user) return null;
+  if (!user || !db) return null;
   const userRef = doc(db, "users", user.uid);
   const userDoc = await getDoc(userRef);
   
@@ -127,8 +136,10 @@ export const checkOrCreateUser = async (user: User | null): Promise<DocumentData
  * @returns Firebase UserCredential object
  */
 export const signIn = async (email: string, password: string, rememberMe: boolean = false): Promise<UserCredential> => {
+  if (!auth) throw new Error("Auth is not initialized");
+  
   // Set persistence based on rememberMe flag
-  if (auth) {
+  if (isBrowser) {
     const { setPersistence, browserSessionPersistence, browserLocalPersistence } = await import('firebase/auth');
     await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
   }
@@ -143,6 +154,7 @@ export const signIn = async (email: string, password: string, rememberMe: boolea
  * @returns Firebase UserCredential object
  */
 export const signUp = async (email: string, password: string): Promise<UserCredential> => {
+  if (!auth) throw new Error("Auth is not initialized");
   const userCredential = await createUserWithEmailAndPassword(auth, email, password);
   await sendEmailVerification(userCredential.user);
   return userCredential;
@@ -154,6 +166,7 @@ export const signUp = async (email: string, password: string): Promise<UserCrede
  * @returns Unsubscribe function
  */
 export const onAuthChange = (callback: (user: User | null) => void): (() => void) => {
+  if (!auth) throw new Error("Auth is not initialized");
   return onAuthStateChanged(auth, callback);
 };
 
@@ -162,6 +175,7 @@ export const onAuthChange = (callback: (user: User | null) => void): (() => void
  * @throws Error if no user is logged in
  */
 export const sendVerificationEmail = async (): Promise<void> => {
+  if (!auth) throw new Error("Auth is not initialized");
   const user = auth.currentUser;
   if (!user) throw new Error("No user logged in");
   await sendEmailVerification(user);
@@ -172,6 +186,8 @@ export const sendVerificationEmail = async (): Promise<void> => {
  * @returns Promise resolving to UserCredential
  */
 export const signInWithGoogle = async (): Promise<UserCredential> => {
+  if (!auth || !googleProvider) throw new Error("Auth or Google provider is not initialized");
+  
   try {
     // Force the prompt to stay in a popup
     googleProvider.setCustomParameters({
@@ -194,6 +210,7 @@ export const signInWithGoogle = async (): Promise<UserCredential> => {
  * @returns UserCredential or null if no redirect result
  */
 export const getAuthRedirectResult = async (): Promise<UserCredential | null> => {
+  if (!auth) throw new Error("Auth is not initialized");
   try {
     return await getRedirectResult(auth);
   } catch (error) {
@@ -208,6 +225,9 @@ export const getAuthRedirectResult = async (): Promise<UserCredential | null> =>
  */
 export const signOut = async (): Promise<void> => {
   try {
+    if (!auth) {
+      throw new Error('Firebase auth is not initialized');
+    }
     const { signOut } = await import('firebase/auth');
     return signOut(auth);
   } catch (error) {
@@ -218,3 +238,9 @@ export const signOut = async (): Promise<void> => {
 
 // Export additional Firebase utilities
 export { doc, setDoc, getDoc, updateDoc, Timestamp, onSnapshot };
+
+
+
+
+
+

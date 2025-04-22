@@ -22,6 +22,10 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
     setIsLoading(true);
 
     try {
+      if (!auth) {
+        throw new Error('Firebase auth is not initialized');
+      }
+      
       // Create user account
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;

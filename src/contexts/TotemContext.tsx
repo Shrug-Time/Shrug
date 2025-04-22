@@ -5,6 +5,7 @@ import { UserService } from '@/services/userService';
 import { PostService } from '@/services/firebase';
 import { TotemRefreshModal } from '@/components/totem/TotemRefreshModal';
 import type { Post } from '@/types/models';
+import useFirebase from '@/hooks/useFirebase';
 
 interface TotemContextType {
   toggleLike: (postId: string, totemName: string) => Promise<boolean>;

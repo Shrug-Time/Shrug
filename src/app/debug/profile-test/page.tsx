@@ -20,6 +20,14 @@ export default function ProfileTest() {
 
   // Check authentication status
   useEffect(() => {
+    if (!auth) {
+      setAuthStatus({
+        authenticated: false,
+        user: null
+      });
+      return () => {};
+    }
+    
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setAuthStatus({

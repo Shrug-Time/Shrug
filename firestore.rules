@@ -11,7 +11,11 @@ service cloud.firestore {
     }
     
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.membershipTier == 'admin';
     }
     
     function isPremiumUser() {
@@ -21,35 +25,33 @@ service cloud.firestore {
     // Users collection
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isOwner(userId);
-      allow update: if isAuthenticated() && (
-        isOwner(userId) || 
-        // Allow updating followers/following arrays
-        (request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['followers', 'following']))
-      );
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isOwner(userId);
+      allow delete: if isAdmin();
     }
 
     // Posts collection
     match /posts/{postId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isEmailVerified();
-      allow update: if isAuthenticated() && (
-        // Allow updating answers array
-        request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['answers', 'totalEngagement', 'score', 'lastEngagement'])
-      );
+      allow create: if isAuthenticated();
+      allow update: if isOwner(resource.data.firebaseUid) || isAdmin();
+      allow delete: if isOwner(resource.data.firebaseUid) || isAdmin();
     }
 
     // Totems collection
     match /totems/{totemId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isEmailVerified();
-      allow update: if isAuthenticated() && (
-        // Allow updating usage stats
-        request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['usageCount', 'lastUsed', 'answerRefs'])
-      );
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // Reports collection
+    match /reports/{reportId} {
+      allow create: if isAuthenticated();
+      allow read: if isOwner(resource.data.reporterId) || isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
 
     // Premium features

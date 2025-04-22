@@ -1,9 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { signIn, signInWithGoogle, auth } from '@/firebase';
-// Keep this import commented until Apple authentication is enabled
-// import { signInWithApple } from '@/firebase';
+import React, { useState, useEffect } from 'react';
+import { signIn, auth } from '@/firebase';
+import { GoogleAuthProvider, OAuthProvider, signInWithEmailAndPassword, signInWithPopup, sendPasswordResetEmail } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 
 export default function DebugLogin() {
@@ -16,6 +15,13 @@ export default function DebugLogin() {
   const [success, setSuccess] = useState(false);
   const router = useRouter();
 
+  useEffect(() => {
+    // Check if user is already logged in and redirect
+    if (auth?.currentUser) {
+      router.push('/debug/feed');
+    }
+  }, [router]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -23,11 +29,15 @@ export default function DebugLogin() {
     setSuccess(false);
 
     try {
+      if (!auth) {
+        throw new Error('Firebase auth is not initialized');
+      }
+      
       await signIn(email, password, rememberMe);
       setSuccess(true);
       
       // Get the current user
-      const user = auth.currentUser;
+      const user = auth?.currentUser;
       console.log('Logged in user:', user ? {
         uid: user.uid,
         email: user.email,
@@ -36,7 +46,7 @@ export default function DebugLogin() {
       
       // Redirect after a short delay
       setTimeout(() => {
-        router.push('/debug/profile-test');
+        router.push('/debug/feed');
       }, 2000);
     } catch (err) {
       console.error('Login error:', err);
@@ -47,71 +57,46 @@ export default function DebugLogin() {
   };
 
   const handleGoogleLogin = async () => {
-    setError(null);
-    setSocialLoading('google');
-    setSuccess(false);
+    if (!auth) {
+      setError("Authentication service is not initialized");
+      return;
+    }
     
     try {
-      await signInWithGoogle();
+      setSocialLoading('google');
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
       setSuccess(true);
-      
-      // Get the current user
-      const user = auth.currentUser;
-      console.log('Logged in user (Google):', user ? {
-        uid: user.uid,
-        email: user.email,
-        emailVerified: user.emailVerified,
-        displayName: user.displayName
-      } : 'No user');
-      
-      // Redirect after a short delay
-      setTimeout(() => {
-        router.push('/debug/profile-test');
-      }, 2000);
-    } catch (err) {
-      console.error('Google login error:', err);
-      // Check for popup blocked error
-      if (err instanceof Error && err.message.includes('Popup was blocked')) {
-        setError('Popup was blocked. Please allow popups for this site and try again.');
-      } else {
-        setError(err instanceof Error ? err.message : 'An error occurred during Google sign-in');
-      }
+      router.push('/debug/profile');
+    } catch (error: any) {
+      console.error("Google login error:", error);
+      setError(error.message || "Failed to log in with Google");
     } finally {
       setSocialLoading(null);
     }
   };
 
-  /* Keep this function commented until Apple authentication is enabled
   const handleAppleLogin = async () => {
-    setError(null);
-    setSocialLoading('apple');
-    setSuccess(false);
+    // This function is intentionally kept for future implementation
+    // but not currently used in the UI
+    if (!auth) {
+      setError("Authentication service is not initialized");
+      return;
+    }
     
     try {
-      await signInWithApple();
+      setSocialLoading('apple');
+      const provider = new OAuthProvider('apple.com');
+      await signInWithPopup(auth, provider);
       setSuccess(true);
-      
-      // Get the current user
-      const user = auth.currentUser;
-      console.log('Logged in user (Apple):', user ? {
-        uid: user.uid,
-        email: user.email,
-        emailVerified: user.emailVerified,
-        displayName: user.displayName
-      } : 'No user');
-      
-      // Redirect after a short delay
-      setTimeout(() => {
-        router.push('/debug/profile-test');
-      }, 2000);
-    } catch (err) {
-      console.error('Apple login error:', err);
-      setError(err instanceof Error ? err.message : 'An error occurred during Apple sign-in');
+      router.push('/debug/profile');
+    } catch (error: any) {
+      console.error("Apple login error:", error);
+      setError(error.message || "Failed to log in with Apple");
     } finally {
       setSocialLoading(null);
     }
   };
-  */
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">

@@ -4,9 +4,11 @@ import { useUser } from '@/hooks/useUser';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 
 export function Navbar() {
   const { profile } = useUser();
+  const { isPremium } = useSubscription();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const router = useRouter();
 

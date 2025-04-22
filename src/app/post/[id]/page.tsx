@@ -7,11 +7,12 @@ import { useUser } from '@/hooks/useUser';
 import { PostService } from '@/services/standardized';
 import { CreatePostForm } from '@/components/posts/CreatePostForm';
 import { QuestionAnswers } from '@/components/questions/QuestionAnswers';
+import { ReportButton } from '@/components/reports/ReportButton';
 import type { Post } from '@/types/models';
 
 export default function PostPage() {
   const params = useParams();
-  const postId = params.id as string;
+  const postId = params?.id as string;
   const queryClient = useQueryClient();
   const { profile: userData, isLoading: isLoadingUserData } = useUser();
   const [showCreatePost, setShowCreatePost] = useState(false);
@@ -19,6 +20,7 @@ export default function PostPage() {
   const { data: post, isLoading } = useQuery({
     queryKey: ['post', postId],
     queryFn: () => PostService.getPost(postId),
+    enabled: !!postId
   });
 
   if (isLoading) {
@@ -32,7 +34,10 @@ export default function PostPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="bg-white rounded-xl shadow p-6 mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-4">{post.question}</h1>
+        <div className="flex justify-between items-start">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">{post.question}</h1>
+          <ReportButton contentId={post.id} contentType="post" />
+        </div>
         <div className="text-sm text-gray-600">
           Posted by {post.username}
         </div>
