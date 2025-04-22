@@ -192,7 +192,7 @@ export function validatePost(post: Partial<Post>): Post {
     totemAssociations: normalizedTotemAssociations,
     
     // Engagement metrics
-    score: post.score,
+    score: typeof post.score === 'number' ? post.score : 0,
     
     // Answers
     answers: normalizedAnswers,
