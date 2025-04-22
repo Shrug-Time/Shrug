@@ -51,6 +51,7 @@ export interface Post {
   answerFirebaseUids?: string[];
   answerUsernames?: string[];
   answerUserIds?: string[];
+  answerCount?: number;
 }
 
 export interface TotemSuggestion {
