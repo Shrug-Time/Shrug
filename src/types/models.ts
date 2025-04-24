@@ -106,4 +106,26 @@ export interface UserProfile {
     recent: string[];
   };
   expertise: string[];
+}
+
+export interface ProfileSection {
+  id: string;
+  title: string;
+  type: 'default' | 'custom';
+  organizationMethod: 'chronological' | 'popularity' | 'complexity';
+  contentIds: string[];
+  position: number;
+  isVisible: boolean;
+  totemId?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface UserProfileOrganization {
+  userId: string;
+  sections: ProfileSection[];
+  layoutPreferences: {
+    profileStyle: 'compact' | 'detailed';
+    contentDisplay: 'cards' | 'list';
+  };
 } 
