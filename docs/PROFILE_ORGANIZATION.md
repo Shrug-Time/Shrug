@@ -8,71 +8,39 @@ The profile organization system will allow users to customize how their content 
 
 ## Key Features
 
-### 1. Totem-Based Organization
+### 1. Sections (MVP Focus)
 
-- **Personal Totem Curation**: Users select which totems appear on their profile
-- **Hierarchy Visualization**: Totems can be arranged in parent-child relationships
-- **Content Categorization**: Posts and answers are organized under relevant totems
-
-Example profile structure:
-```
-USER PROFILE: Jane Smith
-
-MY TOTEMS:
-[Photography] [Cooking] [Travel] [Books]
-
-PHOTOGRAPHY:
-  ├── Cameras
-  |    ├── DSLR
-  |    └── Mirrorless
-  |
-  ├── Techniques
-       ├── Lighting
-       └── Composition
-
-MY POSTS: (organized under Photography > Techniques > Lighting)
-• "Understanding natural light" (Question)
-• "Studio lighting basics" (Answer)
-• "Golden hour photography tips" (Post)
-```
+- **Default Sections**: Automatically generated for all users
+  - "Recent" (chronologically organized)
+  - "Popular" (organized by engagement)
+  - Totem-based sections for user's most active totems
+- **Custom Sections**: User-created content groupings
+  - Named by the user
+  - Content manually selected or filtered by totems
+  - Simple organization options
 
 ### 2. Content Organization Options
 
-Users can organize content within each totem/category using different methods:
+Users can organize content within each section using different methods:
 
 - **By Complexity**: Beginner → Advanced
 - **Chronologically**: Oldest → Newest (great for evolving topics or current events)
-- **By Sequence**: Step-by-step organization (for tutorials or processes)
 - **By Popularity**: Most liked/viewed content first
 
-### 3. Template-Based Customization
+### 3. Implementation Approach
 
-Rather than overwhelming users with unlimited customization options, the system will provide templates that can be customized:
+**MVP Implementation (Phase 1)**:
+- Automatic generation of default sections
+- Basic section creation and management 
+- Simple content selection into sections
+- Basic sorting options
+- Mobile-responsive design
 
-- **Section Templates**: Pre-designed profile sections with customization slots
-- **Featured Content**: Options to pin important content at the top
-- **Visual Themes**: A selection of design themes for the knowledge organization
-- **Layout Options**: Several layout options for different types of content
-
-## Implementation Approach
-
-### Phase 1: Basic Totem Organization
-
-- Implement basic profile with totem organization
-- Create drag-and-drop interface for arranging totems
-- Add toggle controls for enabling/disabling profile sections
-
-### Phase 2: Enhanced Customization
-
-- Add custom section creation capability
-- Implement content grouping functionality
-- Create featured content showcasing
-
-### Phase 3: Knowledge Paths
-
-- Allow creators to define "learning paths" through their content
-- Implement rich content relationship visualizations
-- Add context annotations between related posts
+**Future Enhancements (Post-MVP)**:
+- Drag-and-drop interface for arranging sections and content
+- Visual themes and layout options
+- Knowledge paths showing relationships between content
+- Advanced hierarchy visualization
 
 ## Technical Considerations
 
@@ -82,16 +50,14 @@ Rather than overwhelming users with unlimited customization options, the system 
 interface UserProfileOrganization {
   userId: string;
   sections: ProfileSection[];
-  featuredTotems: string[];
   layoutPreferences: LayoutPreferences;
-  customizationTheme: string;
 }
 
 interface ProfileSection {
   id: string;
   title: string;
-  type: 'totem' | 'collection' | 'learningPath';
-  organizationMethod: 'complexity' | 'chronological' | 'sequence' | 'popularity';
+  type: 'default' | 'custom';
+  organizationMethod: 'complexity' | 'chronological' | 'popularity';
   contentIds: string[];
   position: number;
   isVisible: boolean;
@@ -99,9 +65,8 @@ interface ProfileSection {
 }
 
 interface LayoutPreferences {
-  profileStyle: 'compact' | 'detailed' | 'visual';
-  totemVisualization: 'list' | 'grid' | 'tree' | 'bubble';
-  contentDisplay: 'cards' | 'list' | 'timeline';
+  profileStyle: 'compact' | 'detailed';
+  contentDisplay: 'cards' | 'list';
 }
 ```
 
@@ -111,90 +76,47 @@ interface LayoutPreferences {
 userProfiles/{userId}/
   - basic profile info
 
-userProfiles/{userId}/organization/
-  - profile organization preferences
-  
 userProfiles/{userId}/sections/
-  - custom sections configuration
+  - section configuration
   
-userProfiles/{userId}/featuredContent/
-  - pinned/featured content
+userProfiles/{userId}/customContent/
+  - custom content selection for sections
 ```
 
-## UI Mockups
+## UI Approach
 
-### Profile Editor Interface
+### Profile View
 
-```
-PROFILE EDITOR
+- Maintain existing tab structure (Home, About, Comments, Activity)
+- Display sections within the Home tab
+- "Customize Page" button to manage profile and sections
 
-[✓] Enable Totem Organization
-[✓] Show Profile Sections
-[ ] Enable Learning Paths
+### Section Management
 
-ARRANGE TOTEMS:
-[Photography] [Cooking] [Travel]  (drag to reorder)
+- Simple interface to create and edit sections
+- Content selection through filters and manual selection
+- Basic organization controls (sorting, ordering)
+- Toggle visibility for sections
 
-FEATURED SECTIONS:
-[My Photography Journey] ↕️
-  > Organization Method: [Timeline ▼]
-  > Visibility: [Public ▼]
-  > Content selection: [Select posts]
+## Benefits
 
-[Cooking Masterclass] ↕️
-  > Organization Method: [Difficulty ▼]
-  > Visibility: [Public ▼]
-  > Content selection: [Select posts]
-
-+ Add New Section
-```
-
-### Visitor View
-
-```
-JANE'S PROFILE
-
-About Jane:
-[Profile information]
-
-My Knowledge Areas:
-[Photography] [Cooking] [Travel]
-
-FEATURED: Photography Journey
-------------------------
-BEGINNER
-• "Understanding camera basics" (2022)
-• "My first portrait session" (2022)
-
-INTERMEDIATE
-• "Advanced composition techniques" (2023)
-• "Working with difficult lighting" (2023)
-
-ADVANCED
-• "Creating fine art photography" (2024)
-```
-
-## Benefits Over Current Social Models
-
-Unlike typical social media profiles that are chronological feeds, this approach:
-
-1. **Organizes by topic** rather than by time
-2. **Shows expertise development** rather than just latest activity
-3. **Creates pathways for others** to follow and learn
-4. **Balances customization with structure** for better user experience
+1. **Low Implementation Complexity**: Achievable within MVP timeline
+2. **User Value**: Immediate organization benefit even for users who don't customize
+3. **Framework for Growth**: Data structure supports future enhancements
+4. **Mobile Friendly**: Simple controls work well on all devices
 
 ## Q&A About Implementation
 
 ### Q: How complex is this to implement?
-A: Using a template-based approach makes this moderately complex but quite feasible. By implementing in phases and using React components with Firebase storage, we can gradually build sophistication.
+A: The MVP approach is relatively simple, focusing on functional organization rather than advanced UI capabilities like drag-and-drop.
 
-### Q: How does this compare to current social media models?
-A: This is more structured than typical chronological feeds (Twitter/Instagram) but more customizable than professional profiles (LinkedIn). It's closer to a mix of Pinterest boards and Notion pages.
+### Q: Will this meet user expectations for customization?
+A: Yes - by providing default sections and simple customization options, users get immediate value while having the ability to personalize when desired.
 
-### Q: Is it adaptable for future growth?
-A: Yes, the template-based approach allows us to add new organization methods and visualization options without disrupting existing profiles. The underlying data structure supports extension.
+### Q: How will this handle new users with minimal content?
+A: Default sections will automatically adjust to show what content exists, and empty state designs will guide users on how to add content.
 
-### Q: How will this handle the various ways content might evolve?
-A: The multiple organization methods (complexity, chronological, sequence) provide flexibility for different content types, and the section-based approach allows users to group content in ways that make sense for their specific knowledge areas. 
+### Q: How does this compare to current social media profiles?
+A: This provides more topic-based organization than chronological feeds (Twitter/Instagram) while remaining simpler to implement than complex customization systems.
 
 https://www.figma.com/community/plugin/1434599500152464568/figma-to-cursor

@@ -7,12 +7,16 @@ import { QuestionList } from '@/components/questions/QuestionList';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { PostService } from '@/services/standardized';
 import { UserService } from '@/services/userService';
+import { ProfileSectionService } from '@/services/profileSectionService';
+import { SectionManager } from '@/components/profile/SectionManager';
+import { Sidebar } from '@/components/layout/Sidebar';
 import { handleTotemLike as utilHandleTotemLike, handleTotemRefresh as utilHandleTotemRefresh } from '@/utils/totem';
 import { useRouter, useParams } from 'next/navigation';
-import type { Post, UserProfile } from '@/types/models';
-import { useState } from 'react';
+import type { Post, UserProfile, ProfileSection } from '@/types/models';
+import { useState, useEffect } from 'react';
 import { USER_FIELDS } from '@/constants/fields';
 import { detectUserIdentifierType } from '@/utils/userIdHelpers';
+import Image from 'next/image';
 
 // Create a client with configuration for better UX
 const queryClient = new QueryClient({
@@ -28,6 +32,9 @@ const queryClient = new QueryClient({
 function ProfileContent({ userID }: { userID: string }) {
   const router = useRouter();
   const [toastMessage, setToastMessage] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [selectedTab, setSelectedTab] = useState<string>('home');
+  const [isEditingSections, setIsEditingSections] = useState<boolean>(false);
+  const [isCurrentUserProfile, setIsCurrentUserProfile] = useState<boolean>(false);
 
   // Determine identifier type (username, firebaseUid, or legacy userId)
   const idType = detectUserIdentifierType(userID);
@@ -59,6 +66,12 @@ function ProfileContent({ userID }: { userID: string }) {
         // If we didn't find a profile, throw an error
         if (!profile) {
           throw new Error(`User profile not found for ID: ${userID}`);
+        }
+        
+        // Check if this is the current user's profile
+        const currentUser = await UserService.getCurrentUser();
+        if (currentUser && currentUser.firebaseUid === profile.firebaseUid) {
+          setIsCurrentUserProfile(true);
         }
         
         return profile;
@@ -123,6 +136,73 @@ function ProfileContent({ userID }: { userID: string }) {
     // Keep data fresh for 5 minutes
     staleTime: 5 * 60 * 1000,
   });
+  
+  // Fetch profile sections
+  const {
+    data: sections,
+    isLoading: sectionsLoading,
+    error: sectionsError,
+    refetch: refetchSections
+  } = useQuery({
+    queryKey: ['profileSections', userID],
+    queryFn: async () => {
+      try {
+        if (!userData) return [];
+        
+        const userSections = await ProfileSectionService.getSections(userData.firebaseUid);
+        return userSections;
+      } catch (error) {
+        console.error('Error fetching profile sections:', error);
+        setToastMessage({
+          message: 'Failed to load profile sections. Please try again.',
+          type: 'error'
+        });
+        throw error;
+      }
+    },
+    enabled: !!userData,
+  });
+  
+  // Fetch section content
+  const getSectionContent = async (section: ProfileSection) => {
+    try {
+      if (!userData) return [];
+      
+      const sectionContent = await ProfileSectionService.getSectionContent(
+        userData.firebaseUid,
+        section
+      );
+      
+      return sectionContent;
+    } catch (error) {
+      console.error(`Error fetching content for section ${section.title}:`, error);
+      return [];
+    }
+  };
+  
+  // State for section content
+  const [sectionContent, setSectionContent] = useState<Map<string, Post[]>>(new Map());
+  
+  // Load content for all sections when they change
+  const loadAllSectionContent = async () => {
+    if (!sections || sections.length === 0 || !userData) return;
+    
+    const contentMap = new Map<string, Post[]>();
+    
+    for (const section of sections) {
+      const content = await getSectionContent(section);
+      contentMap.set(section.id, content);
+    }
+    
+    setSectionContent(contentMap);
+  };
+  
+  // Load section content when sections are loaded
+  useEffect(() => {
+    if (sections) {
+      loadAllSectionContent();
+    }
+  }, [sections]);
 
   const handleSelectQuestion = (post: Post) => {
     router.push(`/post/${post.id}`);
@@ -168,102 +248,294 @@ function ProfileContent({ userID }: { userID: string }) {
   const handleRetry = () => {
     if (userError) refetchUser();
     if (postsError) refetchPosts();
+    if (sectionsError) refetchSections();
     setToastMessage(null);
   };
+  
+  // Handle section editing
+  const handleSaveSections = () => {
+    setIsEditingSections(false);
+    refetchSections();
+    // Reload section content
+    loadAllSectionContent();
+  };
 
-  // Show loading state
-  if (userLoading || postsLoading) {
+  // If we're editing sections, show the section manager
+  if (isEditingSections && userData) {
     return (
-      <div className="max-w-4xl mx-auto p-4">
-        <div className="flex flex-col items-center justify-center py-12">
-          <LoadingSpinner size="lg" className="mb-4" />
-          <p className="text-gray-600">Loading profile data...</p>
+      <div className="flex min-h-screen">
+        <Sidebar activePage="content" />
+        <div className="flex-1 p-4">
+          <SectionManager 
+            userId={userData.firebaseUid}
+            onSave={handleSaveSections}
+            onCancel={() => setIsEditingSections(false)}
+          />
         </div>
       </div>
     );
   }
-
+  
+  // Show loading state
+  if (userLoading || (postsLoading && !userPosts)) {
+    return (
+      <div className="flex min-h-screen">
+        <Sidebar activePage="content" />
+        <div className="flex-1 p-4 flex items-center justify-center">
+          <LoadingSpinner size="lg" />
+        </div>
+      </div>
+    );
+  }
+  
   // Show error state with retry button
   if (userError || postsError) {
     return (
-      <div className="max-w-4xl mx-auto p-4">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-          <h2 className="text-xl font-semibold text-red-700 mb-2">Something went wrong</h2>
-          <p className="text-gray-700 mb-4">
-            {(userError as Error)?.message || (postsError as Error)?.message || 'An error occurred while loading the profile.'}
-          </p>
-          <button
-            onClick={handleRetry}
-            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-          >
-            Try Again
-          </button>
+      <div className="flex min-h-screen">
+        <Sidebar activePage="content" />
+        <div className="flex-1 p-4">
+          <div className="max-w-4xl mx-auto bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+            <h2 className="text-xl font-semibold text-red-700 mb-2">Something went wrong</h2>
+            <p className="text-gray-700 mb-4">
+              {(userError as Error)?.message || (postsError as Error)?.message || 'An error occurred while loading the profile.'}
+            </p>
+            <button
+              onClick={handleRetry}
+              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
         </div>
       </div>
     );
   }
-
+  
   // Show not found state
   if (!userData) {
     return (
-      <div className="max-w-4xl mx-auto p-4">
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
-          <h2 className="text-xl font-semibold text-gray-700 mb-2">User Not Found</h2>
-          <p className="text-gray-600 mb-4">
-            The user you're looking for doesn't exist or has been removed.
-          </p>
-          <button
-            onClick={() => router.push('/')}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-          >
-            Go Home
-          </button>
+      <div className="flex min-h-screen">
+        <Sidebar activePage="content" />
+        <div className="flex-1 p-4">
+          <div className="max-w-4xl mx-auto bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
+            <h2 className="text-xl font-semibold text-gray-700 mb-2">User Not Found</h2>
+            <p className="text-gray-600 mb-4">
+              The user you're looking for doesn't exist or has been removed.
+            </p>
+            <button
+              onClick={() => router.push('/')}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            >
+              Go Home
+            </button>
+          </div>
         </div>
       </div>
     );
   }
-
+  
   return (
-    <div className="max-w-4xl mx-auto p-4">
-      {/* Show toast messages */}
-      {toastMessage && (
-        <Toast 
-          message={toastMessage.message} 
-          type={toastMessage.type}
-        />
-      )}
+    <div className="flex min-h-screen">
+      <Sidebar activePage="content" />
       
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold">{userData.name || 'User'}</h1>
-        <p className="text-gray-600">@{userData.username}</p>
-        <p className="text-gray-600 mt-2">{userData.bio || 'No bio provided'}</p>
-      </div>
-      
-      {userPosts && userPosts.length > 0 ? (
-        <div className="space-y-8">
-          <div>
-            <h2 className="text-xl font-semibold mb-4">Posts and Answers</h2>
-            <QuestionList 
-              posts={userPosts}
-              onWantToAnswer={(post) => router.push(`/post/${post.id}`)}
-              hasNextPage={false}
-              isLoading={false}
-              onLoadMore={() => {}}
-              showAllTotems={false}
-            />
+      <div className="flex-1">
+        {/* Show toast messages */}
+        {toastMessage && (
+          <Toast 
+            message={toastMessage.message} 
+            type={toastMessage.type}
+          />
+        )}
+        
+        <div className="max-w-4xl mx-auto p-4">
+          {/* Profile Header */}
+          <div className="flex items-start mb-8">
+            {/* Profile Image */}
+            <div className="mr-6 relative">
+              <div className="w-24 h-24 rounded-full overflow-hidden">
+                {userData.photoURL ? (
+                  <Image 
+                    src={userData.photoURL} 
+                    alt={`${userData.name}'s profile`}
+                    width={96}
+                    height={96}
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-blue-100 flex items-center justify-center text-blue-500 text-2xl font-bold">
+                    {userData.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Profile Info */}
+            <div className="flex-grow">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h1 className="text-2xl font-bold">{userData.name || 'User'}</h1>
+                  <p className="text-gray-600">@{userData.username}</p>
+                  <p className="text-gray-600 mt-2">{userData.bio || 'No bio provided'}</p>
+                </div>
+                
+                {/* Profile Management Buttons - Only show for current user */}
+                {isCurrentUserProfile && (
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => setIsEditingSections(true)}
+                      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                    >
+                      Customize Page
+                    </button>
+                    <button
+                      onClick={() => router.push('/profile/customize')}
+                      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                    >
+                      Manage Posts
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
+          
+          {/* Profile Tabs */}
+          <div className="border-b border-gray-200 mb-6">
+            <div className="flex flex-wrap -mb-px">
+              <button
+                onClick={() => setSelectedTab('home')}
+                className={`mr-8 py-4 px-1 border-b-2 font-medium text-sm ${
+                  selectedTab === 'home'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Home
+              </button>
+              <button
+                onClick={() => setSelectedTab('about')}
+                className={`mr-8 py-4 px-1 border-b-2 font-medium text-sm ${
+                  selectedTab === 'about'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                About
+              </button>
+              <button
+                onClick={() => setSelectedTab('comments')}
+                className={`mr-8 py-4 px-1 border-b-2 font-medium text-sm ${
+                  selectedTab === 'comments'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Comments
+              </button>
+              <button
+                onClick={() => setSelectedTab('activity')}
+                className={`mr-8 py-4 px-1 border-b-2 font-medium text-sm ${
+                  selectedTab === 'activity'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Activity
+              </button>
+            </div>
+          </div>
+          
+          {/* Home Tab Content with Sections */}
+          {selectedTab === 'home' && (
+            <div className="space-y-8">
+              {sectionsLoading ? (
+                <div className="flex justify-center py-8">
+                  <LoadingSpinner size="md" />
+                </div>
+              ) : sections && sections.length > 0 ? (
+                sections
+                  .filter(section => section.isVisible)
+                  .map(section => {
+                    const sectionPosts = sectionContent.get(section.id) || [];
+                    
+                    if (sectionPosts.length === 0 && !sectionsLoading) {
+                      return null; // Don't display empty sections
+                    }
+                    
+                    return (
+                      <div key={section.id} className="bg-white rounded-xl shadow p-6">
+                        <h2 className="text-xl font-semibold mb-4">{section.title}</h2>
+                        {sectionPosts.length > 0 ? (
+                          <QuestionList 
+                            posts={sectionPosts}
+                            onWantToAnswer={(post) => router.push(`/post/${post.id}`)}
+                            hasNextPage={false}
+                            isLoading={false}
+                            onLoadMore={() => {}}
+                            showAllTotems={false}
+                          />
+                        ) : (
+                          <div className="py-4 text-center text-gray-500">
+                            <p>Loading content...</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }).filter(Boolean)
+              ) : (
+                <div className="bg-white rounded-xl shadow p-6">
+                  <h2 className="text-xl font-semibold mb-4">Posts and Answers</h2>
+                  <QuestionList 
+                    posts={userPosts || []}
+                    onWantToAnswer={(post) => router.push(`/post/${post.id}`)}
+                    hasNextPage={false}
+                    isLoading={false}
+                    onLoadMore={() => {}}
+                    showAllTotems={false}
+                  />
+                </div>
+              )}
+              
+              {/* If no visible sections or posts */}
+              {sections && sections.filter(s => s.isVisible).length === 0 && (!userPosts || userPosts.length === 0) && (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
+                  <p className="text-gray-500">No posts or answers yet</p>
+                  <button
+                    onClick={() => router.push('/')}
+                    className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                  >
+                    Explore Questions
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* About Tab Content */}
+          {selectedTab === 'about' && (
+            <div className="bg-white rounded-xl shadow p-6">
+              <h2 className="text-xl font-semibold mb-4">About</h2>
+              <p>{userData.bio || 'No bio provided'}</p>
+            </div>
+          )}
+          
+          {/* Comments Tab Content */}
+          {selectedTab === 'comments' && (
+            <div className="bg-white rounded-xl shadow p-6">
+              <h2 className="text-xl font-semibold mb-4">Comments</h2>
+              <p className="text-gray-500">No comments yet</p>
+            </div>
+          )}
+          
+          {/* Activity Tab Content */}
+          {selectedTab === 'activity' && (
+            <div className="bg-white rounded-xl shadow p-6">
+              <h2 className="text-xl font-semibold mb-4">Activity</h2>
+              <p className="text-gray-500">No recent activity</p>
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
-          <p className="text-gray-500">No posts or answers yet</p>
-          <button
-            onClick={() => router.push('/')}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-          >
-            Explore Questions
-          </button>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

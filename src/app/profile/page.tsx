@@ -1,28 +1,388 @@
 "use client";
 
-import { useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
+import type { UserProfile, Post, ProfileSection } from '@/types/models';
+import { QuestionList } from '@/components/questions/QuestionList';
+import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { Toast } from '@/components/common/Toast';
+import { useUser } from '@/hooks/useUser';
+import { PostService } from '@/services/standardized';
+import { UserService } from '@/services/userService';
+import { ProfileSectionService } from '@/services/profileSectionService';
+import { SectionManager } from '@/components/profile/SectionManager';
+import { Sidebar } from '@/components/layout/Sidebar';
+import Image from 'next/image';
 
 export default function ProfilePage() {
-  const { user, loading } = useAuth();
+  const { profile, isLoading: isLoadingProfile, error: profileError, updateProfile } = useUser();
+  const [isEditing, setIsEditing] = useState(false);
+  const [isEditingSections, setIsEditingSections] = useState(false);
+  const [selectedTab, setSelectedTab] = useState<string>('home');
+  const [userPosts, setUserPosts] = useState<Post[]>([]);
+  const [userAnswers, setUserAnswers] = useState<Post[]>([]);
+  const [isLoadingPosts, setIsLoadingPosts] = useState(false);
+  const [toastMessage, setToastMessage] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [sections, setSections] = useState<ProfileSection[]>([]);
+  const [isLoadingSections, setIsLoadingSections] = useState(false);
+  const [sectionContent, setSectionContent] = useState<Map<string, Post[]>>(new Map());
   const router = useRouter();
 
-  useEffect(() => {
-    if (!loading && user) {
-      // Redirect to content page by default
-      router.push('/profile/content');
-    } else if (!loading && !user) {
-      // Redirect to home if not logged in
-      router.push('/');
+  // Load user's posts using the standardized PostService
+  const loadUserPosts = useCallback(async () => {
+    if (!profile?.firebaseUid) return;
+    
+    setIsLoadingPosts(true);
+    try {
+      const result = await PostService.getUserPosts(profile.firebaseUid, 10);
+      setUserPosts(result.posts || []);
+    } catch (error) {
+      console.error('Error loading posts:', error);
+    } finally {
+      setIsLoadingPosts(false);
     }
-  }, [loading, user, router]);
+  }, [profile?.firebaseUid]);
 
-  // Show loading state while redirecting
+  // Load posts where user has answered using the standardized PostService
+  const loadUserAnswers = useCallback(async () => {
+    if (!profile?.firebaseUid) return;
+    
+    setIsLoadingPosts(true);
+    try {
+      const result = await PostService.getUserAnswers(profile.firebaseUid, 10);
+      setUserAnswers(result.posts || []);
+    } catch (error) {
+      console.error('Error loading answers:', error);
+    } finally {
+      setIsLoadingPosts(false);
+    }
+  }, [profile?.firebaseUid]);
+  
+  // Load content for all sections
+  const loadAllSectionContent = useCallback(async (sectionsToLoad: ProfileSection[]) => {
+    if (!profile?.firebaseUid || !sectionsToLoad.length) return;
+    
+    const contentMap = new Map<string, Post[]>();
+    
+    for (const section of sectionsToLoad) {
+      try {
+        const content = await ProfileSectionService.getSectionContent(
+          profile.firebaseUid,
+          section
+        );
+        contentMap.set(section.id, content);
+      } catch (error) {
+        console.error(`Error loading content for section ${section.title}:`, error);
+      }
+    }
+    
+    setSectionContent(contentMap);
+  }, [profile?.firebaseUid]);
+  
+  // Load user's profile sections
+  const loadSections = useCallback(async () => {
+    if (!profile?.firebaseUid) return;
+    
+    setIsLoadingSections(true);
+    try {
+      const userSections = await ProfileSectionService.getSections(profile.firebaseUid);
+      setSections(userSections);
+      
+      // Preload content for sections
+      await loadAllSectionContent(userSections);
+    } catch (error) {
+      console.error('Error loading sections:', error);
+      setToastMessage({
+        message: 'Failed to load profile sections',
+        type: 'error'
+      });
+    } finally {
+      setIsLoadingSections(false);
+    }
+  }, [profile?.firebaseUid, loadAllSectionContent]);
+
+  // Load data when profile changes
+  useEffect(() => {
+    if (profile?.firebaseUid) {
+      if (selectedTab === 'home') {
+        loadSections();
+      } else if (selectedTab === 'questions') {
+        loadUserPosts();
+      } else if (selectedTab === 'answers') {
+        loadUserAnswers();
+      }
+    }
+  }, [profile?.firebaseUid, selectedTab, loadSections, loadUserPosts, loadUserAnswers]);
+
+  const handleWantToAnswer = (post: Post) => {
+    router.push(`/post/${post.id}`);
+  };
+  
+  const handleSaveSections = () => {
+    setIsEditingSections(false);
+    loadSections();
+  };
+
+  if (isLoadingProfile || !profile) {
+    return (
+      <div className="max-w-4xl mx-auto p-4">
+        <div className="flex flex-col items-center justify-center py-12">
+          <LoadingSpinner size="lg" className="mb-4" />
+          <p className="text-gray-600">Loading profile data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (profileError) {
+    return (
+      <div className="max-w-4xl mx-auto p-4">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+          <h2 className="text-xl font-semibold text-red-700 mb-2">Something went wrong</h2>
+          <p className="text-gray-700 mb-4">{profileError}</p>
+          <button
+            onClick={() => router.push('/')}
+            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+          >
+            Go Home
+          </button>
+        </div>
+      </div>
+    );
+  }
+  
+  // If we're editing sections, show the section manager
+  if (isEditingSections) {
+    return (
+      <div className="max-w-4xl mx-auto p-4">
+        <SectionManager 
+          userId={profile.firebaseUid}
+          onSave={handleSaveSections}
+          onCancel={() => setIsEditingSections(false)}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-pulse text-gray-600">Loading profile...</div>
+    <div className="flex min-h-screen">
+      <Sidebar activePage="content" />
+      
+      <div className="flex-1">
+        {/* Show toast messages */}
+        {toastMessage && (
+          <Toast 
+            message={toastMessage.message} 
+            type={toastMessage.type}
+          />
+        )}
+        
+        <div className="max-w-4xl mx-auto p-4">
+          {/* Profile Header */}
+          <div className="flex items-start mb-8">
+            {/* Profile Image */}
+            <div className="mr-6 relative">
+              <div className="w-24 h-24 rounded-full overflow-hidden">
+                {profile.photoURL ? (
+                  <Image 
+                    src={profile.photoURL} 
+                    alt={`${profile.name}'s profile`}
+                    width={96}
+                    height={96}
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-blue-100 flex items-center justify-center text-blue-500 text-2xl font-bold">
+                    {profile.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Profile Info */}
+            <div className="flex-grow">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h1 className="text-2xl font-bold">{profile.name || 'User'}</h1>
+                  <p className="text-gray-600">@{profile.username}</p>
+                  <p className="text-gray-600 mt-2">{profile.bio || 'No bio provided'}</p>
+                </div>
+                
+                {/* Profile Management Buttons */}
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => setIsEditingSections(true)}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                  >
+                    Customize Page
+                  </button>
+                  <button
+                    onClick={() => router.push('/profile/customize')}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                  >
+                    Manage Posts
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Profile Tabs */}
+          <div className="border-b border-gray-200 mb-6">
+            <div className="flex flex-wrap -mb-px">
+              <button
+                onClick={() => setSelectedTab('home')}
+                className={`mr-8 py-4 px-1 border-b-2 font-medium text-sm ${
+                  selectedTab === 'home'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Home
+              </button>
+              <button
+                onClick={() => setSelectedTab('about')}
+                className={`mr-8 py-4 px-1 border-b-2 font-medium text-sm ${
+                  selectedTab === 'about'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                About
+              </button>
+              <button
+                onClick={() => setSelectedTab('questions')}
+                className={`mr-8 py-4 px-1 border-b-2 font-medium text-sm ${
+                  selectedTab === 'questions'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Questions
+              </button>
+              <button
+                onClick={() => setSelectedTab('answers')}
+                className={`mr-8 py-4 px-1 border-b-2 font-medium text-sm ${
+                  selectedTab === 'answers'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Answers
+              </button>
+            </div>
+          </div>
+          
+          {/* Home Tab Content with Sections */}
+          {selectedTab === 'home' && (
+            <div className="space-y-8">
+              {isLoadingSections ? (
+                <div className="flex justify-center py-8">
+                  <LoadingSpinner size="md" />
+                </div>
+              ) : sections && sections.length > 0 ? (
+                sections
+                  .filter(section => section.isVisible)
+                  .map(section => {
+                    const sectionPosts = sectionContent.get(section.id) || [];
+                    
+                    if (sectionPosts.length === 0 && !isLoadingSections) {
+                      return null; // Don't display empty sections
+                    }
+                    
+                    return (
+                      <div key={section.id} className="bg-white rounded-xl shadow p-6">
+                        <h2 className="text-xl font-semibold mb-4">{section.title}</h2>
+                        {sectionPosts.length > 0 ? (
+                          <QuestionList 
+                            posts={sectionPosts}
+                            onWantToAnswer={handleWantToAnswer}
+                            hasNextPage={false}
+                            isLoading={false}
+                            onLoadMore={() => {}}
+                            showAllTotems={false}
+                          />
+                        ) : (
+                          <div className="py-4 text-center text-gray-500">
+                            <p>Loading content...</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }).filter(Boolean)
+              ) : (
+                <div className="bg-white rounded-xl shadow p-6">
+                  <h2 className="text-xl font-semibold mb-4">Posts and Answers</h2>
+                  {isLoadingPosts ? (
+                    <p className="text-gray-600">Loading content...</p>
+                  ) : userPosts.length > 0 || userAnswers.length > 0 ? (
+                    <QuestionList 
+                      posts={[...userPosts, ...userAnswers]}
+                      onWantToAnswer={handleWantToAnswer}
+                      hasNextPage={false}
+                      isLoading={false}
+                      onLoadMore={() => {}}
+                      showAllTotems={false}
+                    />
+                  ) : (
+                    <p className="text-gray-600">No posts or answers yet</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* About Tab Content */}
+          {selectedTab === 'about' && (
+            <div className="bg-white rounded-xl shadow p-6">
+              <h2 className="text-xl font-semibold mb-4">About</h2>
+              <p>{profile.bio || 'No bio provided'}</p>
+            </div>
+          )}
+          
+          {/* Questions Tab Content */}
+          {selectedTab === 'questions' && (
+            <div className="bg-white rounded-xl shadow p-6">
+              <h2 className="text-xl font-semibold mb-4">Your Questions</h2>
+              {isLoadingPosts ? (
+                <p className="text-gray-600">Loading questions...</p>
+              ) : userPosts.length > 0 ? (
+                <QuestionList
+                  posts={userPosts}
+                  onWantToAnswer={handleWantToAnswer}
+                  hasNextPage={false}
+                  isLoading={false}
+                  onLoadMore={() => {}}
+                  showAllTotems={false}
+                />
+              ) : (
+                <p className="text-gray-600">No questions yet</p>
+              )}
+            </div>
+          )}
+          
+          {/* Answers Tab Content */}
+          {selectedTab === 'answers' && (
+            <div className="bg-white rounded-xl shadow p-6">
+              <h2 className="text-xl font-semibold mb-4">Your Answers</h2>
+              {isLoadingPosts ? (
+                <p className="text-gray-600">Loading answers...</p>
+              ) : userAnswers.length > 0 ? (
+                <QuestionList
+                  posts={userAnswers}
+                  onWantToAnswer={handleWantToAnswer}
+                  hasNextPage={false}
+                  isLoading={false}
+                  onLoadMore={() => {}}
+                  showAllTotems={false}
+                  showUserAnswers={true}
+                />
+              ) : (
+                <p className="text-gray-600">No answers yet</p>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
