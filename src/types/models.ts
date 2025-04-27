@@ -113,7 +113,7 @@ export interface ProfileSection {
   id: string;
   title: string;
   type: 'default' | 'custom';
-  organizationMethod: 'chronological' | 'popularity' | 'complexity';
+  organizationMethod: 'chronological' | 'popularity' | 'series' | 'custom';
   contentIds: string[];
   position: number;
   isVisible: boolean;

@@ -392,7 +392,8 @@ export function SectionManager({ userId, onSave, onCancel }: SectionManagerProps
                     <span className="text-sm text-gray-500">
                       {section.type === 'default' ? 'Default' : 'Custom'} • 
                       {section.organizationMethod === 'chronological' ? ' Chronological' : 
-                       section.organizationMethod === 'popularity' ? ' Popular' : ' By complexity'}
+                       section.organizationMethod === 'popularity' ? ' Popular' : 
+                       section.organizationMethod === 'series' ? ' Series' : ' Custom arrangement'}
                       {section.contentIds?.length > 0 && ` • ${section.contentIds.length} items`}
                     </span>
                   </div>
@@ -474,13 +475,14 @@ export function SectionManager({ userId, onSave, onCancel }: SectionManagerProps
                           value={editingSection.organizationMethod}
                           onChange={(e) => setEditingSection({
                             ...editingSection, 
-                            organizationMethod: e.target.value as 'chronological' | 'popularity' | 'complexity'
+                            organizationMethod: e.target.value as 'chronological' | 'popularity' | 'series' | 'custom'
                           })}
                           className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
                         >
-                          <option value="chronological">Chronological</option>
-                          <option value="popularity">By Popularity</option>
-                          <option value="complexity">By Complexity</option>
+                          <option value="chronological">Chronological (newest first)</option>
+                          <option value="popularity">By Popularity (most liked)</option>
+                          <option value="series">Series (ordered progression)</option>
+                          <option value="custom">Custom (your arrangement)</option>
                         </select>
                       </div>
                       

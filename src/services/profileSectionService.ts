@@ -548,9 +548,16 @@ export class ProfileSectionService {
           return bPopularity - aPopularity;
         });
         
-      case 'complexity':
-        // For now, just use chronological as placeholder
-        return [...posts].sort((a, b) => b.createdAt - a.createdAt);
+      case 'series':
+        // For series, we maintain the contentIds order for manual progression
+        // This returns the posts in the exact order they were added to the section
+        return posts;
+        
+      case 'custom':
+        // For custom organization, sort alphabetically by question
+        return [...posts].sort((a, b) => 
+          a.question.localeCompare(b.question)
+        );
         
       default:
         return posts;
