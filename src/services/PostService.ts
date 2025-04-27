@@ -1,6 +1,6 @@
-import { db } from '@/firebase';
 import { collection, query, where, orderBy, limit, getDocs, doc, getDoc, startAfter, collectionGroup, Timestamp } from 'firebase/firestore';
 import type { Post, Answer, Totem } from '@/types/models';
+import { db } from '@/lib/firebase';
 
 export class PostService {
   static async fetchUserPosts(userID: string, pageSize = 10, lastDoc?: any): Promise<{ items: Post[]; lastDoc: any }> {
@@ -130,14 +130,18 @@ export class PostService {
 
       const post = postSnap.data() as Post;
 
-      // Ensure all totems have likeHistory initialized
-      post.answers.forEach(answer => {
-        answer.totems.forEach(totem => {
-          if (!totem.likeHistory) {
-            totem.likeHistory = [];
+      // Ensure all totems have likeHistory initialized if they exist
+      if (post.answers) {
+        post.answers.forEach(answer => {
+          if (answer.totems) {
+            answer.totems.forEach(totem => {
+              if (!totem.likeHistory) {
+                totem.likeHistory = [];
+              }
+            });
           }
         });
-      });
+      }
 
       return post;
     } catch (error) {

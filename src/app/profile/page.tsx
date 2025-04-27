@@ -70,7 +70,15 @@ export default function ProfilePage() {
           profile.firebaseUid,
           section
         );
-        contentMap.set(section.id, content);
+        
+        // Deduplicate posts by ID to prevent duplicates in each section
+        const uniquePostsMap = new Map<string, Post>();
+        content.forEach(post => {
+          uniquePostsMap.set(post.id, post);
+        });
+        
+        const uniquePosts = Array.from(uniquePostsMap.values());
+        contentMap.set(section.id, uniquePosts);
       } catch (error) {
         console.error(`Error loading content for section ${section.title}:`, error);
       }
@@ -301,6 +309,7 @@ export default function ProfilePage() {
                             isLoading={false}
                             onLoadMore={() => {}}
                             showAllTotems={false}
+                            sectionId={section.id}
                           />
                         ) : (
                           <div className="py-4 text-center text-gray-500">
@@ -317,12 +326,21 @@ export default function ProfilePage() {
                     <p className="text-gray-600">Loading content...</p>
                   ) : userPosts.length > 0 || userAnswers.length > 0 ? (
                     <QuestionList 
-                      posts={[...userPosts, ...userAnswers]}
+                      posts={(() => {
+                        // Deduplicate combined posts and answers
+                        const combinedPosts = [...userPosts, ...userAnswers];
+                        const uniquePostsMap = new Map<string, Post>();
+                        combinedPosts.forEach(post => {
+                          uniquePostsMap.set(post.id, post);
+                        });
+                        return Array.from(uniquePostsMap.values());
+                      })()}
                       onWantToAnswer={handleWantToAnswer}
                       hasNextPage={false}
                       isLoading={false}
                       onLoadMore={() => {}}
                       showAllTotems={false}
+                      sectionId="home-default"
                     />
                   ) : (
                     <p className="text-gray-600">No posts or answers yet</p>
@@ -354,6 +372,7 @@ export default function ProfilePage() {
                   isLoading={false}
                   onLoadMore={() => {}}
                   showAllTotems={false}
+                  sectionId="questions-tab"
                 />
               ) : (
                 <p className="text-gray-600">No questions yet</p>
@@ -376,6 +395,7 @@ export default function ProfilePage() {
                   onLoadMore={() => {}}
                   showAllTotems={false}
                   showUserAnswers={true}
+                  sectionId="answers-tab"
                 />
               ) : (
                 <p className="text-gray-600">No answers yet</p>

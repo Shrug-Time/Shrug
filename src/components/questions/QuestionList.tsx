@@ -45,6 +45,7 @@ interface QuestionListProps {
   onLoadMore: () => void;
   showAllTotems?: boolean;
   showUserAnswers?: boolean;
+  sectionId?: string;
 }
 
 export function QuestionList({
@@ -54,7 +55,8 @@ export function QuestionList({
   isLoading,
   onLoadMore,
   showAllTotems = false,
-  showUserAnswers = false
+  showUserAnswers = false,
+  sectionId = 'default'
 }: QuestionListProps) {
   const router = useRouter();
   const { user } = useAuth();
@@ -162,7 +164,7 @@ export function QuestionList({
     });
   };
 
-  const renderQuestion = useCallback((post: Post) => {
+  const renderQuestion = useCallback((post: Post, index: number) => {
     const userAnswer = showUserAnswers && user 
       ? post.answers.find(answer => answer.firebaseUid === user.uid)
       : null;
@@ -176,8 +178,11 @@ export function QuestionList({
       return currentLikes > topLikes ? current : top;
     }, answerToShow?.totems?.[0]);
     
+    // Use index in the key to ensure uniqueness even when the same post appears in different sections
+    const uniqueKey = `${sectionId}-${post.id}-${index}`;
+    
     return (
-      <div key={post.id} className="bg-white rounded-lg shadow p-4 mb-4">
+      <div key={uniqueKey} className="bg-white rounded-lg shadow p-4 mb-4">
         <div className="text-sm text-gray-500 mb-2">
           Posted by {post.username}
         </div>
@@ -216,7 +221,7 @@ export function QuestionList({
         </div>
       </div>
     );
-  }, [getTotemLikes, renderTotemButton, showUserAnswers, user, handleAuthRequired]);
+  }, [getTotemLikes, renderTotemButton, showUserAnswers, user, handleAuthRequired, sectionId]);
 
   // Calculate total likes for each post
   const postsWithLikes = posts.map(post => ({
@@ -247,7 +252,7 @@ export function QuestionList({
         isLoading={isLoading}
       >
         <div className="space-y-4">
-          {posts.map(renderQuestion)}
+          {posts.map((post, index) => renderQuestion(post, index))}
         </div>
       </InfiniteScroll>
 

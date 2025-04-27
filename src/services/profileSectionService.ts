@@ -459,6 +459,8 @@ export class ProfileSectionService {
    */
   static async getSectionContent(userId: string, section: ProfileSection): Promise<Post[]> {
     try {
+      let sectionPosts: Post[] = [];
+      
       // For totem-based sections, fetch posts with that totem
       if (section.totemId) {
         // Get posts with the specified totem
@@ -471,7 +473,7 @@ export class ProfileSectionService {
         ];
         
         // Filter posts by totem
-        const filteredPosts = allPosts.filter(post => {
+        sectionPosts = allPosts.filter(post => {
           // Check post associations
           const hasTotemInPost = post.totemAssociations?.some(
             association => association.totemName === section.totemId
@@ -484,8 +486,6 @@ export class ProfileSectionService {
           
           return hasTotemInPost || hasTotemInAnswers;
         });
-        
-        return this.sortSectionContent(filteredPosts, section.organizationMethod);
       }
       // For default sections like "Recent" and "Popular", use the organization method
       else if (section.type === 'default') {
@@ -497,12 +497,10 @@ export class ProfileSectionService {
           ...(userAnswersResult.posts || [])
         ];
         
-        return this.sortSectionContent(allPosts, section.organizationMethod);
+        sectionPosts = allPosts;
       }
       // For custom sections, get content by explicit IDs
       else if (section.contentIds.length > 0) {
-        const contentPosts: Post[] = [];
-        
         // Get posts by IDs
         // Note: We need to implement or use a different method since getPostById doesn't exist
         for (const contentId of section.contentIds) {
@@ -511,17 +509,22 @@ export class ProfileSectionService {
             const result = await PostService.getUserPosts(userId, 100);
             const post = result.posts?.find(p => p.id === contentId);
             if (post) {
-              contentPosts.push(post);
+              sectionPosts.push(post);
             }
           } catch (error) {
             console.warn(`Failed to fetch post ${contentId}:`, error);
           }
         }
-        
-        return contentPosts;
       }
+
+      // Deduplicate posts by ID before sorting and returning
+      const uniquePostsMap = new Map<string, Post>();
+      sectionPosts.forEach(post => {
+        uniquePostsMap.set(post.id, post);
+      });
+      const uniquePosts = Array.from(uniquePostsMap.values());
       
-      return [];
+      return this.sortSectionContent(uniquePosts, section.organizationMethod);
     } catch (error) {
       console.error('Error getting section content:', error);
       throw error;
