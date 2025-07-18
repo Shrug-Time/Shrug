@@ -6,16 +6,19 @@ import type { UserProfile, Post, ProfileSection } from '@/types/models';
 import { QuestionList } from '@/components/questions/QuestionList';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Toast } from '@/components/common/Toast';
+import { FollowButton } from '@/components/common/FollowButton';
 import { useUser } from '@/hooks/useUser';
 import { PostService } from '@/services/standardized';
 import { UserService } from '@/services/userService';
 import { ProfileSectionService } from '@/services/profileSectionService';
 import { SectionManager } from '@/components/profile/SectionManager';
 import { Sidebar } from '@/components/layout/Sidebar';
+import { useAuth } from '@/contexts/AuthContext';
 import Image from 'next/image';
 
 export default function ProfilePage() {
   const { profile, isLoading: isLoadingProfile, error: profileError, updateProfile } = useUser();
+  const { user: currentUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [isEditingSections, setIsEditingSections] = useState(false);
   const [selectedTab, setSelectedTab] = useState<string>('home');
@@ -214,6 +217,12 @@ export default function ProfilePage() {
                   <h1 className="text-2xl font-bold">{profile.name || 'User'}</h1>
                   <p className="text-gray-600">@{profile.username}</p>
                   <p className="text-gray-600 mt-2">{profile.bio || 'No bio provided'}</p>
+                  
+                  {/* Follower/Following counts */}
+                  <div className="flex space-x-4 mt-3 text-sm text-gray-500">
+                    <span>{profile.followers?.length || 0} followers</span>
+                    <span>{profile.following?.length || 0} following</span>
+                  </div>
                 </div>
                 
                 {/* Profile Management Buttons */}

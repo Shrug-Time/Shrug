@@ -15,7 +15,7 @@ import { AnswerModal } from '@/components/answers/AnswerModal';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthModal } from '@/hooks/useAuthModal';
 import { AuthModal } from '@/components/auth/AuthModal';
-import { getPostUrl, getAnswerUrl } from '@/utils/routes';
+import { getPostUrl, getAnswerUrl, getProfileUrl } from '@/utils/routes';
 import Image from 'next/image';
 import { TotemSelector } from '@/components/totem/TotemSelector';
 import { Button } from '@/components/ui/button';
@@ -185,7 +185,15 @@ export function QuestionList({
     return (
       <div key={uniqueKey} className="bg-white rounded-lg shadow p-4 mb-4">
         <div className="flex items-center justify-between text-sm text-gray-500 mb-2">
-          <span>Posted by {post.username}</span>
+          <span>
+            Posted by{' '}
+            <Link 
+              href={getProfileUrl(post.username || post.firebaseUid || '')}
+              className="text-blue-600 hover:text-blue-800 hover:underline"
+            >
+              {post.username || 'Anonymous'}
+            </Link>
+          </span>
           <ReportButton
             contentId={post.id}
             contentType="post"

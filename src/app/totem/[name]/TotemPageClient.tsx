@@ -7,6 +7,8 @@ import type { Post } from '@/types/models';
 import { TotemButton } from '@/components/totem/TotemButton';
 import { getTotemLikes, getUserDisplayName } from '@/utils/componentHelpers';
 import { formatDistanceToNow } from 'date-fns';
+import { getProfileUrl } from '@/utils/routes';
+import Link from 'next/link';
 
 // Helper function to safely convert various date formats to a Date object
 const getDate = (timestamp: any): Date => {
@@ -97,7 +99,13 @@ export function TotemPageClient({ posts, totemName }: TotemPageClientProps) {
                               )}
                             </div>
                             <div className="text-sm text-gray-500">
-                              {formatDistanceToNow(getDate(post.createdAt), { addSuffix: true })} by {getUserDisplayName(answer)}
+                              {formatDistanceToNow(getDate(post.createdAt), { addSuffix: true })} by{' '}
+                              <Link 
+                                href={getProfileUrl(answer.username || answer.firebaseUid || '')}
+                                className="text-blue-600 hover:text-blue-800 hover:underline"
+                              >
+                                {getUserDisplayName(answer)}
+                              </Link>
                             </div>
                           </div>
                         </div>

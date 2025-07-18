@@ -8,6 +8,8 @@ import { PostService } from '@/services/standardized';
 import { CreatePostForm } from '@/components/posts/CreatePostForm';
 import { QuestionAnswers } from '@/components/questions/QuestionAnswers';
 import { ReportButton } from '@/components/reports/ReportButton';
+import { getProfileUrl } from '@/utils/routes';
+import Link from 'next/link';
 import type { Post } from '@/types/models';
 
 export default function PostPage() {
@@ -39,7 +41,13 @@ export default function PostPage() {
           <ReportButton contentId={post.id} contentType="post" />
         </div>
         <div className="text-sm text-gray-600">
-          Posted by {post.username}
+          Posted by{' '}
+          <Link 
+            href={getProfileUrl(post.username || post.firebaseUid || '')}
+            className="text-blue-600 hover:text-blue-800 hover:underline"
+          >
+            {post.username || 'Anonymous'}
+          </Link>
         </div>
       </div>
 

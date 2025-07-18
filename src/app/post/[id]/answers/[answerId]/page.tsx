@@ -7,7 +7,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { TotemButton } from '@/components/totem/TotemButton';
 import { getTotemLikes, getUserDisplayName } from '@/utils/componentHelpers';
 import Link from 'next/link';
-import { getPostUrl } from '@/utils/routes';
+import { getPostUrl, getProfileUrl } from '@/utils/routes';
 
 // Helper function to safely convert various date formats to a Date object
 const toDate = (dateField: any): Date => {
@@ -73,7 +73,13 @@ export default function AnswerPage() {
             ))}
           </div>
           <div className="text-sm text-gray-500">
-            {formatDistanceToNow(toDate(answer.createdAt), { addSuffix: true })} by {getUserDisplayName(answer)}
+            {formatDistanceToNow(toDate(answer.createdAt), { addSuffix: true })} by{' '}
+            <Link 
+              href={getProfileUrl(answer.username || answer.firebaseUid || '')}
+              className="text-blue-600 hover:text-blue-800 hover:underline"
+            >
+              {getUserDisplayName(answer)}
+            </Link>
           </div>
         </div>
       </div>

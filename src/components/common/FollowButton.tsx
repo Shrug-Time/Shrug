@@ -21,11 +21,6 @@ export function FollowButton({ currentUserId, targetUserId, className = '', onEr
   const [isFollowing, setIsFollowing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Hide button if viewing own profile
-  if (!profile || profile.firebaseUid === targetUserId) {
-    return null;
-  }
-
   // Check if already following
   useEffect(() => {
     const checkFollowStatus = async () => {
@@ -68,6 +63,11 @@ export function FollowButton({ currentUserId, targetUserId, className = '', onEr
       setIsLoading(false);
     }
   };
+
+  // Hide button if viewing own profile - moved after all hooks
+  if (!profile || profile.firebaseUid === targetUserId) {
+    return null;
+  }
 
   if (isLoading) {
     return (

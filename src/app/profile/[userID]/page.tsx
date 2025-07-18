@@ -3,6 +3,7 @@
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Toast } from '@/components/common/Toast';
+import { FollowButton } from '@/components/common/FollowButton';
 import { QuestionList } from '@/components/questions/QuestionList';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { PostService } from '@/services/standardized';
@@ -16,6 +17,7 @@ import type { Post, UserProfile, ProfileSection } from '@/types/models';
 import { useState, useEffect } from 'react';
 import { USER_FIELDS } from '@/constants/fields';
 import { detectUserIdentifierType } from '@/utils/userIdHelpers';
+import { useAuth } from '@/contexts/AuthContext';
 import Image from 'next/image';
 
 // Create a client with configuration for better UX
@@ -31,6 +33,7 @@ const queryClient = new QueryClient({
 
 function ProfileContent({ userID }: { userID: string }) {
   const router = useRouter();
+  const { user: currentUser } = useAuth();
   const [toastMessage, setToastMessage] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [selectedTab, setSelectedTab] = useState<string>('home');
   const [isEditingSections, setIsEditingSections] = useState<boolean>(false);
@@ -376,25 +379,46 @@ function ProfileContent({ userID }: { userID: string }) {
                   <h1 className="text-2xl font-bold">{userData.name || 'User'}</h1>
                   <p className="text-gray-600">@{userData.username}</p>
                   <p className="text-gray-600 mt-2">{userData.bio || 'No bio provided'}</p>
+                  
+                  {/* Follower/Following counts */}
+                  <div className="flex space-x-4 mt-3 text-sm text-gray-500">
+                    <span>{userData.followers?.length || 0} followers</span>
+                    <span>{userData.following?.length || 0} following</span>
+                  </div>
                 </div>
                 
-                {/* Profile Management Buttons - Only show for current user */}
-                {isCurrentUserProfile && (
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => setIsEditingSections(true)}
-                      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
-                    >
-                      Customize Page
-                    </button>
-                    <button
-                      onClick={() => router.push('/profile/customize')}
-                      className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
-                    >
-                      Manage Posts
-                    </button>
-                  </div>
-                )}
+                <div className="flex space-x-2">
+                  {/* Follow Button - Only show if not current user */}
+                  {!isCurrentUserProfile && currentUser && (
+                    <FollowButton
+                      currentUserId={currentUser.uid}
+                      targetUserId={userData.firebaseUid}
+                      onError={(message) => setToastMessage({ message, type: 'error' })}
+                      onFollowChange={() => {
+                        // Refetch user data to update follower counts
+                        refetchUser();
+                      }}
+                    />
+                  )}
+                  
+                  {/* Profile Management Buttons - Only show for current user */}
+                  {isCurrentUserProfile && (
+                    <>
+                      <button
+                        onClick={() => setIsEditingSections(true)}
+                        className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                      >
+                        Customize Page
+                      </button>
+                      <button
+                        onClick={() => router.push('/profile/customize')}
+                        className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                      >
+                        Manage Posts
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           </div>

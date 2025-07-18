@@ -9,7 +9,7 @@ import { AnswerModal } from '@/components/answers/AnswerModal';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthModal } from '@/hooks/useAuthModal';
 import { AuthModal } from '@/components/auth/AuthModal';
-import { getAnswerUrl, getPostUrl } from '@/utils/routes';
+import { getAnswerUrl, getPostUrl, getProfileUrl } from '@/utils/routes';
 import { ReportButton } from '@/components/reports/ReportButton';
 
 // Helper function to safely convert various date formats to a Date object
@@ -148,7 +148,13 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
                   </div>
                   <div className="flex items-center space-x-3">
                     <div className="text-sm text-gray-500">
-                      {formatDistanceToNow(toDate(answers[0].answer.createdAt), { addSuffix: true })} by {getUserDisplayName(answers[0].answer)}
+                      {formatDistanceToNow(toDate(answers[0].answer.createdAt), { addSuffix: true })} by{' '}
+                      <Link 
+                        href={getProfileUrl(answers[0].answer.username || answers[0].answer.firebaseUid || '')}
+                        className="text-blue-600 hover:text-blue-800 hover:underline"
+                      >
+                        {getUserDisplayName(answers[0].answer)}
+                      </Link>
                     </div>
                     <ReportButton 
                       contentId={answers[0].answer.id} 
