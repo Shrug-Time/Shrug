@@ -19,6 +19,7 @@ import { getPostUrl, getAnswerUrl } from '@/utils/routes';
 import Image from 'next/image';
 import { TotemSelector } from '@/components/totem/TotemSelector';
 import { Button } from '@/components/ui/button';
+import { ReportButton } from '@/components/reports/ReportButton';
 
 // Helper function to safely convert various date formats to a Date object
 const toDate = (dateField: any): Date => {
@@ -183,8 +184,14 @@ export function QuestionList({
     
     return (
       <div key={uniqueKey} className="bg-white rounded-lg shadow p-4 mb-4">
-        <div className="text-sm text-gray-500 mb-2">
-          Posted by {post.username}
+        <div className="flex items-center justify-between text-sm text-gray-500 mb-2">
+          <span>Posted by {post.username}</span>
+          <ReportButton
+            contentId={post.id}
+            contentType="post"
+            iconOnly={true}
+            className="text-gray-400 hover:text-red-500"
+          />
         </div>
         <div className="space-y-2">
           <Link href={getPostUrl(post.id)} className="block hover:bg-gray-50 rounded-lg transition-colors">
