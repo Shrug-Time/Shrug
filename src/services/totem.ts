@@ -13,6 +13,8 @@ export class TotemService {
     firebaseUid: string,
     isUnlike: boolean = false
   ): Promise<void> {
+    if (!db) throw new Error("Firebase is not initialized");
+    
     const postRef = doc(db, "posts", postId);
 
     return runTransaction(db, async (transaction) => {
@@ -45,9 +47,23 @@ export class TotemService {
       );
 
       if (existingLike) {
+        // Check if this is a restore operation (inactive like becoming active)
+        const wasInactive = !existingLike.isActive;
+        
         // Update existing like
         existingLike.isActive = !isUnlike;
-        existingLike.lastUpdatedAt = Date.now();
+        
+        // Only update lastUpdatedAt if this is NOT a restore operation
+        // (i.e., if the like was already active, or if this is a new like)
+        if (!wasInactive || !existingLike.isActive) {
+          // This is either a new like, a refresh, or an unlike - update timestamp
+          existingLike.lastUpdatedAt = Date.now();
+        } else {
+          // This is a restore operation - preserve the original timestamp
+          // DO NOT modify originalTimestamp or lastUpdatedAt
+        }
+        // If restoring an inactive like (wasInactive && existingLike.isActive), 
+        // keep the original lastUpdatedAt and originalTimestamp unchanged
       } else if (!isUnlike) {
         // Add new like
         totem.likeHistory.push({
@@ -71,6 +87,8 @@ export class TotemService {
    * Check if a user has liked a totem
    */
   static async hasUserLiked(postId: string, totemName: string, firebaseUid: string): Promise<boolean> {
+    if (!db) throw new Error("Firebase is not initialized");
+    
     const postRef = doc(db, "posts", postId);
     const postDoc = await getDoc(postRef);
     
@@ -97,6 +115,8 @@ export class TotemService {
    * Get the number of active likes on a totem
    */
   static async getActiveLikeCount(postId: string, totemName: string): Promise<number> {
+    if (!db) throw new Error("Firebase is not initialized");
+    
     const postRef = doc(db, "posts", postId);
     const postDoc = await getDoc(postRef);
     
@@ -124,21 +144,24 @@ export class TotemService {
     const now = Date.now();
     const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
     
-    const activeLikes = likeHistory.filter(like => like.isActive);
-    if (activeLikes.length === 0) return 0;
+    // Consider ALL likes (both active and inactive) for crispness calculation
+    // This ensures crispness decays over time regardless of like status
+    if (!likeHistory || likeHistory.length === 0) return 0;
 
-    let totalWeight = 0;
-    let weightedSum = 0;
-
-    activeLikes.forEach(like => {
-      const timeSinceLike = now - like.lastUpdatedAt;
-      const weight = Math.max(0, 1 - (timeSinceLike / ONE_WEEK_MS));
-      
-      weightedSum += weight * (like.value || 1);
-      totalWeight += weight;
+    // Calculate individual crispness for each like based on original timestamp
+    const individualCrispnessValues = likeHistory.map(like => {
+      const timeSinceLike = now - (like.originalTimestamp || like.lastUpdatedAt);
+      const likeCrispness = Math.max(0, 100 * (1 - (timeSinceLike / ONE_WEEK_MS)));
+      return likeCrispness;
     });
 
-    return totalWeight > 0 ? (weightedSum / totalWeight) * 100 : 0;
+    // Calculate average crispness
+    const totalCrispness = individualCrispnessValues.reduce((sum, val) => sum + val, 0);
+    const averageCrispness = individualCrispnessValues.length > 0 
+      ? totalCrispness / individualCrispnessValues.length 
+      : 0;
+    
+    return parseFloat(averageCrispness.toFixed(2));
   }
 
   /**
@@ -151,6 +174,10 @@ export class TotemService {
     firebaseUid: string
   ): Promise<boolean> {
     try {
+      console.log(`[DEBUG] toggleLike called - postId: ${postId}, totemName: ${totemName}, firebaseUid: ${firebaseUid}`);
+      
+      if (!db) throw new Error("Firebase is not initialized");
+      
       const postRef = doc(db, "posts", postId);
       const postDoc = await getDoc(postRef);
       
@@ -170,8 +197,10 @@ export class TotemService {
 
       // Check if user has already liked
       const isCurrentlyLiked = await this.hasUserLiked(postId, totemName, firebaseUid);
+      console.log(`[DEBUG] toggleLike - isCurrentlyLiked: ${isCurrentlyLiked}`);
       
       // Toggle the like state
+      console.log(`[DEBUG] toggleLike - calling handleTotemLike with isUnlike: ${isCurrentlyLiked}`);
       await this.handleTotemLike(postId, totemName, firebaseUid, isCurrentlyLiked);
       
       return true;
@@ -185,6 +214,8 @@ export class TotemService {
    * Get the crispness of a totem
    */
   static async getTotemCrispness(postId: string, totemName: string): Promise<number> {
+    if (!db) throw new Error("Firebase is not initialized");
+    
     const postRef = doc(db, "posts", postId);
     const postDoc = await getDoc(postRef);
     
@@ -209,6 +240,8 @@ export class TotemService {
    * Check if a user has inactive likes for a totem
    */
   static async hasInactiveLikes(postId: string, totemName: string, firebaseUid: string): Promise<boolean> {
+    if (!db) throw new Error("Firebase is not initialized");
+    
     const postRef = doc(db, "posts", postId);
     const postDoc = await getDoc(postRef);
     
@@ -235,6 +268,8 @@ export class TotemService {
    * Get the crispness of an inactive like
    */
   static async getInactiveLikeCrispness(postId: string, totemName: string, firebaseUid: string): Promise<number> {
+    if (!db) throw new Error("Firebase is not initialized");
+    
     const postRef = doc(db, "posts", postId);
     const postDoc = await getDoc(postRef);
     
@@ -260,15 +295,23 @@ export class TotemService {
       return 0;
     }
 
-    // Calculate the crispness based on a single inactive like
-    const mockLikeHistory = [{ ...inactiveLike, isActive: true }];
-    return this.calculateCrispnessFromLikeHistory(mockLikeHistory);
+    // Calculate the crispness based on the inactive like's original timestamp
+    const now = Date.now();
+    const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+    const timeSinceLike = now - inactiveLike.originalTimestamp;
+    const likeCrispness = Math.max(0, 100 * (1 - (timeSinceLike / ONE_WEEK_MS)));
+    
+    return parseFloat(likeCrispness.toFixed(2));
   }
   
   /**
    * Refresh a previously inactive like to make it active
    */
   static async refreshLike(postId: string, totemName: string, firebaseUid: string): Promise<boolean> {
+    console.log(`[DEBUG] refreshLike called - postId: ${postId}, totemName: ${totemName}, firebaseUid: ${firebaseUid}`);
+    
+    if (!db) throw new Error("Firebase is not initialized");
+    
     const postRef = doc(db, "posts", postId);
 
     try {
@@ -300,9 +343,13 @@ export class TotemService {
           return false; // No inactive like to refresh
         }
 
-        // Update the like to be active
+        console.log(`[DEBUG] refreshLike - updating like at index ${inactiveLikeIndex} to active`);
+        
+        // Update the like to be active and refresh the timestamp
+        const newTimestamp = Date.now();
         totem.likeHistory[inactiveLikeIndex].isActive = true;
-        totem.likeHistory[inactiveLikeIndex].lastUpdatedAt = Date.now();
+        totem.likeHistory[inactiveLikeIndex].originalTimestamp = newTimestamp; // Update original timestamp for crispness
+        totem.likeHistory[inactiveLikeIndex].lastUpdatedAt = newTimestamp; // Update last updated timestamp
 
         // Calculate crispness
         totem.crispness = this.calculateCrispnessFromLikeHistory(totem.likeHistory);

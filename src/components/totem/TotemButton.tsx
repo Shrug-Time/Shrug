@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTotem } from '@/contexts/TotemContext';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -22,9 +22,16 @@ export function TotemButton({
   showCrispnessValue = true 
 }: TotemButtonProps) {
   const { user } = useAuth();
-  const { toggleLike, isLiked, getLikeCount, getCrispness } = useTotem();
+  const { toggleLike, isLiked, getLikeCount, getCrispness, loadPostTotems } = useTotem();
   const [isLoading, setIsLoading] = useState(false);
   const { isAuthModalOpen, setIsAuthModalOpen, handleAuthRequired } = useAuthModal();
+
+  // Load totem state when component mounts
+  useEffect(() => {
+    if (user) {
+      loadPostTotems(postId, [totemName]);
+    }
+  }, [postId, totemName, user, loadPostTotems]);
 
   const handleClick = async (e: React.MouseEvent) => {
     e.preventDefault(); // Prevent navigation when clicking the like button
@@ -51,7 +58,7 @@ export function TotemButton({
   const liked = user ? isLiked(postId, totemName) : false;
   const likeCount = getLikeCount(postId, totemName);
   const crispness = getCrispness(postId, totemName);
-  const shouldShowCrispness = crispness !== undefined && crispness > 0 && showCrispnessValue;
+  const shouldShowCrispness = crispness !== undefined && crispness >= 0 && showCrispnessValue;
 
   return (
     <>

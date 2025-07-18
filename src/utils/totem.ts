@@ -9,20 +9,21 @@ export const calculateCrispness = (likes: number[], timestamps: string[]) => {
   const now = new Date().getTime();
   const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
   
-  // Calculate weighted average based on time decay
-  let totalWeight = 0;
-  let weightedSum = 0;
-
-  timestamps.forEach((timestamp, index) => {
+  // Calculate individual crispness for each like
+  const individualCrispnessValues = timestamps.map((timestamp, index) => {
     const likeTime = new Date(timestamp).getTime();
     const timeSinceLike = now - likeTime;
-    const weight = Math.max(0, 1 - (timeSinceLike / ONE_WEEK_MS));
-    
-    weightedSum += weight * likes[index];
-    totalWeight += weight;
+    const likeCrispness = Math.max(0, 100 * (1 - (timeSinceLike / ONE_WEEK_MS)));
+    return likeCrispness;
   });
 
-  return totalWeight > 0 ? (weightedSum / totalWeight) * 100 : 0;
+  // Calculate average crispness
+  const totalCrispness = individualCrispnessValues.reduce((sum, val) => sum + val, 0);
+  const averageCrispness = individualCrispnessValues.length > 0 
+    ? totalCrispness / individualCrispnessValues.length 
+    : 0;
+  
+  return parseFloat(averageCrispness.toFixed(2));
 };
 
 /**

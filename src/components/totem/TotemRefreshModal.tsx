@@ -20,6 +20,7 @@ export function TotemRefreshModal({
   onRestore,
   onRefresh
 }: TotemRefreshModalProps) {
+
   return (
     <Transition appear show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={onClose}>

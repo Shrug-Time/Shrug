@@ -56,6 +56,7 @@ export async function updateTotemLikes(
   totemName: string,
   isUnlike: boolean = false
 ): Promise<void> {
+  console.log(`[DEBUG] updateTotemLikes called - postId: ${postId}, totemName: ${totemName}, isUnlike: ${isUnlike}`);
   console.log(`updateTotemLikes - Starting ${isUnlike ? 'unlike' : 'like'} operation with postId:`, postId, 'totemName:', totemName);
   
   const userId = auth.currentUser?.uid;
@@ -64,6 +65,7 @@ export async function updateTotemLikes(
     throw new Error("User must be logged in to like totems");
   }
 
+  console.log(`[DEBUG] updateTotemLikes - calling TotemService.handleTotemLike`);
   await TotemService.handleTotemLike(postId, totemName, userId, isUnlike);
   console.log(`updateTotemLikes - Successfully ${isUnlike ? 'unliked' : 'liked'} totem`);
 }

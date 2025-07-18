@@ -154,37 +154,37 @@ export function TotemProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   // Calculate crispness from like history
-  // Only considers active likes for crispness calculation
+  // Consider ALL likes (both active and inactive) for crispness calculation
   const calculateCrispnessFromLikeHistory = (likeHistory: any[]): number => {
     const now = Date.now();
     const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
     
-    // Filter to only active likes
-    const activeLikes = likeHistory.filter(like => like.isActive);
-    if (!activeLikes || activeLikes.length === 0) return 0;
+    // Consider ALL likes (both active and inactive) for crispness calculation
+    // This ensures crispness decays over time regardless of like status
+    if (!likeHistory || likeHistory.length === 0) return 0;
     
-    console.log(`[Crispness] Calculating for ${activeLikes.length} active likes`);
+    console.log(`[Crispness] Calculating for ${likeHistory.length} total likes (active + inactive)`);
     
-    let totalWeight = 0;
-    let weightedSum = 0;
-
-    activeLikes.forEach(like => {
-      const lastUpdated = like.lastUpdatedAt;
+    // Calculate individual crispness for each like based on original timestamp
+    const individualCrispnessValues = likeHistory.map(like => {
+      const lastUpdated = like.originalTimestamp || like.lastUpdatedAt;
       const timeSinceLike = now - lastUpdated;
-      // Calculate weight from time decay
-      let weight = Math.max(0, 1 - (timeSinceLike / ONE_WEEK_MS));
+      const likeCrispness = Math.max(0, 100 * (1 - (timeSinceLike / ONE_WEEK_MS)));
       
-      console.log(`[Crispness] Like timestamp: ${new Date(lastUpdated).toISOString()}, age: ${Math.round(timeSinceLike/86400000)} days, weight: ${weight.toFixed(2)}`);
+      console.log(`[Crispness] Like timestamp: ${new Date(lastUpdated).toISOString()}, age: ${Math.round(timeSinceLike/86400000)} days, crispness: ${likeCrispness.toFixed(1)}%, active: ${like.isActive}`);
       
-      weightedSum += weight * (like.value || 1);
-      totalWeight += weight;
+      return likeCrispness;
     });
 
-    // Fixed calculation: divide total weight by number of likes to get proper percentage
-    const finalCrispness = activeLikes.length > 0 ? (totalWeight / activeLikes.length) * 100 : 0;
-    console.log(`[Crispness] Final calculation: ${finalCrispness.toFixed(1)}% (weighted sum: ${weightedSum.toFixed(2)}, total weight: ${totalWeight.toFixed(2)})`);
+    // Calculate average crispness
+    const totalCrispness = individualCrispnessValues.reduce((sum, val) => sum + val, 0);
+    const averageCrispness = individualCrispnessValues.length > 0 
+      ? totalCrispness / individualCrispnessValues.length 
+      : 0;
     
-    return finalCrispness;
+    console.log(`[Crispness] Final calculation: ${averageCrispness.toFixed(1)}% (total: ${totalCrispness.toFixed(1)}, count: ${individualCrispnessValues.length})`);
+    
+    return parseFloat(averageCrispness.toFixed(2));
   };
 
   // Load initial state for all totems in a post
@@ -250,6 +250,8 @@ export function TotemProvider({ children }: { children: React.ReactNode }) {
   const completeLikeToggle = async (postId: string, totemName: string, useRefresh: boolean) => {
     if (!user) return false;
     
+    console.log(`[DEBUG] completeLikeToggle called - postId: ${postId}, totemName: ${totemName}, useRefresh: ${useRefresh}`);
+    
     const key = `${postId}-${totemName}`;
     const currentState = likeState[key];
     
@@ -268,6 +270,7 @@ export function TotemProvider({ children }: { children: React.ReactNode }) {
       
       if (useRefresh) {
         // Use a refresh
+        console.log(`[DEBUG] completeLikeToggle - calling TotemService.refreshLike`);
         success = await TotemService.refreshLike(postId, totemName, user.uid);
         
         if (success) {
@@ -278,8 +281,11 @@ export function TotemProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         // Regular toggle
+        console.log(`[DEBUG] completeLikeToggle - calling TotemService.toggleLike`);
         success = await TotemService.toggleLike(postId, totemName, user.uid);
       }
+      
+      console.log(`[DEBUG] completeLikeToggle - operation success: ${success}`);
       
       if (!success) {
         // Revert on failure
@@ -289,6 +295,7 @@ export function TotemProvider({ children }: { children: React.ReactNode }) {
         }));
       } else {
         // Reload the state to ensure we have the latest data
+        console.log(`[DEBUG] completeLikeToggle - reloading state`);
         await loadTotemState(postId, totemName);
       }
       return success;
@@ -311,10 +318,16 @@ export function TotemProvider({ children }: { children: React.ReactNode }) {
   };
   
   const handleRestore = async () => {
-    if (!refreshData || !user) return;
+    console.log(`[DEBUG] handleRestore called`);
+    if (!refreshData || !user) {
+      console.log(`[DEBUG] handleRestore - early return: refreshData=${!!refreshData}, user=${!!user}`);
+      return;
+    }
     
     const { postId, totemName } = refreshData;
+    console.log(`[DEBUG] handleRestore - calling completeLikeToggle with postId: ${postId}, totemName: ${totemName}`);
     const success = await completeLikeToggle(postId, totemName, false);
+    console.log(`[DEBUG] handleRestore - completeLikeToggle result: ${success}`);
     setRefreshData(null);
     return success;
   };
@@ -392,7 +405,7 @@ export function TotemProvider({ children }: { children: React.ReactNode }) {
     refreshesRemaining,
     isLoading,
     error,
-    loadPostTotems
+    loadPostTotems,
   };
 
   return (
