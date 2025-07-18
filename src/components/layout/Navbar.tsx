@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useUser } from '@/hooks/useUser';
 import { AuthModal } from '@/components/auth/AuthModal';
+import { SearchBar } from '@/components/common/SearchBar';
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import { useSubscription } from '@/contexts/SubscriptionContext';
@@ -37,6 +38,15 @@ export function Navbar() {
                 Profile
               </Link>
             )}
+          </div>
+
+          {/* Search Bar - Center */}
+          <div className="flex-1 max-w-2xl mx-8">
+            <SearchBar 
+              placeholder="Search questions, users, totems..."
+              showSuggestions={true}
+              className="w-full"
+            />
           </div>
           
           <div className="flex items-center space-x-4">
