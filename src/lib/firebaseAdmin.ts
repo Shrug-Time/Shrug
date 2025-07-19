@@ -9,13 +9,7 @@ function getFirebaseAdminConfig() {
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   const privateKey = process.env.FIREBASE_PRIVATE_KEY;
 
-  // Display validation status in development
-  if (process.env.NODE_ENV === 'development') {
-    console.log('Firebase Admin Environment Variables Check:');
-    console.log(`- FIREBASE_PROJECT_ID: ${projectId ? 'Present' : 'Missing'}`);
-    console.log(`- FIREBASE_CLIENT_EMAIL: ${clientEmail ? 'Present' : 'Missing'}`);
-    console.log(`- FIREBASE_PRIVATE_KEY: ${privateKey ? 'Present and correct format' : 'Missing'}`);
-  }
+
 
   // Return validated config
   return { projectId, clientEmail, privateKey };
@@ -91,6 +85,8 @@ try {
 // Initialize services with proper error handling
 const adminAuth = admin.auth();
 const adminFirestore = admin.firestore();
+
+
 
 // Export the admin instance and services with proper typing
 export const firebaseAdmin = admin;

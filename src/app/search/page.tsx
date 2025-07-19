@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { SearchService, SearchResult } from '@/services/standardized/SearchService';
 import { SearchBar } from '@/components/common/SearchBar';
@@ -15,7 +15,7 @@ import { Post, UserProfile, Totem } from '@/types/models';
 type SearchFilter = 'all' | 'posts' | 'users' | 'totems';
 type SortOption = 'relevance' | 'date' | 'popularity';
 
-export default function SearchPage() {
+function SearchPageContent() {
   const searchParams = useSearchParams();
   const query = searchParams?.get('q') || '';
   const { user: currentUser } = useAuth();
@@ -333,5 +333,13 @@ export default function SearchPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={<div className="container mx-auto px-4 py-8">Loading...</div>}>
+      <SearchPageContent />
+    </Suspense>
   );
 } 
