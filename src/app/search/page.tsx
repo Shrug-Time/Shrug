@@ -29,9 +29,12 @@ export default function SearchPage() {
 
   // Perform search when query changes
   useEffect(() => {
+    console.log(`[SearchPage] useEffect triggered - query: "${query}", filter: ${filter}, sortBy: ${sortBy}`);
     if (query.trim()) {
+      console.log(`[SearchPage] Calling performSearch with: "${query.trim()}"`);
       performSearch(query.trim());
     } else {
+      console.log(`[SearchPage] No query, clearing results`);
       setResults([]);
       setError(null);
     }
@@ -42,6 +45,9 @@ export default function SearchPage() {
     setError(null);
     
     try {
+      console.log(`[SearchPage] Performing search for: "${searchQuery}"`);
+      console.log(`[SearchPage] Filter: ${filter}, Sort: ${sortBy}`);
+      
       const types = filter === 'all' 
         ? ['post', 'user', 'totem'] 
         : filter === 'posts' 
@@ -50,12 +56,15 @@ export default function SearchPage() {
             ? ['user'] 
             : ['totem'];
       
+      console.log(`[SearchPage] Search types:`, types);
+      
       const searchResults = await SearchService.search(searchQuery, {
         types: types as any,
         limit: 50,
         sortBy
       });
       
+      console.log(`[SearchPage] Search results:`, searchResults);
       setResults(searchResults);
     } catch (err) {
       console.error('Search error:', err);
@@ -70,17 +79,25 @@ export default function SearchPage() {
   };
 
   const handleResultClick = (result: SearchResult) => {
+    console.log(`[SearchPage] Result clicked:`, result);
+    console.log(`[SearchPage] Navigating to: ${result.url}`);
     router.push(result.url);
   };
 
   const getFilteredResults = () => {
-    if (filter === 'all') return results;
+    console.log(`[SearchPage] Filtering results. Filter: ${filter}, Total results: ${results.length}`);
+    if (filter === 'all') {
+      console.log(`[SearchPage] Returning all ${results.length} results`);
+      return results;
+    }
     const typeMap = {
       'posts': 'post',
       'users': 'user', 
       'totems': 'totem'
     };
-    return results.filter(result => result.type === typeMap[filter]);
+    const filtered = results.filter(result => result.type === typeMap[filter]);
+    console.log(`[SearchPage] Filtered to ${filtered.length} ${filter} results`);
+    return filtered;
   };
 
   const renderPostResult = (result: SearchResult) => {

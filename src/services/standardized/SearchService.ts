@@ -127,40 +127,72 @@ export class SearchService {
    */
   private static async searchUsers(searchTerm: string, resultLimit: number): Promise<SearchResult[]> {
     try {
+      console.log(`[SearchService] Searching users for: "${searchTerm}"`);
       const usersRef = collection(db, this.USERS_COLLECTION);
       
       // Get all users and filter client-side for better search
-      const q = query(
-        usersRef,
-        orderBy(COMMON_FIELDS.CREATED_AT, 'desc'),
-        limit(100) // Get more to filter
-      );
+      let q = query(usersRef, limit(100)); // Remove ordering to avoid index issues
       
-      const snapshot = await getDocs(q);
-      const users = snapshot.docs.map(doc => 
-        validateUserProfile({ ...doc.data(), firebaseUid: doc.id })
-      );
+      try {
+        const snapshot = await getDocs(q);
+        console.log(`[SearchService] Found ${snapshot.docs.length} users in database`);
+        
+        const users = snapshot.docs.map(doc => 
+          validateUserProfile({ ...doc.data(), firebaseUid: doc.id })
+        );
 
-      // Filter and score users
-      const matchingUsers = users
-        .filter(user => 
-          user.name?.toLowerCase().includes(searchTerm) ||
-          user.username?.toLowerCase().includes(searchTerm) ||
-          user.bio?.toLowerCase().includes(searchTerm)
-        )
-        .map(user => ({
-          type: 'user' as const,
-          id: user.firebaseUid,
-          title: user.name || user.username,
-          description: user.bio || `@${user.username}`,
-          url: `/profile/${user.firebaseUid}`,
-          relevance: this.calculateUserRelevance(user, searchTerm),
-          data: user
-        }))
-        .sort((a, b) => b.relevance - a.relevance)
-        .slice(0, resultLimit);
+        // Filter and score users
+        const matchingUsers = users
+          .filter(user => 
+            user.name?.toLowerCase().includes(searchTerm) ||
+            user.username?.toLowerCase().includes(searchTerm) ||
+            user.bio?.toLowerCase().includes(searchTerm)
+          )
+          .map(user => ({
+            type: 'user' as const,
+            id: user.firebaseUid,
+            title: user.name || user.username,
+            description: user.bio || `@${user.username}`,
+            url: `/profile/${user.firebaseUid}`,
+            relevance: this.calculateUserRelevance(user, searchTerm),
+            data: user
+          }))
+          .sort((a, b) => b.relevance - a.relevance)
+          .slice(0, resultLimit);
 
-      return matchingUsers;
+        console.log(`[SearchService] Returning ${matchingUsers.length} matching users`);
+        return matchingUsers;
+      } catch (orderByError) {
+        console.log(`[SearchService] User query failed, trying without ordering:`, orderByError);
+        
+        // Fallback: try without any ordering
+        const fallbackSnapshot = await getDocs(query(usersRef, limit(100)));
+        console.log(`[SearchService] Fallback user query found ${fallbackSnapshot.docs.length} users`);
+        
+        const users = fallbackSnapshot.docs.map(doc => 
+          validateUserProfile({ ...doc.data(), firebaseUid: doc.id })
+        );
+
+        const matchingUsers = users
+          .filter(user => 
+            user.name?.toLowerCase().includes(searchTerm) ||
+            user.username?.toLowerCase().includes(searchTerm) ||
+            user.bio?.toLowerCase().includes(searchTerm)
+          )
+          .map(user => ({
+            type: 'user' as const,
+            id: user.firebaseUid,
+            title: user.name || user.username,
+            description: user.bio || `@${user.username}`,
+            url: `/profile/${user.firebaseUid}`,
+            relevance: this.calculateUserRelevance(user, searchTerm),
+            data: user
+          }))
+          .sort((a, b) => b.relevance - a.relevance)
+          .slice(0, resultLimit);
+
+        return matchingUsers;
+      }
     } catch (error) {
       console.error('Error searching users:', error);
       return [];
@@ -172,57 +204,104 @@ export class SearchService {
    */
   private static async searchTotems(searchTerm: string, resultLimit: number): Promise<SearchResult[]> {
     try {
-      console.log(`[SearchService] Searching totems for: "${searchTerm}"`);
+      console.log(`[SearchService] Searching totems for: "${searchTerm}" - V2`);
+      console.log(`[SearchService] Database projectId:`, db.app.options.projectId);
       
+      // First, try the dedicated totems collection
       const totemsRef = collection(db, this.TOTEMS_COLLECTION);
+      console.log(`[SearchService] Checking dedicated totems collection...`);
       
-      // Get all totems and filter client-side
-      const q = query(
-        totemsRef,
-        orderBy('usageCount', 'desc'),
-        limit(100) // Get more to filter
-      );
-      
-      const snapshot = await getDocs(q);
-      console.log(`[SearchService] Found ${snapshot.docs.length} totems in database`);
-      
-      // Log the first few totems to see their structure
-      snapshot.docs.slice(0, 3).forEach((doc, index) => {
-        console.log(`[SearchService] Sample totem ${index + 1}:`, {
-          id: doc.id,
-          data: doc.data()
-        });
-      });
-      
-      const totems = snapshot.docs.map(doc => {
-        const data = doc.data() as any;
-        console.log(`[SearchService] Processing totem: ${data.name || 'unnamed'}`);
+      try {
+        const snapshot = await getDocs(query(totemsRef, limit(100)));
+        console.log(`[SearchService] Found ${snapshot.docs.length} totems in dedicated collection`);
         
-        // Create a standardized totem object from the actual database structure
-        return {
-          id: doc.id,
-          name: data.name || 'unnamed',
-          description: '', // Not in database
-          usageCount: data.usageCount || 0,
-          crispness: 100, // Default since not in database
-          likeHistory: [], // Not in database
-          category: { id: 'general', name: 'General', description: '', children: [], usageCount: 0 },
-          decayModel: 'MEDIUM' as const,
-          createdAt: data.lastUsed ? (data.lastUsed.seconds * 1000) : Date.now(),
-          updatedAt: data.lastUsed ? (data.lastUsed.seconds * 1000) : Date.now(),
-          lastInteraction: data.lastUsed ? (data.lastUsed.seconds * 1000) : Date.now()
-        } as Totem;
+        if (snapshot.docs.length > 0) {
+          // Process totems from dedicated collection
+          const totems = snapshot.docs.map(doc => {
+            const data = doc.data() as any;
+            const lastUsedMs = data.lastUsed ? 
+              (data.lastUsed.seconds * 1000) + (data.lastUsed.nanoseconds / 1000000) : 
+              Date.now();
+            
+            return {
+              id: doc.id,
+              name: data.name || 'unnamed',
+              description: '',
+              usageCount: data.usageCount || 0,
+              crispness: 100,
+              likeHistory: [],
+              category: { id: 'general', name: 'General', description: '', children: [], usageCount: 0 },
+              decayModel: 'MEDIUM' as const,
+              createdAt: lastUsedMs,
+              updatedAt: lastUsedMs,
+              lastInteraction: lastUsedMs
+            } as Totem;
+          });
+
+          const matchingTotems = totems
+            .filter(totem => totem.name?.toLowerCase().includes(searchTerm))
+            .map(totem => ({
+              type: 'totem' as const,
+              id: totem.id || totem.name,
+              title: `#${totem.name}`,
+              description: `${totem.usageCount || 0} uses`,
+              url: `/totem/${totem.name}`,
+              relevance: this.calculateTotemRelevance(totem, searchTerm),
+              data: totem
+            }))
+            .sort((a, b) => b.relevance - a.relevance)
+            .slice(0, resultLimit);
+
+          console.log(`[SearchService] Returning ${matchingTotems.length} matching totems from dedicated collection`);
+          return matchingTotems;
+        }
+      } catch (error) {
+        console.log(`[SearchService] Error accessing dedicated totems collection:`, error);
+      }
+      
+      // If no totems in dedicated collection, try to extract from posts
+      console.log(`[SearchService] No totems in dedicated collection, trying to extract from posts...`);
+      const postsRef = collection(db, this.POSTS_COLLECTION);
+      const postsSnapshot = await getDocs(query(postsRef, limit(50)));
+      console.log(`[SearchService] Found ${postsSnapshot.docs.length} posts to search for embedded totems`);
+      
+      const totemSet = new Set<string>();
+      const totemUsageCount = new Map<string, number>();
+      
+      postsSnapshot.docs.forEach(doc => {
+        const post = doc.data() as any;
+        if (post.answers) {
+          post.answers.forEach((answer: any) => {
+            if (answer.totems) {
+              answer.totems.forEach((totem: any) => {
+                if (totem.name) {
+                  totemSet.add(totem.name);
+                  totemUsageCount.set(totem.name, (totemUsageCount.get(totem.name) || 0) + 1);
+                }
+              });
+            }
+          });
+        }
       });
+      
+      console.log(`[SearchService] Found ${totemSet.size} unique totems embedded in posts:`, Array.from(totemSet));
+      
+      const totems = Array.from(totemSet).map(name => ({
+        id: name,
+        name: name,
+        description: '',
+        usageCount: totemUsageCount.get(name) || 0,
+        crispness: 100,
+        likeHistory: [],
+        category: { id: 'general', name: 'General', description: '', children: [], usageCount: 0 },
+        decayModel: 'MEDIUM' as const,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        lastInteraction: Date.now()
+      } as Totem));
 
-      console.log(`[SearchService] Processed ${totems.length} totems`);
-
-      // Filter and score totems
       const matchingTotems = totems
-        .filter(totem => {
-          const nameMatch = totem.name?.toLowerCase().includes(searchTerm);
-          console.log(`[SearchService] Totem "${totem.name}": nameMatch=${nameMatch}`);
-          return nameMatch; // Only search by name since description is empty
-        })
+        .filter(totem => totem.name?.toLowerCase().includes(searchTerm))
         .map(totem => ({
           type: 'totem' as const,
           id: totem.id || totem.name,
@@ -235,10 +314,16 @@ export class SearchService {
         .sort((a, b) => b.relevance - a.relevance)
         .slice(0, resultLimit);
 
-      console.log(`[SearchService] Returning ${matchingTotems.length} matching totems`);
+      console.log(`[SearchService] Returning ${matchingTotems.length} matching totems from embedded totems`);
       return matchingTotems;
+      
     } catch (error) {
       console.error('Error searching totems:', error);
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        code: (error as any)?.code || 'unknown',
+        stack: error instanceof Error ? error.stack : 'No stack trace'
+      });
       return [];
     }
   }
@@ -411,38 +496,73 @@ export class SearchService {
 
       // Get popular totems as suggestions - use direct query instead of TotemService
       console.log(`[SearchService] Fetching popular totems for suggestions`);
+      console.log(`[SearchService] Database projectId for suggestions:`, db.app.options.projectId);
       const totemsRef = collection(db, this.TOTEMS_COLLECTION);
-      const totemsQuery = query(
-        totemsRef,
-        orderBy('usageCount', 'desc'),
-        limit(20)
-      );
-      const totemsSnapshot = await getDocs(totemsQuery);
-      console.log(`[SearchService] Found ${totemsSnapshot.docs.length} popular totems`);
       
-      totemsSnapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() } as any))
-        .filter(totem => {
-          const matches = totem.name?.toLowerCase().includes(term);
-          console.log(`[SearchService] Totem "${totem.name}" matches: ${matches}`);
-          return matches;
-        })
-        .slice(0, suggestionLimit)
-        .forEach(totem => suggestions.add(`#${totem.name}`));
+      try {
+        const totemsQuery = query(
+          totemsRef,
+          orderBy('usageCount', 'desc'),
+          limit(20)
+        );
+        console.log(`[SearchService] Executing suggestions query...`);
+        const totemsSnapshot = await getDocs(totemsQuery);
+        console.log(`[SearchService] Suggestions query executed successfully`);
+        console.log(`[SearchService] Found ${totemsSnapshot.docs.length} popular totems`);
+        
+        totemsSnapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() } as any))
+          .filter(totem => {
+            const matches = totem.name?.toLowerCase().includes(term);
+            console.log(`[SearchService] Totem "${totem.name}" matches: ${matches}`);
+            return matches;
+          })
+          .slice(0, suggestionLimit)
+          .forEach(totem => suggestions.add(`#${totem.name}`));
+      } catch (orderByError) {
+        console.log(`[SearchService] OrderBy query failed for suggestions, trying without ordering:`, orderByError);
+        
+        // Fallback: try without ordering
+        const fallbackQuery = query(totemsRef, limit(20));
+        console.log(`[SearchService] Executing fallback suggestions query...`);
+        const fallbackSnapshot = await getDocs(fallbackQuery);
+        console.log(`[SearchService] Fallback suggestions query executed successfully`);
+        console.log(`[SearchService] Fallback suggestions query found ${fallbackSnapshot.docs.length} totems`);
+        
+        fallbackSnapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() } as any))
+          .filter(totem => totem.name?.toLowerCase().includes(term))
+          .slice(0, suggestionLimit)
+          .forEach(totem => suggestions.add(`#${totem.name}`));
+      }
 
       // Get popular usernames as suggestions
       const usersRef = collection(db, this.USERS_COLLECTION);
-      const usersQuery = query(
-        usersRef,
-        orderBy(USER_FIELDS.FOLLOWERS, 'desc'),
-        limit(20)
-      );
-      const usersSnapshot = await getDocs(usersQuery);
-      usersSnapshot.docs
-        .map(doc => doc.data())
-        .filter(user => user.username?.toLowerCase().includes(term))
-        .slice(0, suggestionLimit)
-        .forEach(user => suggestions.add(`@${user.username}`));
+      
+      try {
+        const usersQuery = query(
+          usersRef,
+          orderBy(USER_FIELDS.FOLLOWERS, 'desc'),
+          limit(20)
+        );
+        const usersSnapshot = await getDocs(usersQuery);
+        usersSnapshot.docs
+          .map(doc => doc.data())
+          .filter(user => user.username?.toLowerCase().includes(term))
+          .slice(0, suggestionLimit)
+          .forEach(user => suggestions.add(`@${user.username}`));
+      } catch (orderByError) {
+        console.log(`[SearchService] User suggestions orderBy failed, trying without ordering:`, orderByError);
+        
+        // Fallback: try without ordering
+        const fallbackQuery = query(usersRef, limit(20));
+        const fallbackSnapshot = await getDocs(fallbackQuery);
+        fallbackSnapshot.docs
+          .map(doc => doc.data())
+          .filter(user => user.username?.toLowerCase().includes(term))
+          .slice(0, suggestionLimit)
+          .forEach(user => suggestions.add(`@${user.username}`));
+      }
 
       const result = Array.from(suggestions).slice(0, suggestionLimit);
       console.log(`[SearchService] Returning ${result.length} suggestions:`, result);

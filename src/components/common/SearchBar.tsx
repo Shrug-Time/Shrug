@@ -67,21 +67,27 @@ export function SearchBar({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
+      console.log(`[SearchBar] Submitting search: "${query.trim()}"`);
       if (onSearch) {
         onSearch(query.trim());
       } else {
-        router.push(getSearchUrl(query.trim()));
+        const searchUrl = getSearchUrl(query.trim());
+        console.log(`[SearchBar] Navigating to: ${searchUrl}`);
+        router.push(searchUrl);
       }
       setShowSuggestionsDropdown(false);
     }
   };
 
   const handleSuggestionClick = (suggestion: string) => {
+    console.log(`[SearchBar] Suggestion clicked: "${suggestion}"`);
     setQuery(suggestion);
     if (onSearch) {
       onSearch(suggestion);
     } else {
-      router.push(getSearchUrl(suggestion));
+      const searchUrl = getSearchUrl(suggestion);
+      console.log(`[SearchBar] Navigating to suggestion: ${searchUrl}`);
+      router.push(searchUrl);
     }
     setShowSuggestionsDropdown(false);
     inputRef.current?.blur();
