@@ -28,9 +28,9 @@ export class TotemService {
       
       // Find the answer containing the totem
       const answer = post.answers.find(a => 
-        a.totems.some(t => t.name === totemName)
+        a.totems.some(t => t.name.toLowerCase() === totemName.toLowerCase())
       );
-      const totem = answer?.totems.find(t => t.name === totemName);
+      const totem = answer?.totems.find(t => t.name.toLowerCase() === totemName.toLowerCase());
 
       if (!totem) {
         throw new Error("Totem not found");
@@ -98,9 +98,9 @@ export class TotemService {
 
     const post = postDoc.data() as Post;
     const answer = post.answers.find(a => 
-      a.totems.some(t => t.name === totemName)
+      a.totems.some(t => t.name.toLowerCase() === totemName.toLowerCase())
     );
-    const totem = answer?.totems.find(t => t.name === totemName);
+    const totem = answer?.totems.find(t => t.name.toLowerCase() === totemName.toLowerCase());
 
     if (!totem?.likeHistory) {
       return false;
@@ -126,9 +126,9 @@ export class TotemService {
 
     const post = postDoc.data() as Post;
     const answer = post.answers.find(a => 
-      a.totems.some(t => t.name === totemName)
+      a.totems.some(t => t.name.toLowerCase() === totemName.toLowerCase())
     );
-    const totem = answer?.totems.find(t => t.name === totemName);
+    const totem = answer?.totems.find(t => t.name.toLowerCase() === totemName.toLowerCase());
 
     if (!totem?.likeHistory) {
       return 0;
@@ -187,9 +187,9 @@ export class TotemService {
 
       const post = postDoc.data() as Post;
       const answer = post.answers.find(a => 
-        a.totems.some(t => t.name === totemName)
+        a.totems.some(t => t.name.toLowerCase() === totemName.toLowerCase())
       );
-      const totem = answer?.totems.find(t => t.name === totemName);
+      const totem = answer?.totems.find(t => t.name.toLowerCase() === totemName.toLowerCase());
 
       if (!totem) {
         return false;
@@ -225,9 +225,9 @@ export class TotemService {
 
     const post = postDoc.data() as Post;
     const answer = post.answers.find(a => 
-      a.totems.some(t => t.name === totemName)
+      a.totems.some(t => t.name.toLowerCase() === totemName.toLowerCase())
     );
-    const totem = answer?.totems.find(t => t.name === totemName);
+    const totem = answer?.totems.find(t => t.name.toLowerCase() === totemName.toLowerCase());
 
     if (!totem) {
       return 0;
@@ -251,9 +251,9 @@ export class TotemService {
 
     const post = postDoc.data() as Post;
     const answer = post.answers.find(a => 
-      a.totems.some(t => t.name === totemName)
+      a.totems.some(t => t.name.toLowerCase() === totemName.toLowerCase())
     );
-    const totem = answer?.totems.find(t => t.name === totemName);
+    const totem = answer?.totems.find(t => t.name.toLowerCase() === totemName.toLowerCase());
 
     if (!totem?.likeHistory) {
       return false;
@@ -279,9 +279,9 @@ export class TotemService {
 
     const post = postDoc.data() as Post;
     const answer = post.answers.find(a => 
-      a.totems.some(t => t.name === totemName)
+      a.totems.some(t => t.name.toLowerCase() === totemName.toLowerCase())
     );
-    const totem = answer?.totems.find(t => t.name === totemName);
+    const totem = answer?.totems.find(t => t.name.toLowerCase() === totemName.toLowerCase());
 
     if (!totem?.likeHistory) {
       return 0;
@@ -326,9 +326,9 @@ export class TotemService {
         
         // Find the answer containing the totem
         const answer = post.answers.find(a => 
-          a.totems.some(t => t.name === totemName)
+          a.totems.some(t => t.name.toLowerCase() === totemName.toLowerCase())
         );
-        const totem = answer?.totems.find(t => t.name === totemName);
+        const totem = answer?.totems.find(t => t.name.toLowerCase() === totemName.toLowerCase());
 
         if (!totem || !totem.likeHistory) {
           return false;

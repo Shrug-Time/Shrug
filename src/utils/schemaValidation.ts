@@ -257,7 +257,7 @@ export function validateTotem(totem: Partial<Totem>): Totem {
   // Build normalized totem
   return {
     id: normalizeString(totem.id),
-    name: normalizeString(totem.name),
+    name: normalizeString(totem.name).toLowerCase(), // Normalize to lowercase for consistency
     
     // Metadata
     description: normalizeString(totem.description),

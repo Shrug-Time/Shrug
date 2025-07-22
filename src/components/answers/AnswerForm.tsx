@@ -82,15 +82,15 @@ export function AnswerForm({ selectedQuestion, onAnswerSubmitted }: AnswerFormPr
   const handleAddTotem = () => {
     if (!newTotem.trim()) return;
 
-    // Check if totem already exists
-    if (selectedTotems.some(t => t.name === newTotem.trim())) {
+    // Check if totem already exists (case-insensitive)
+    if (selectedTotems.some(t => t.name.toLowerCase() === newTotem.trim().toLowerCase())) {
       setError('This totem has already been added.');
       return;
     }
 
     const newTotemObj: Totem = {
-      id: newTotem.trim(),
-      name: newTotem.trim(),
+      id: newTotem.trim().toLowerCase(), // Normalize to lowercase
+      name: newTotem.trim().toLowerCase(), // Normalize to lowercase
       likeHistory: [],
       crispness: 100,
       category: { id: 'general', name: 'General', description: '', children: [], usageCount: 0 },

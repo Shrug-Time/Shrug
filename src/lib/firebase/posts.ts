@@ -100,7 +100,7 @@ export async function refreshTotem(postId: string, totemName: string): Promise<{
     
     // Find the answer that contains the totem
     const answerIdx = post.answers.findIndex(answer => 
-      answer.totems?.some(totem => totem.name === totemName)
+      answer.totems?.some(totem => totem.name.toLowerCase() === totemName.toLowerCase())
     );
     
     if (answerIdx === -1) {
@@ -110,7 +110,7 @@ export async function refreshTotem(postId: string, totemName: string): Promise<{
     console.log('refreshTotem - Found totem in answer index:', answerIdx);
     
     const answer = post.answers[answerIdx];
-    const totem = answer.totems.find(t => t.name === totemName);
+    const totem = answer.totems.find(t => t.name.toLowerCase() === totemName.toLowerCase());
     
     if (!totem) {
       console.error('refreshTotem - Totem not found in the answer');
