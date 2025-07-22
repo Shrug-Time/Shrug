@@ -26,6 +26,7 @@ import {
   getRedirectResult
 } from "firebase/auth";
 import { getFirestore, doc, setDoc, getDoc, updateDoc, Timestamp, Firestore, onSnapshot, DocumentData, DocumentReference } from "firebase/firestore";
+import { getStorage, FirebaseStorage } from "firebase/storage";
 
 /**
  * Firebase configuration using environment variables
@@ -38,6 +39,7 @@ const isBrowser = typeof window !== 'undefined';
 let firebaseApp: FirebaseApp | null = null;
 let firestore: Firestore | null = null;
 let authInstance: Auth | null = null;
+let storageInstance: FirebaseStorage | null = null;
 let googleProvider: GoogleAuthProvider | null = null;
 
 // Initialize Firebase only in browser environment
@@ -60,6 +62,7 @@ if (isBrowser) {
       firebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
       firestore = getFirestore(firebaseApp);
       authInstance = getAuth(firebaseApp);
+      storageInstance = getStorage(firebaseApp);
 
       // Initialize Google provider
       googleProvider = new GoogleAuthProvider();
@@ -82,6 +85,7 @@ if (isBrowser) {
 
 // Export initialized instances with null fallbacks to prevent runtime errors
 export const db = firestore;
+export const storage = storageInstance;
 export const auth = authInstance;
 
 /**

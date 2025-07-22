@@ -5,7 +5,7 @@
  * All user data operations should go through this service.
  */
 
-import { auth, db } from '@/firebase';
+import { auth, db, storage } from '@/firebase';
 import { 
   doc, 
   getDoc, 
@@ -20,6 +20,7 @@ import {
   orderBy,
   QueryConstraint
 } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { UserProfile } from '@/types/models';
 import { COMMON_FIELDS, USER_FIELDS } from '@/constants/fields';
 
@@ -393,6 +394,99 @@ export class UserService {
       return true;
     } catch (error) {
       console.error('Error updating refreshes:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Upload avatar image and update user profile
+   * @param file Image file to upload
+   * @param userId Firebase user ID
+   * @returns Updated user profile with new photoURL
+   */
+  static async uploadAvatar(file: File, userId: string): Promise<UserProfile> {
+    try {
+      console.log('UserService.uploadAvatar called with:', { fileName: file.name, fileSize: file.size, userId });
+      
+      if (!storage) {
+        throw new Error('Firebase Storage is not initialized');
+      }
+
+      if (!db) {
+        throw new Error('Firebase Firestore is not initialized');
+      }
+
+      // Validate file
+      if (!file.type.startsWith('image/')) {
+        throw new Error('File must be an image');
+      }
+
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        throw new Error('File size must be less than 5MB');
+      }
+
+      console.log('File validation passed, creating storage reference...');
+      
+      // Create storage reference
+      const storageRef = ref(storage, `avatars/${userId}/${Date.now()}_${file.name}`);
+      console.log('Storage reference created:', storageRef.fullPath);
+      
+      // Upload file
+      console.log('Starting file upload...');
+      const snapshot = await uploadBytes(storageRef, file);
+      console.log('File upload completed, getting download URL...');
+      
+      // Get download URL
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      console.log('Download URL obtained:', downloadURL);
+      
+      // Update user profile
+      console.log('Updating user profile with new photoURL...');
+      const updatedProfile = await this.updateProfile(userId, {
+        photoURL: downloadURL
+      });
+      
+      console.log('Profile update completed:', updatedProfile);
+      return updatedProfile;
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Remove avatar and update user profile
+   * @param userId Firebase user ID
+   * @returns Updated user profile with photoURL removed
+   */
+  static async removeAvatar(userId: string): Promise<UserProfile> {
+    try {
+      if (!storage) {
+        throw new Error('Firebase Storage is not initialized');
+      }
+
+      // Get current profile to check if there's an existing photo
+      const currentProfile = await this.getUserByFirebaseUid(userId);
+      
+      if (currentProfile?.photoURL) {
+        // Delete from storage if it exists
+        try {
+          const storageRef = ref(storage, currentProfile.photoURL);
+          await deleteObject(storageRef);
+        } catch (storageError) {
+          console.warn('Could not delete old avatar from storage:', storageError);
+          // Continue with profile update even if storage deletion fails
+        }
+      }
+      
+      // Update profile to remove photoURL
+      const updatedProfile = await this.updateProfile(userId, {
+        photoURL: undefined
+      });
+      
+      return updatedProfile;
+    } catch (error) {
+      console.error('Error removing avatar:', error);
       throw error;
     }
   }

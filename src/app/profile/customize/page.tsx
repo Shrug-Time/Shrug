@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/hooks/useUser';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Toast } from '@/components/common/Toast';
 import Image from 'next/image';
+import { UserService } from '@/services/userService';
 
 export default function ProfileCustomizationPage() {
   const { profile, isLoading, error, updateProfile } = useUser();
@@ -20,7 +21,9 @@ export default function ProfileCustomizationPage() {
     defaultAccess: 'public',
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   useEffect(() => {
     if (profile) {
@@ -68,6 +71,74 @@ export default function ProfileCustomizationPage() {
       });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !profile) return;
+
+    console.log('Starting avatar upload for file:', file.name, 'size:', file.size);
+
+    try {
+      setIsUploading(true);
+      console.log('Calling UserService.uploadAvatar...');
+      
+      const updatedProfile = await UserService.uploadAvatar(file, profile.firebaseUid);
+      console.log('Avatar upload successful, updated profile:', updatedProfile);
+      
+      // The profile will be updated automatically through the useUser hook
+      // No need to manually update it here
+      
+      setToast({
+        message: 'Avatar updated successfully',
+        type: 'success'
+      });
+      
+      setTimeout(() => {
+        setToast(null);
+      }, 3000);
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      setToast({
+        message: error instanceof Error ? error.message : 'Failed to upload avatar',
+        type: 'error'
+      });
+    } finally {
+      setIsUploading(false);
+      // Clear the file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleAvatarRemove = async () => {
+    if (!profile) return;
+
+    try {
+      setIsUploading(true);
+      await UserService.removeAvatar(profile.firebaseUid);
+      
+      // Refresh the profile to get the updated photoURL
+      await updateProfile({});
+      
+      setToast({
+        message: 'Avatar removed successfully',
+        type: 'success'
+      });
+      
+      setTimeout(() => {
+        setToast(null);
+      }, 3000);
+    } catch (error) {
+      console.error('Error removing avatar:', error);
+      setToast({
+        message: 'Failed to remove avatar',
+        type: 'error'
+      });
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -172,17 +243,28 @@ export default function ProfileCustomizationPage() {
                       </div>
                       
                       <div className="space-x-2">
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleAvatarChange}
+                          className="hidden"
+                        />
                         <button 
                           type="button"
-                          className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isUploading}
+                          className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          Change
+                          {isUploading ? 'Uploading...' : 'Change'}
                         </button>
                         <button 
                           type="button"
-                          className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50"
+                          onClick={handleAvatarRemove}
+                          disabled={isUploading || !profile.photoURL}
+                          className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          Remove
+                          {isUploading ? 'Removing...' : 'Remove'}
                         </button>
                       </div>
                     </div>
