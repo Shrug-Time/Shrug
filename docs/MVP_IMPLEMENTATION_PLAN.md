@@ -13,9 +13,9 @@ A Q&A platform where users can ask questions and get answers from different pers
 5. **📚 NEW:** Curriculum system (structured learning paths for creators)
 6. **📱 ADS:** Custom ad system (users create ads, get referral kickbacks)
 
-### **Timeline:** 8-11 days total
+### **Timeline:** 10-14 days total
 - **Week 1:** Payments + Profile Polish (6-8 days)
-- **Week 2:** Curriculum + Custom Ads (5-6 days)
+- **Week 2:** Time-Based Crispness + Curriculum + Custom Ads (7-9 days)
 
 ### **Current Status:**
 - **✅ Social Core:** Complete (following, user discovery, navigation)
@@ -94,9 +94,34 @@ A Q&A platform where users can ask questions and get answers from different pers
 - [ ] Ad placement in feed and profile pages
 - [ ] Analytics dashboard for creators
 
-### Phase 3: Platform Enhancement (2-3 days)
+### Phase 3: Platform Enhancement (4-6 days)
 
-#### **4. Curriculum System** (2-3 days) - **KEY DIFFERENTIATOR**
+#### **4. Time-Based Crispness Filtering** (2-3 days) - **CONTENT DISCOVERY**
+**What's Missing:**
+- Time period selector (Day/Week/Year)
+- Dynamic crispness calculation based on time windows
+- Cached crispness values for performance
+
+**What Exists:**
+- Basic crispness calculation system
+- Like history with timestamps
+- Totem display infrastructure
+
+**Implementation:**
+- [ ] Add time period selector UI component
+- [ ] Extend crispness calculation to accept date ranges
+- [ ] Implement time-windowed like filtering
+- [ ] Cache computed crispness values for common periods
+- [ ] Update totem display to show time-specific crispness
+- [ ] Add user preference persistence for selected time period
+
+**Technical Approach:**
+- Single database with unified content
+- Filter like history by date range before crispness calculation
+- Recalculate all totem crispness when user changes time period
+- Same questions/answers, different relevance indicators
+
+#### **5. Curriculum System** (2-3 days) - **KEY DIFFERENTIATOR**
 **What's Missing:**
 - Clear curriculum concept
 - Learning path visualization
