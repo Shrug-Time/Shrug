@@ -62,30 +62,36 @@ export function TotemButton({
 
   return (
     <>
-      <div className={`flex items-center gap-2 ${className}`}>
-        <Link 
-          href={`/post/${postId}/totem/${encodeURIComponent(totemName)}`}
-          className="flex items-center gap-1"
-        >
-          <span className="text-lg text-gray-900 hover:text-blue-600">{totemName}</span>
-          {shouldShowCrispness && (
-            <span className="text-xs text-gray-500 ml-1">
-              {Math.round(crispness || 0)}% Crisp
-            </span>
-          )}
-        </Link>
-        {showCount && (
-          <Button
-            onClick={handleClick}
-            variant="ghost"
-            size="sm"
-            disabled={isLoading}
-            className={`flex items-center gap-1 ${
-              liked ? 'bg-blue-100 text-blue-600 hover:bg-blue-200' : 'text-gray-500 hover:text-gray-600'
-            }`}
+      <div className={`inline-flex items-center gap-2 ${className}`}>
+        <div className="inline-flex items-center">
+          <Link 
+            href={`/post/${postId}/totem/${encodeURIComponent(totemName)}`}
+            className={`inline-flex items-center px-2 py-1 rounded-l-md border border-r-0 ${
+              liked ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'
+            } hover:bg-gray-100 transition-colors`}
           >
-            <span className="text-sm">{likeCount}</span>
-          </Button>
+            <span className={`text-sm font-medium ${liked ? 'text-blue-600' : 'text-gray-700'}`}>
+              {totemName}
+            </span>
+          </Link>
+          {showCount && (
+            <button
+              onClick={handleClick}
+              disabled={isLoading}
+              className={`inline-flex items-center px-2 py-1 border rounded-r-md text-sm transition-colors ${
+                liked 
+                  ? 'bg-blue-100 border-blue-200 text-blue-600 hover:bg-blue-200' 
+                  : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              {likeCount}
+            </button>
+          )}
+        </div>
+        {shouldShowCrispness && (
+          <span className="text-xs text-gray-500">
+            {Math.round(crispness || 0)}% Crisp
+          </span>
         )}
       </div>
 

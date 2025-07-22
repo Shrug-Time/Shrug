@@ -183,7 +183,7 @@ export function QuestionList({
     const uniqueKey = `${sectionId}-${post.id}-${index}`;
     
     return (
-      <div key={uniqueKey} className="bg-white rounded-lg shadow p-4 mb-4">
+      <div key={uniqueKey} className="bg-white rounded-lg shadow p-3 mb-3">
         <div className="flex items-center justify-between text-sm text-gray-500 mb-2">
           <span>
             Posted by{' '}
@@ -203,7 +203,7 @@ export function QuestionList({
         </div>
         <div className="space-y-2">
           <Link href={getPostUrl(post.id)} className="block hover:bg-gray-50 rounded-lg transition-colors">
-            <h2 className="text-xl font-semibold mb-2 text-gray-900 hover:text-blue-600">{post.question}</h2>
+            <h2 className="text-lg font-semibold mb-2 text-gray-900 hover:text-blue-600">{post.question}</h2>
           </Link>
           {firstParagraph && answerToShow && (
             answerToShow.id ? (
@@ -211,22 +211,20 @@ export function QuestionList({
                 href={getAnswerUrl(post.id, answerToShow.id)}
                 className="block hover:bg-gray-50 rounded-lg transition-colors p-2"
               >
-                <p className="text-gray-600">{firstParagraph}</p>
+                <p className="text-gray-600 text-sm line-clamp-2">{firstParagraph}</p>
               </Link>
             ) : (
               <Link 
                 href={getPostUrl(post.id)}
                 className="block hover:bg-gray-50 rounded-lg transition-colors p-2"
               >
-                <p className="text-gray-600">{firstParagraph}</p>
+                <p className="text-gray-600 text-sm line-clamp-2">{firstParagraph}</p>
               </Link>
             )
           )}
         </div>
-        <div className="flex items-center justify-between">
-          <div className="flex flex-wrap gap-2">
-            {topTotem && renderTotemButton(post.id, topTotem.name)}
-          </div>
+        <div className="flex items-center justify-between mt-3">
+          {topTotem && renderTotemButton(post.id, topTotem.name)}
           <button
             onClick={() => handleAnswerClick(post)}
             className="inline-flex items-center justify-center w-8 h-8 rounded-full text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"

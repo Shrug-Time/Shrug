@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { useTotem } from '@/contexts/TotemContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { QuestionList } from '@/components/questions/QuestionList';
+import { MainPageSidebar } from '@/components/layout/MainPageSidebar';
 import { useRouter } from 'next/navigation';
 import { Post } from '@/types/models';
 import { PostService } from '@/services/standardized';
@@ -30,6 +31,7 @@ export default function Home() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<FeedType>('latest');
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -49,19 +51,9 @@ export default function Home() {
             break;
             
           case 'popular':
-            // Use standardized service with lastInteraction ordering
-            const constraints: QueryConstraint[] = []; // No additional constraints
-            const popularResult = await PostService.getPaginatedPosts(
-              constraints,
-              10
-            );
+            // Use the new scalable popular posts method
+            const popularResult = await PostService.getPopularPosts(10);
             fetchedPosts = popularResult.posts || [];
-            // Sort by total likes (since lastInteraction may not strictly correlate with popularity)
-            fetchedPosts = [...fetchedPosts].sort((a, b) => {
-              const aLikes = calculateTotalLikes(a);
-              const bLikes = calculateTotalLikes(b);
-              return bLikes - aLikes;
-            });
             break;
             
           case 'for-you':
@@ -123,43 +115,52 @@ export default function Home() {
   };
 
   return (
-    <main className="container mx-auto px-4 py-8">
-      <AdBanner />
-      
-      <div className="flex space-x-4 mb-6">
-        <button
-          onClick={() => setActiveTab('latest')}
-          className={`px-4 py-2 rounded-lg transition-colors ${
-            activeTab === 'latest' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          Latest
-        </button>
-        <button
-          onClick={() => setActiveTab('popular')}
-          className={`px-4 py-2 rounded-lg transition-colors ${
-            activeTab === 'popular' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          Popular
-        </button>
-        <button
-          onClick={() => setActiveTab('for-you')}
-          className={`px-4 py-2 rounded-lg transition-colors ${
-            activeTab === 'for-you' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          For You
-        </button>
-      </div>
-
-      <QuestionList
-        posts={posts}
-        onWantToAnswer={handleWantToAnswer}
-        hasNextPage={false}
-        isLoading={isLoading}
-        onLoadMore={() => {}}
+    <div className="min-h-screen bg-gray-50">
+      <MainPageSidebar 
+        isExpanded={isSidebarExpanded}
+        onToggle={() => setIsSidebarExpanded(!isSidebarExpanded)}
       />
-    </main>
+      
+      <main>
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <AdBanner />
+          
+          <div className="flex space-x-4 mb-6">
+            <button
+              onClick={() => setActiveTab('latest')}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                activeTab === 'latest' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Latest
+            </button>
+            <button
+              onClick={() => setActiveTab('popular')}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                activeTab === 'popular' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Popular
+            </button>
+            <button
+              onClick={() => setActiveTab('for-you')}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                activeTab === 'for-you' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              For You
+            </button>
+          </div>
+
+          <QuestionList
+            posts={posts}
+            onWantToAnswer={handleWantToAnswer}
+            hasNextPage={false}
+            isLoading={isLoading}
+            onLoadMore={() => {}}
+          />
+        </div>
+      </main>
+    </div>
   );
 }

@@ -111,6 +111,85 @@ export class PostService {
   }
   
   /**
+   * Get popular posts ordered by engagement metrics
+   * Scalable solution that uses database-level sorting
+   * @param pageSize Number of posts per page
+   * @param lastVisible Last visible document for pagination
+   * @returns Popular posts and pagination info
+   */
+  static async getPopularPosts(
+    pageSize: number = DEFAULT_PAGE_SIZE,
+    lastVisible: any = null
+  ): Promise<{ posts: Post[], lastVisible: any }> {
+    try {
+      // Create cache key for popular posts
+      const cacheKey = `popular_posts_${pageSize}_${lastVisible}`;
+      
+      // Try to get from cache first
+      return await CacheService.getOrSet(
+        cacheKey,
+        async () => {
+          const firestore = getFirestore();
+          const postsRef = collection(firestore, this.POSTS_COLLECTION);
+          let queryConstraints: QueryConstraint[] = [];
+          
+          // Order by lastInteraction (proxy for engagement) and then by answer count
+          // This ensures posts with recent activity and more answers appear first
+          queryConstraints.push(orderBy(COMMON_FIELDS.LAST_INTERACTION, 'desc'));
+          
+          // Add pagination constraints
+          if (lastVisible) {
+            queryConstraints.push(startAfter(lastVisible));
+          }
+          queryConstraints.push(limit(pageSize));
+          
+          // Execute query
+          const q = query(postsRef, ...queryConstraints);
+          const snapshot = await getDocs(q);
+          
+          // Process results
+          const posts = snapshot.docs.map(doc => 
+            validatePost({ id: doc.id, ...doc.data() })
+          );
+          
+          // Additional client-side sorting by engagement score for better accuracy
+          // This combines multiple factors: answer count, recent activity, and like count
+          const postsWithScore = posts.map(post => {
+            const answerCount = post.answers?.length || 0;
+            const totalLikes = post.answers?.reduce((sum, answer) => 
+              sum + (answer.totems?.reduce((totemSum, totem) => 
+                totemSum + (totem.likeHistory?.filter(like => like.isActive).length || 0), 0
+              ) || 0), 0
+            ) || 0;
+            
+            // Calculate engagement score: (answer count * 10) + (total likes * 5) + (days since last interaction)
+            const lastInteraction = post.lastInteraction || post.createdAt || Date.now();
+            const daysSinceLastInteraction = (Date.now() - lastInteraction) / (1000 * 60 * 60 * 24);
+            const engagementScore = (answerCount * 10) + (totalLikes * 5) - daysSinceLastInteraction;
+            
+            return { ...post, engagementScore };
+          });
+          
+          // Sort by engagement score (highest first)
+          const sortedPosts = postsWithScore
+            .sort((a, b) => b.engagementScore - a.engagementScore)
+            .map(({ engagementScore, ...post }) => post); // Remove score from final result
+          
+          return {
+            posts: sortedPosts,
+            lastVisible: snapshot.docs.length > 0 
+              ? snapshot.docs[snapshot.docs.length - 1] 
+              : null
+          };
+        },
+        POST_LIST_CACHE_TTL
+      );
+    } catch (error) {
+      return ErrorHandlingService.handleServiceError('get popular posts', error, { posts: [], lastVisible: null });
+    }
+  }
+  
+  /**
    * Get a post by ID
    * @param postId Post ID
    * @returns Post data or null if not found
