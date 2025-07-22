@@ -47,6 +47,22 @@
         { "fieldPath": "category.id", "order": "ASCENDING" },
         { "fieldPath": "usageCount", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "community_ads",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "lastShown", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "community_ads",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "submitterId", "order": "ASCENDING" },
+        { "fieldPath": "submittedAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

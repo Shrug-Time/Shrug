@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useUser } from '@/hooks/useUser';
 import { useRouter } from 'next/navigation';
 import { TotemService } from '@/services/standardized';
+import { SidebarAd } from '@/components/ads/CommunityAdDisplay';
 
 interface MainPageSidebarProps {
   isExpanded: boolean;
@@ -189,6 +190,11 @@ export function MainPageSidebar({ isExpanded, onToggle }: MainPageSidebarProps) 
               Search Content
             </button>
           </div>
+        </div>
+
+        {/* Community Ad */}
+        <div className="pt-4 border-t border-gray-200">
+          <SidebarAd />
         </div>
       </div>
     </div>

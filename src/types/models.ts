@@ -71,6 +71,37 @@ export interface TotemAssociation {
   contestedByFirebaseUids: string[];
 }
 
+// Custom Ad System Types (Simplified for $9.99 subscription promotion)
+export type AdStatus = 'pending' | 'approved' | 'rejected';
+
+export interface CommunityAd {
+  id: string;
+  submitterId: string; // Firebase UID of the submitter
+  status: AdStatus;
+  
+  // Ad Content - Just the file
+  pdfUrl: string; // URL to the uploaded PDF or PNG promoting $9.99 subscription
+  
+  // Simple Analytics
+  impressions: number;
+  clicks: number;
+  
+  // Timestamps
+  submittedAt: number;
+  approvedAt?: number;
+  lastShown?: number; // For rotation tracking
+}
+
+export interface AdGuidelines {
+  purpose: string;
+  requirements: string[];
+  technicalRequirements: {
+    fileFormat: string;
+    maxFileSize: string;
+    recommendedSizes: string[];
+  };
+}
+
 export type DecayModel = 'FAST' | 'MEDIUM' | 'NONE';
 
 export interface TotemCategory {

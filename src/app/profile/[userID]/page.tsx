@@ -11,6 +11,7 @@ import { UserService } from '@/services/userService';
 import { ProfileSectionService } from '@/services/profileSectionService';
 import { SectionManager } from '@/components/profile/SectionManager';
 import { Sidebar } from '@/components/layout/Sidebar';
+import { OtherUserProfileSidebar } from '@/components/profile/OtherUserProfileSidebar';
 import { handleTotemLike as utilHandleTotemLike, handleTotemRefresh as utilHandleTotemRefresh } from '@/utils/totem';
 import { useRouter, useParams } from 'next/navigation';
 import type { Post, UserProfile, ProfileSection } from '@/types/models';
@@ -283,7 +284,11 @@ function ProfileContent({ userID }: { userID: string }) {
   if (userLoading || (postsLoading && !userPosts)) {
     return (
       <div className="flex min-h-screen">
-        <Sidebar activePage="content" />
+        {isCurrentUserProfile ? (
+          <Sidebar activePage="content" />
+        ) : (
+          userData && <OtherUserProfileSidebar profileUser={userData} />
+        )}
         <div className="flex-1 p-4 flex items-center justify-center">
           <LoadingSpinner size="lg" />
         </div>
@@ -295,7 +300,11 @@ function ProfileContent({ userID }: { userID: string }) {
   if (userError || postsError) {
     return (
       <div className="flex min-h-screen">
-        <Sidebar activePage="content" />
+        {isCurrentUserProfile ? (
+          <Sidebar activePage="content" />
+        ) : (
+          userData && <OtherUserProfileSidebar profileUser={userData} />
+        )}
         <div className="flex-1 p-4">
           <div className="max-w-4xl mx-auto bg-red-50 border border-red-200 rounded-lg p-6 text-center">
             <h2 className="text-xl font-semibold text-red-700 mb-2">Something went wrong</h2>
@@ -339,7 +348,12 @@ function ProfileContent({ userID }: { userID: string }) {
   
   return (
     <div className="flex min-h-screen">
-      <Sidebar activePage="content" />
+      {/* Use different sidebars based on whether it's the current user's profile */}
+      {isCurrentUserProfile ? (
+        <Sidebar activePage="content" />
+      ) : (
+        <OtherUserProfileSidebar profileUser={userData} />
+      )}
       
       <div className="flex-1">
         {/* Show toast messages */}
@@ -487,7 +501,7 @@ function ProfileContent({ userID }: { userID: string }) {
                     }
                     
                     return (
-                      <div key={section.id} className="bg-white rounded-xl shadow p-6">
+                      <div key={section.id} id={`section-${section.id}`} className="bg-white rounded-xl shadow p-6">
                         <h2 className="text-xl font-semibold mb-4">{section.title}</h2>
                         {sectionPosts.length > 0 ? (
                           <QuestionList 
@@ -566,7 +580,21 @@ function ProfileContent({ userID }: { userID: string }) {
 
 export default function UserProfilePage() {
   const params = useParams();
-  const userID = params.userID as string;
+  const userID = params?.userID as string;
+
+  if (!userID) {
+    return (
+      <div className="flex min-h-screen">
+        <Sidebar activePage="content" />
+        <div className="flex-1 p-4">
+          <div className="max-w-4xl mx-auto bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+            <h2 className="text-xl font-semibold text-red-700 mb-2">Invalid Profile</h2>
+            <p className="text-gray-700 mb-4">No user ID provided.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <ErrorBoundary>
