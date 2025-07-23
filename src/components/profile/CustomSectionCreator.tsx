@@ -11,6 +11,7 @@ type SortOption = 'newest' | 'oldest' | 'popular';
 interface CustomSectionCreatorProps {
   userId: string;
   section?: ProfileSection; // Provide for editing, omit for creation
+  defaultOrganizationMethod?: 'chronological' | 'popularity' | 'series' | 'custom';
   onSave: (section: ProfileSection) => void;
   onCancel: () => void;
 }
@@ -18,12 +19,13 @@ interface CustomSectionCreatorProps {
 export function CustomSectionCreator({ 
   userId, 
   section, 
+  defaultOrganizationMethod = 'chronological',
   onSave, 
   onCancel 
 }: CustomSectionCreatorProps) {
   const [title, setTitle] = useState(section?.title || '');
   const [organizationMethod, setOrganizationMethod] = useState<'chronological' | 'popularity' | 'series' | 'custom'>(
-    section?.organizationMethod || 'chronological'
+    section?.organizationMethod || defaultOrganizationMethod
   );
   const [answers, setAnswers] = useState<Post[]>([]);
   const [filteredAnswers, setFilteredAnswers] = useState<Post[]>([]);
@@ -356,7 +358,7 @@ export function CustomSectionCreator({
       
       {/* Step 1: Basic Information */}
       {step === 'info' && (
-        <div className="space-y-4 pt-4">
+        <div className="space-y-6 pt-4">
           <div>
             <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
               Section Title
@@ -366,31 +368,145 @@ export function CustomSectionCreator({
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Enter a title for this section"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+              placeholder="e.g., 'Fly Fishing Basics' or 'Advanced Techniques'"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
           
           <div>
             <label htmlFor="organizationMethod" className="block text-sm font-medium text-gray-700 mb-1">
-              Organization Method
+              Section Type
             </label>
-            <select
-              id="organizationMethod"
-              value={organizationMethod}
-              onChange={(e) => setOrganizationMethod(e.target.value as any)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
-            >
-              <option value="chronological">Chronological (newest first)</option>
-              <option value="popularity">By Popularity (most liked)</option>
-              <option value="series">Series (ordered progression)</option>
-              <option value="custom">Custom (your arrangement)</option>
-            </select>
+            <p className="text-sm text-gray-500 mb-3">Choose how you want to organize content in this section</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Series/Curriculum Option */}
+              <div 
+                className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                  organizationMethod === 'series' 
+                    ? 'border-blue-500 bg-blue-50' 
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+                onClick={() => setOrganizationMethod('series')}
+              >
+                <div className="flex items-center mb-2">
+                  <input
+                    type="radio"
+                    name="organizationMethod"
+                    value="series"
+                    checked={organizationMethod === 'series'}
+                    onChange={() => setOrganizationMethod('series')}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                  />
+                  <label className="ml-3 text-sm font-medium text-gray-900">
+                    📚 Curriculum/Series
+                  </label>
+                </div>
+                <p className="text-sm text-gray-600 ml-7">
+                  Create a structured learning path where content is presented in a specific order. 
+                  Perfect for tutorials, courses, or step-by-step guides.
+                </p>
+              </div>
+              
+              {/* Other options */}
+              <div 
+                className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                  organizationMethod === 'chronological' 
+                    ? 'border-blue-500 bg-blue-50' 
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+                onClick={() => setOrganizationMethod('chronological')}
+              >
+                <div className="flex items-center mb-2">
+                  <input
+                    type="radio"
+                    name="organizationMethod"
+                    value="chronological"
+                    checked={organizationMethod === 'chronological'}
+                    onChange={() => setOrganizationMethod('chronological')}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                  />
+                  <label className="ml-3 text-sm font-medium text-gray-900">
+                    🕒 Chronological
+                  </label>
+                </div>
+                <p className="text-sm text-gray-600 ml-7">
+                  Show newest content first. Great for updates, news, or recent discoveries.
+                </p>
+              </div>
+              
+              <div 
+                className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                  organizationMethod === 'popularity' 
+                    ? 'border-blue-500 bg-blue-50' 
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+                onClick={() => setOrganizationMethod('popularity')}
+              >
+                <div className="flex items-center mb-2">
+                  <input
+                    type="radio"
+                    name="organizationMethod"
+                    value="popularity"
+                    checked={organizationMethod === 'popularity'}
+                    onChange={() => setOrganizationMethod('popularity')}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                  />
+                  <label className="ml-3 text-sm font-medium text-gray-900">
+                    ⭐ By Popularity
+                  </label>
+                </div>
+                <p className="text-sm text-gray-600 ml-7">
+                  Show most liked content first. Highlights your best and most engaging answers.
+                </p>
+              </div>
+              
+              <div 
+                className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
+                  organizationMethod === 'custom' 
+                    ? 'border-blue-500 bg-blue-50' 
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+                onClick={() => setOrganizationMethod('custom')}
+              >
+                <div className="flex items-center mb-2">
+                  <input
+                    type="radio"
+                    name="organizationMethod"
+                    value="custom"
+                    checked={organizationMethod === 'custom'}
+                    onChange={() => setOrganizationMethod('custom')}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                  />
+                  <label className="ml-3 text-sm font-medium text-gray-900">
+                    🎯 Custom Order
+                  </label>
+                </div>
+                <p className="text-sm text-gray-600 ml-7">
+                  Arrange content in any order you prefer. Full control over organization.
+                </p>
+              </div>
+            </div>
             
             {(organizationMethod === 'series' || organizationMethod === 'custom') && (
-              <p className="mt-1 text-sm text-gray-500">
-                You'll be able to arrange the order of items in the next steps.
-              </p>
+              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start">
+                  <svg className="w-5 h-5 text-blue-600 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div>
+                    <h4 className="text-sm font-medium text-blue-900 mb-1">
+                      {organizationMethod === 'series' ? 'Creating a Curriculum' : 'Custom Arrangement'}
+                    </h4>
+                    <p className="text-sm text-blue-700">
+                      {organizationMethod === 'series' 
+                        ? 'You\'ll be able to arrange your content in a logical learning sequence. Each item will be numbered and presented as steps in a progression.'
+                        : 'You\'ll be able to arrange your content in any order you prefer using drag-and-drop or arrow controls.'
+                      }
+                    </p>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         </div>

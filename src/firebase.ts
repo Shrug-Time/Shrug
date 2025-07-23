@@ -8,8 +8,6 @@
 // This file is dynamically modified during build to prevent SSR issues
 
 // This file is dynamically modified during build to prevent SSR issues
-
-// This file is dynamically modified during build to prevent SSR issues
 // src/firebase.ts
 import { initializeApp, getApps, FirebaseApp, getApp } from "firebase/app";
 import { 
@@ -84,7 +82,7 @@ if (isBrowser) {
 }
 
 // Export initialized instances with null fallbacks to prevent runtime errors
-export const db = firestore;
+export const db = firestore as Firestore;
 export const storage = storageInstance;
 export const auth = authInstance;
 

@@ -15,20 +15,25 @@ import { SectionManager } from '@/components/profile/SectionManager';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import Image from 'next/image';
+import { CustomSectionCreator } from '@/components/profile/CustomSectionCreator';
+import Link from 'next/link';
 
 export default function ProfilePage() {
   const { profile, isLoading: isLoadingProfile, error: profileError, updateProfile } = useUser();
   const { user: currentUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [isEditingSections, setIsEditingSections] = useState(false);
+  const [isCreatingCurriculum, setIsCreatingCurriculum] = useState(false);
   const [selectedTab, setSelectedTab] = useState<string>('home');
   const [userPosts, setUserPosts] = useState<Post[]>([]);
   const [userAnswers, setUserAnswers] = useState<Post[]>([]);
   const [isLoadingPosts, setIsLoadingPosts] = useState(false);
   const [toastMessage, setToastMessage] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [sections, setSections] = useState<ProfileSection[]>([]);
-  const [isLoadingSections, setIsLoadingSections] = useState(false);
   const [sectionContent, setSectionContent] = useState<Map<string, Post[]>>(new Map());
+  const [isLoadingSections, setIsLoadingSections] = useState(false);
+  const [sectionStartIndex, setSectionStartIndex] = useState<Map<string, number>>(new Map());
+  const [fallbackStartIndex, setFallbackStartIndex] = useState(0);
   const router = useRouter();
 
   // Load user's posts using the standardized PostService
@@ -131,7 +136,42 @@ export default function ProfilePage() {
   
   const handleSaveSections = () => {
     setIsEditingSections(false);
+    setIsCreatingCurriculum(false);
     loadSections();
+  };
+  
+  const handleCreateCurriculum = () => {
+    setIsCreatingCurriculum(true);
+  };
+
+  const navigateSection = (sectionId: string, direction: 'left' | 'right', totalItems: number) => {
+    const currentStart = sectionStartIndex.get(sectionId) || 0;
+    let newStart;
+    
+    if (direction === 'right') {
+      newStart = Math.min(currentStart + 3, Math.max(0, totalItems - 3));
+    } else {
+      newStart = Math.max(0, currentStart - 3);
+    }
+    
+    setSectionStartIndex(prev => new Map(prev.set(sectionId, newStart)));
+  };
+
+  const navigateFallback = (direction: 'left' | 'right', totalItems: number) => {
+    let newStart;
+    
+    if (direction === 'right') {
+      newStart = Math.min(fallbackStartIndex + 3, Math.max(0, totalItems - 3));
+    } else {
+      newStart = Math.max(0, fallbackStartIndex - 3);
+    }
+    
+    setFallbackStartIndex(newStart);
+  };
+
+  const getSectionSlice = (sectionId: string, items: Post[]) => {
+    const start = sectionStartIndex.get(sectionId) || 0;
+    return items.slice(start, start + 3);
   };
 
   if (isLoadingProfile || !profile) {
@@ -170,6 +210,26 @@ export default function ProfilePage() {
           userId={profile.firebaseUid}
           onSave={handleSaveSections}
           onCancel={() => setIsEditingSections(false)}
+        />
+      </div>
+    );
+  }
+  
+  // If we're creating a curriculum, show the custom section creator with series pre-selected
+  if (isCreatingCurriculum) {
+    return (
+      <div className="max-w-4xl mx-auto p-4">
+        <CustomSectionCreator 
+          userId={profile.firebaseUid}
+          defaultOrganizationMethod="series"
+          onSave={(section) => {
+            handleSaveSections();
+            setToastMessage({
+              message: 'Curriculum created successfully!',
+              type: 'success'
+            });
+          }}
+          onCancel={() => setIsCreatingCurriculum(false)}
         />
       </div>
     );
@@ -232,6 +292,12 @@ export default function ProfilePage() {
                     className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
                   >
                     Customize Page
+                  </button>
+                  <button
+                    onClick={handleCreateCurriculum}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
+                  >
+                    📚 Create Curriculum
                   </button>
                   <button
                     onClick={() => setIsEditingSections(true)}
@@ -298,59 +364,267 @@ export default function ProfilePage() {
                   <LoadingSpinner size="md" />
                 </div>
               ) : sections && sections.length > 0 ? (
-                sections
-                  .filter(section => section.isVisible)
-                  .map(section => {
-                    const sectionPosts = sectionContent.get(section.id) || [];
-                    
-                    if (sectionPosts.length === 0 && !isLoadingSections) {
-                      return null; // Don't display empty sections
-                    }
-                    
-                    return (
-                      <div key={section.id} className="bg-white rounded-xl shadow p-6">
-                        <h2 className="text-xl font-semibold mb-4">{section.title}</h2>
-                        {sectionPosts.length > 0 ? (
-                          <QuestionList 
-                            posts={sectionPosts}
-                            onWantToAnswer={handleWantToAnswer}
-                            hasNextPage={false}
-                            isLoading={false}
-                            onLoadMore={() => {}}
-                            showAllTotems={false}
-                            sectionId={section.id}
-                          />
-                        ) : (
-                          <div className="py-4 text-center text-gray-500">
-                            <p>Loading content...</p>
+                <div className="space-y-8">
+                  {sections
+                    .filter(section => section.isVisible)
+                    .map(section => {
+                      const sectionPosts = sectionContent.get(section.id) || [];
+                      
+                      if (sectionPosts.length === 0 && !isLoadingSections) {
+                        return (
+                          <div key={section.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <div className="flex items-center justify-between mb-6">
+                              <div className="flex items-center space-x-3">
+                                <h2 className="text-2xl font-bold text-gray-900">{section.title}</h2>
+                                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                                  {section.type === 'custom' ? 'Custom' : 'Auto'}
+                                </span>
+                                {section.organizationMethod === 'series' && (
+                                  <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
+                                    📚 Curriculum
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-center py-12">
+                              <div className="text-center text-gray-400">
+                                <div className="w-12 h-12 mx-auto mb-2 bg-gray-100 rounded-full flex items-center justify-center">
+                                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                  </svg>
+                                </div>
+                                <p className="text-sm">No content yet</p>
+                                <button className="mt-2 text-sm text-blue-600 hover:text-blue-800">
+                                  Add content to this section
+                                </button>
+                              </div>
+                            </div>
                           </div>
-                        )}
-                      </div>
-                    );
-                  }).filter(Boolean)
+                        );
+                      }
+                      
+                      return (
+                        <div key={section.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                          <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center space-x-3">
+                              <h2 className="text-2xl font-bold text-gray-900">{section.title}</h2>
+                              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                                {section.type === 'custom' ? 'Custom' : 'Auto'}
+                              </span>
+                              {section.organizationMethod === 'series' && (
+                                <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
+                                  📚 Curriculum
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center text-sm text-gray-500">
+                              <span>{sectionPosts.length} item{sectionPosts.length === 1 ? '' : 's'}</span>
+                            </div>
+                          </div>
+                          
+                          {/* Grid layout with 3 cards */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {getSectionSlice(section.id, sectionPosts).map((post, index) => {
+                              // Get the first answer for preview
+                              const firstAnswer = post.answers && post.answers.length > 0 ? post.answers[0] : null;
+                              const firstParagraph = firstAnswer?.text?.split('\n')[0] || '';
+                              
+                              // Get the top totem for this post
+                              const topTotem = firstAnswer?.totems?.reduce((top, current) => {
+                                const topLikes = current.likeHistory?.length || 0;
+                                const currentLikes = current.likeHistory?.length || 0;
+                                return currentLikes > topLikes ? current : top;
+                              }, firstAnswer.totems[0]);
+
+                              return (
+                                <div key={post.id} className="bg-white rounded-lg shadow p-3 hover:bg-gray-50 transition-colors">
+                                  <div className="mb-2">
+                                    <p className="text-sm text-gray-600">
+                                      Posted by <span className="text-blue-600 font-medium">{post.username || 'Unknown'}</span>
+                                    </p>
+                                  </div>
+                                  
+                                  <div className="mb-3">
+                                    <Link 
+                                      href={`/post/${post.id}`}
+                                      className="block text-lg font-semibold text-gray-900 hover:text-blue-600 transition-colors"
+                                    >
+                                      {post.question}
+                                    </Link>
+                                  </div>
+                                  
+                                  {firstParagraph && (
+                                    <div className="mb-3">
+                                      <p className="text-gray-600 text-sm line-clamp-2">
+                                        {firstParagraph}
+                                      </p>
+                                    </div>
+                                  )}
+                                  
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-2">
+                                      {topTotem && (
+                                        <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded">
+                                          {topTotem.name}
+                                        </span>
+                                      )}
+                                      <span className="text-xs text-gray-500">
+                                        {post.answers?.length || 0} answers
+                                      </span>
+                                    </div>
+                                    <Link 
+                                      href={`/post/${post.id}`}
+                                      className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                                    >
+                                      +
+                                    </Link>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          
+                          {/* Navigation arrows */}
+                          {sectionPosts.length > 3 && (
+                            <div className="flex justify-between items-center mt-4">
+                              <button 
+                                onClick={() => navigateSection(section.id, 'left', sectionPosts.length)}
+                                disabled={(sectionStartIndex.get(section.id) || 0) === 0}
+                                className="flex items-center px-3 py-2 text-gray-600 hover:text-gray-900 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+                              >
+                                ← Previous
+                              </button>
+                              
+                              <span className="text-sm text-gray-500">
+                                {Math.floor(((sectionStartIndex.get(section.id) || 0) / 3) + 1)} of {Math.ceil(sectionPosts.length / 3)}
+                              </span>
+                              
+                              <button 
+                                onClick={() => navigateSection(section.id, 'right', sectionPosts.length)}
+                                disabled={(sectionStartIndex.get(section.id) || 0) + 3 >= sectionPosts.length}
+                                className="flex items-center px-3 py-2 text-gray-600 hover:text-gray-900 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+                              >
+                                Next →
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }).filter(Boolean)
+                }
+                </div>
               ) : (
-                <div className="bg-white rounded-xl shadow p-6">
-                  <h2 className="text-xl font-semibold mb-4">Posts and Answers</h2>
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                  <h2 className="text-2xl font-bold mb-6 text-gray-900">Posts and Answers</h2>
                   {isLoadingPosts ? (
                     <p className="text-gray-600">Loading content...</p>
                   ) : userPosts.length > 0 || userAnswers.length > 0 ? (
-                    <QuestionList 
-                      posts={(() => {
-                        // Deduplicate combined posts and answers
+                    <div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {(() => {
+                          // Deduplicate combined posts and answers
+                          const combinedPosts = [...userPosts, ...userAnswers];
+                          const uniquePostsMap = new Map<string, Post>();
+                          combinedPosts.forEach(post => {
+                            uniquePostsMap.set(post.id, post);
+                          });
+                          const displayPosts = Array.from(uniquePostsMap.values()).slice(fallbackStartIndex, fallbackStartIndex + 3);
+                          
+                          return displayPosts.map(post => {
+                            // Get the first answer for preview
+                            const firstAnswer = post.answers && post.answers.length > 0 ? post.answers[0] : null;
+                            const firstParagraph = firstAnswer?.text?.split('\n')[0] || '';
+                            
+                            // Get the top totem for this post
+                            const topTotem = firstAnswer?.totems?.reduce((top, current) => {
+                              const topLikes = current.likeHistory?.length || 0;
+                              const currentLikes = current.likeHistory?.length || 0;
+                              return currentLikes > topLikes ? current : top;
+                            }, firstAnswer.totems[0]);
+
+                            return (
+                              <div key={post.id} className="bg-white rounded-lg shadow p-3 hover:bg-gray-50 transition-colors">
+                                <div className="mb-2">
+                                  <p className="text-sm text-gray-600">
+                                    Posted by <span className="text-blue-600 font-medium">{post.username || 'Unknown'}</span>
+                                  </p>
+                                </div>
+                                
+                                <div className="mb-3">
+                                  <Link 
+                                    href={`/post/${post.id}`}
+                                    className="block text-lg font-semibold text-gray-900 hover:text-blue-600 transition-colors"
+                                  >
+                                    {post.question}
+                                  </Link>
+                                </div>
+                                
+                                {firstParagraph && (
+                                  <div className="mb-3">
+                                    <p className="text-gray-600 text-sm line-clamp-2">
+                                      {firstParagraph}
+                                    </p>
+                                  </div>
+                                )}
+                                
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center space-x-2">
+                                    {topTotem && (
+                                      <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded">
+                                        {topTotem.name}
+                                      </span>
+                                    )}
+                                    <span className="text-xs text-gray-500">
+                                      {post.answers?.length || 0} answers
+                                    </span>
+                                  </div>
+                                  <Link 
+                                    href={`/post/${post.id}`}
+                                    className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                                  >
+                                    +
+                                  </Link>
+                                </div>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                      
+                      {/* Navigation arrows for fallback section */}
+                      {(() => {
                         const combinedPosts = [...userPosts, ...userAnswers];
                         const uniquePostsMap = new Map<string, Post>();
                         combinedPosts.forEach(post => {
                           uniquePostsMap.set(post.id, post);
                         });
-                        return Array.from(uniquePostsMap.values());
+                        const totalPosts = Array.from(uniquePostsMap.values()).length;
+                        
+                        return totalPosts > 3 ? (
+                          <div className="flex justify-between items-center mt-4">
+                            <button 
+                              onClick={() => navigateFallback('left', totalPosts)}
+                              disabled={fallbackStartIndex === 0}
+                              className="flex items-center px-3 py-2 text-gray-600 hover:text-gray-900 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+                            >
+                              ← Previous
+                            </button>
+                            
+                            <span className="text-sm text-gray-500">
+                              {Math.floor((fallbackStartIndex / 3) + 1)} of {Math.ceil(totalPosts / 3)}
+                            </span>
+                            
+                            <button 
+                              onClick={() => navigateFallback('right', totalPosts)}
+                              disabled={fallbackStartIndex + 3 >= totalPosts}
+                              className="flex items-center px-3 py-2 text-gray-600 hover:text-gray-900 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+                            >
+                              Next →
+                            </button>
+                          </div>
+                        ) : null;
                       })()}
-                      onWantToAnswer={handleWantToAnswer}
-                      hasNextPage={false}
-                      isLoading={false}
-                      onLoadMore={() => {}}
-                      showAllTotems={false}
-                      sectionId="home-default"
-                    />
+                    </div>
                   ) : (
                     <p className="text-gray-600">No posts or answers yet</p>
                   )}
