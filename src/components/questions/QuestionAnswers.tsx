@@ -11,6 +11,7 @@ import { useAuthModal } from '@/hooks/useAuthModal';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { getAnswerUrl, getPostUrl, getProfileUrl } from '@/utils/routes';
 import { ReportButton } from '@/components/reports/ReportButton';
+import { useTotem } from '@/contexts/TotemContext';
 
 // Helper function to safely convert various date formats to a Date object
 const toDate = (dateField: any): Date => {
@@ -39,6 +40,7 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
   const [selectedQuestion, setSelectedQuestion] = useState<Post | null>(null);
   const [expandedTotems, setExpandedTotems] = useState<Set<string>>(new Set());
   const { isAuthModalOpen, setIsAuthModalOpen, handleAuthRequired } = useAuthModal();
+  const { getCrispness } = useTotem();
 
   const handleAnswerSubmitted = () => {
     setSelectedQuestion(null);
@@ -63,39 +65,55 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
     });
   };
 
-  // Group answers by totem
-  const answersByTotem = post.answers.reduce((acc, answer) => {
-    answer.totems.forEach(totem => {
-      const normalizedName = totem.name.toLowerCase();
-      if (!acc[normalizedName]) {
-        acc[normalizedName] = [];
-      }
-      acc[normalizedName].push({
-        answer,
-        totem,
-        likes: getTotemLikes(totem)
-      });
-    });
-    return acc;
-  }, {} as Record<string, Array<{
+  // Create individual answer-totem pairs for ranking
+  const answerTotemPairs: Array<{
     answer: Answer;
     totem: Totem;
     likes: number;
-  }>>);
+    crispness: number;
+  }> = [];
 
-  // Sort answers within each totem by likes
-  Object.keys(answersByTotem).forEach(totemName => {
-    answersByTotem[totemName].sort((a, b) => b.likes - a.likes);
+  post.answers.forEach(answer => {
+    answer.totems.forEach(totem => {
+      answerTotemPairs.push({
+        answer,
+        totem,
+        likes: getTotemLikes(totem),
+        crispness: getCrispness(post.id, totem.name) || 0
+      });
+    });
   });
 
-  // Calculate total likes for each totem and sort totems by total likes
-  const sortedTotems = Object.entries(answersByTotem)
-    .map(([totemName, answers]) => ({
-      totemName,
-      answers,
-      totalLikes: answers.reduce((sum, { likes }) => sum + likes, 0)
-    }))
-    .sort((a, b) => b.totalLikes - a.totalLikes);
+  // Sort individual answer-totem pairs by likes (descending), then by crispness (descending)
+  const sortedPairs = answerTotemPairs.sort((a, b) => {
+    // Primary sort: individual totem likes (descending)
+    if (a.likes !== b.likes) {
+      return b.likes - a.likes;
+    }
+    
+    // Tie-breaker: totem crispness (descending)
+    return b.crispness - a.crispness;
+  });
+
+  // Group sorted pairs by totem for display
+  const answersByTotem = sortedPairs.reduce((acc, pair) => {
+    const totemName = pair.totem.name;
+    if (!acc[totemName]) {
+      acc[totemName] = [];
+    }
+    acc[totemName].push(pair);
+    return acc;
+  }, {} as Record<string, typeof sortedPairs>);
+
+  // Create display groups maintaining the sorted order
+  const sortedTotems = Object.entries(answersByTotem).map(([totemName, pairs]) => ({
+    totemName,
+    answers: pairs,
+    totalLikes: pairs.reduce((sum, { likes }) => sum + likes, 0),
+    averageCrispness: pairs.length > 0 
+      ? pairs.reduce((sum, { crispness }) => sum + crispness, 0) / pairs.length 
+      : 0
+  }));
 
   if (sortedTotems.length === 0) {
     return (
@@ -161,10 +179,11 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
                           {answerData.answer.text}
                         </div>
                       </Link>
-                      <div className="flex items-center justify-between">
+                      
+                      <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center space-x-2">
-                          <TotemButton
-                            totemName={totemName}
+                          <TotemButton 
+                            totemName={answerData.totem.name}
                             postId={post.id}
                           />
                           {answerData.answer.totems.length > 1 && (
@@ -187,14 +206,9 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
                             contentId={answerData.answer.id} 
                             contentType="answer" 
                             iconOnly={true}
-                            parentId={post.id}
                           />
                         </div>
                       </div>
-                      {/* Separator for multiple answers */}
-                      {isExpanded && answerIndex < answersToShow.length - 1 && (
-                        <div className="border-t border-gray-100 mt-4"></div>
-                      )}
                     </div>
                   ))}
                 </div>
@@ -234,4 +248,4 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
       />
     </>
   );
-} 
+}
