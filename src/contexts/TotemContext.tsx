@@ -159,14 +159,19 @@ export function TotemProvider({ children }: { children: React.ReactNode }) {
     const now = Date.now();
     const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
     
-    // Consider ALL likes (both active and inactive) for crispness calculation
-    // This ensures crispness decays over time regardless of like status
+    // Only consider ACTIVE likes for crispness calculation
+    // Inactive likes represent users who are no longer engaged
     if (!likeHistory || likeHistory.length === 0) return 0;
     
-    console.log(`[Crispness] Calculating for ${likeHistory.length} total likes (active + inactive)`);
+    // Filter to only active likes
+    const activeLikes = likeHistory.filter(like => like.isActive);
     
-    // Calculate individual crispness for each like based on original timestamp
-    const individualCrispnessValues = likeHistory.map(like => {
+    if (activeLikes.length === 0) return 0;
+    
+    console.log(`[Crispness] Calculating for ${activeLikes.length} active likes (${likeHistory.length} total)`);
+    
+    // Calculate individual crispness for each active like based on original timestamp
+    const individualCrispnessValues = activeLikes.map(like => {
       const lastUpdated = like.originalTimestamp || like.lastUpdatedAt;
       const timeSinceLike = now - lastUpdated;
       const likeCrispness = Math.max(0, 100 * (1 - (timeSinceLike / ONE_WEEK_MS)));

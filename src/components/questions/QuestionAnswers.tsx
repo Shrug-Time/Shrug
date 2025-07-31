@@ -95,25 +95,33 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
     return b.crispness - a.crispness;
   });
 
-  // Group sorted pairs by totem for display
-  const answersByTotem = sortedPairs.reduce((acc, pair) => {
-    const totemName = pair.totem.name;
-    if (!acc[totemName]) {
-      acc[totemName] = [];
-    }
-    acc[totemName].push(pair);
-    return acc;
-  }, {} as Record<string, typeof sortedPairs>);
+  // Group sorted pairs by totem while preserving sort order
+  const sortedTotems: Array<{
+    totemName: string;
+    answers: typeof sortedPairs;
+    totalLikes: number;
+    averageCrispness: number;
+  }> = [];
 
-  // Create display groups maintaining the sorted order
-  const sortedTotems = Object.entries(answersByTotem).map(([totemName, pairs]) => ({
-    totemName,
-    answers: pairs,
-    totalLikes: pairs.reduce((sum, { likes }) => sum + likes, 0),
-    averageCrispness: pairs.length > 0 
-      ? pairs.reduce((sum, { crispness }) => sum + crispness, 0) / pairs.length 
-      : 0
-  }));
+  const seenTotems = new Set<string>();
+
+  sortedPairs.forEach(pair => {
+    if (!seenTotems.has(pair.totem.name)) {
+      seenTotems.add(pair.totem.name);
+      
+      // Get all pairs for this totem (they're already sorted)
+      const totemPairs = sortedPairs.filter(p => p.totem.name === pair.totem.name);
+      
+      sortedTotems.push({
+        totemName: pair.totem.name,
+        answers: totemPairs,
+        totalLikes: totemPairs.reduce((sum, { likes }) => sum + likes, 0),
+        averageCrispness: totemPairs.length > 0 
+          ? totemPairs.reduce((sum, { crispness }) => sum + crispness, 0) / totemPairs.length 
+          : 0
+      });
+    }
+  });
 
   if (sortedTotems.length === 0) {
     return (
