@@ -1,3 +1,5 @@
+// QuestionAnswers.tsx - Updated with reactive sorting and crispness fixes
+// Cache-busting comment: v2.0 - no debug logs, immediate updates
 import { Post, Answer, Totem } from '@/types/models';
 import { formatDistanceToNow } from 'date-fns';
 import { TotemButton } from '@/components/totem/TotemButton';
@@ -65,63 +67,78 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
     });
   };
 
-  // Create individual answer-totem pairs for ranking
-  const answerTotemPairs: Array<{
-    answer: Answer;
-    totem: Totem;
-    likes: number;
-    crispness: number;
-  }> = [];
+  // Calculate sorted totems reactively - updates when totem states change
+  const sortedTotems = useMemo(() => {
+    // Create individual answer-totem pairs for ranking
+    const answerTotemPairs: Array<{
+      answer: Answer;
+      totem: Totem;
+      likes: number;
+      crispness: number;
+    }> = [];
 
-  post.answers.forEach(answer => {
-    answer.totems.forEach(totem => {
-      answerTotemPairs.push({
-        answer,
-        totem,
-        likes: getTotemLikes(totem),
-        crispness: getCrispness(post.id, totem.name) || 0
+    post.answers.forEach(answer => {
+      answer.totems.forEach(totem => {
+        answerTotemPairs.push({
+          answer,
+          totem,
+          likes: getTotemLikes(totem),
+          crispness: getCrispness(post.id, totem.name) || 0
+        });
       });
     });
-  });
 
-  // Sort individual answer-totem pairs by likes (descending), then by crispness (descending)
-  const sortedPairs = answerTotemPairs.sort((a, b) => {
-    // Primary sort: individual totem likes (descending)
-    if (a.likes !== b.likes) {
-      return b.likes - a.likes;
-    }
-    
-    // Tie-breaker: totem crispness (descending)
-    return b.crispness - a.crispness;
-  });
-
-  // Group sorted pairs by totem while preserving sort order
-  const sortedTotems: Array<{
-    totemName: string;
-    answers: typeof sortedPairs;
-    totalLikes: number;
-    averageCrispness: number;
-  }> = [];
-
-  const seenTotems = new Set<string>();
-
-  sortedPairs.forEach(pair => {
-    if (!seenTotems.has(pair.totem.name)) {
-      seenTotems.add(pair.totem.name);
+    // Sort individual answer-totem pairs by likes (descending), then by crispness (descending)
+    const sortedPairs = answerTotemPairs.sort((a, b) => {
+      // Primary sort: individual totem likes (descending)
+      if (a.likes !== b.likes) {
+        return b.likes - a.likes;
+      }
       
-      // Get all pairs for this totem (they're already sorted)
-      const totemPairs = sortedPairs.filter(p => p.totem.name === pair.totem.name);
-      
-      sortedTotems.push({
-        totemName: pair.totem.name,
-        answers: totemPairs,
-        totalLikes: totemPairs.reduce((sum, { likes }) => sum + likes, 0),
-        averageCrispness: totemPairs.length > 0 
-          ? totemPairs.reduce((sum, { crispness }) => sum + crispness, 0) / totemPairs.length 
-          : 0
-      });
-    }
-  });
+      // Tie-breaker: totem crispness (descending)
+      return b.crispness - a.crispness;
+    });
+
+    // Group sorted pairs by totem while preserving sort order
+    const result: Array<{
+      totemName: string;
+      answers: typeof sortedPairs;
+      totalLikes: number;
+      averageCrispness: number;
+    }> = [];
+
+    const seenTotems = new Set<string>();
+
+    sortedPairs.forEach(pair => {
+      if (!seenTotems.has(pair.totem.name)) {
+        seenTotems.add(pair.totem.name);
+        
+        // Get all pairs for this totem (they're already sorted)
+        const totemPairs = sortedPairs.filter(p => p.totem.name === pair.totem.name);
+        
+        result.push({
+          totemName: pair.totem.name,
+          answers: totemPairs,
+          totalLikes: totemPairs.reduce((sum, { likes }) => sum + likes, 0),
+          averageCrispness: totemPairs.length > 0 
+            ? totemPairs.reduce((sum, { crispness }) => sum + crispness, 0) / totemPairs.length 
+            : 0
+        });
+      }
+    });
+
+    return result;
+  }, [
+    post.answers, 
+    post.id, 
+    getCrispness,
+    // Include all totem names to trigger re-calculation when their states change
+    ...post.answers.flatMap(answer => answer.totems.map(totem => totem.name)),
+    // Include current crispness values to detect when they change
+    ...post.answers.flatMap(answer => 
+      answer.totems.map(totem => getCrispness(post.id, totem.name))
+    )
+  ]); // Re-calculate when answers or any totem state changes
 
   if (sortedTotems.length === 0) {
     return (
