@@ -142,7 +142,7 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
                 </div>
                 {/* Connecting Line */}
                 {index < sortedTotems.length - 1 && (
-                  <div className="w-0.5 h-16 bg-blue-300 mt-2"></div>
+                  <div className="w-0.5 h-16 bg-blue-400 mt-2"></div>
                 )}
               </div>
 
