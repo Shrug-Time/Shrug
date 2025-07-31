@@ -549,7 +549,7 @@ const hasUserLiked = (totem: Totem, userId: string): boolean => {
 // Helper functions for totem operations
 function findAnswerWithTotem(answers: Answer[], totemName: string): Answer {
   const answer = answers.find(a => 
-    a.totems.some(t => t.name === totemName)
+    a.totems.some(t => t.name.toLowerCase() === totemName.toLowerCase())
   );
   if (!answer) {
     throw new Error("Answer with totem not found");

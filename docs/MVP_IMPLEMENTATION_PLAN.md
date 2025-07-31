@@ -98,6 +98,7 @@ A Q&A platform where users can ask questions and get answers from different pers
 - ✅ Submission guidelines and requirements
 - ✅ Sidebar placement in main page and profile pages
 
+<<<<<<< HEAD
 **Technical Implementation:**
 - ✅ Firebase Firestore collection: `community_ads`
 - ✅ Firebase Storage for file uploads
@@ -114,8 +115,36 @@ A Q&A platform where users can ask questions and get answers from different pers
 - Builds brand awareness for creators while promoting platform growth
 
 ### Phase 3: Final Polish & Launch Prep (4-6 days remaining)
+=======
+### Phase 3: Platform Enhancement (4-6 days)
+>>>>>>> f8726f0
 
-#### **4. Curriculum System** (2-3 days) - **KEY DIFFERENTIATOR**
+#### **4. Time-Based Crispness Filtering** (2-3 days) - **CONTENT DISCOVERY**
+**What's Missing:**
+- Time period selector (Day/Week/Year)
+- Dynamic crispness calculation based on time windows
+- Cached crispness values for performance
+
+**What Exists:**
+- Basic crispness calculation system
+- Like history with timestamps
+- Totem display infrastructure
+
+**Implementation:**
+- [ ] Add time period selector UI component
+- [ ] Extend crispness calculation to accept date ranges
+- [ ] Implement time-windowed like filtering
+- [ ] Cache computed crispness values for common periods
+- [ ] Update totem display to show time-specific crispness
+- [ ] Add user preference persistence for selected time period
+
+**Technical Approach:**
+- Single database with unified content
+- Filter like history by date range before crispness calculation
+- Recalculate all totem crispness when user changes time period
+- Same questions/answers, different relevance indicators
+
+#### **5. Curriculum System** (2-3 days) - **KEY DIFFERENTIATOR**
 **What's Missing:**
 - Clear curriculum concept
 - Learning path visualization

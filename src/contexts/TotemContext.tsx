@@ -97,9 +97,9 @@ export function TotemProvider({ children }: { children: React.ReactNode }) {
       }
 
       const answer = post.answers.find(a => 
-        a.totems.some(t => t.name === totemName)
+        a.totems.some(t => t.name.toLowerCase() === totemName.toLowerCase())
       );
-      const totem = answer?.totems.find(t => t.name === totemName);
+      const totem = answer?.totems.find(t => t.name.toLowerCase() === totemName.toLowerCase());
 
       if (!totem) {
         return;

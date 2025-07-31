@@ -37,6 +37,7 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [selectedQuestion, setSelectedQuestion] = useState<Post | null>(null);
+  const [expandedTotems, setExpandedTotems] = useState<Set<string>>(new Set());
   const { isAuthModalOpen, setIsAuthModalOpen, handleAuthRequired } = useAuthModal();
 
   const handleAnswerSubmitted = () => {
@@ -50,13 +51,26 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
     });
   };
 
+  const toggleExpanded = (totemName: string) => {
+    setExpandedTotems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(totemName)) {
+        newSet.delete(totemName);
+      } else {
+        newSet.add(totemName);
+      }
+      return newSet;
+    });
+  };
+
   // Group answers by totem
   const answersByTotem = post.answers.reduce((acc, answer) => {
     answer.totems.forEach(totem => {
-      if (!acc[totem.name]) {
-        acc[totem.name] = [];
+      const normalizedName = totem.name.toLowerCase();
+      if (!acc[normalizedName]) {
+        acc[normalizedName] = [];
       }
-      acc[totem.name].push({
+      acc[normalizedName].push({
         answer,
         totem,
         likes: getTotemLikes(totem)
@@ -103,7 +117,7 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
 
   return (
     <>
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-end mb-6">
         <button
           onClick={handleAnswerClick}
           className="inline-flex items-center justify-center w-8 h-8 rounded-full text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -112,62 +126,97 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
         </button>
       </div>
 
-      <div className="space-y-8">
-        {sortedTotems.map(({ totemName, answers, totalLikes }) => (
-          <div key={totemName} className="space-y-4">
-            <div className="bg-white rounded-xl shadow p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                {totemName}
-              </h2>
-              <p className="text-gray-600">
-                {answers.length} answers • {totalLikes} total likes
-              </p>
-            </div>
+      {/* Totem Pole Layout */}
+      <div className="relative">
+        {sortedTotems.map(({ totemName, answers }, index) => {
+          const isExpanded = expandedTotems.has(totemName);
+          const hasMultipleAnswers = answers.length > 1;
+          const answersToShow = isExpanded ? answers.slice(0, 5) : [answers[0]];
 
-            {/* Show only the top answer for this totem */}
-            {answers[0] && (
-              <div className="bg-white rounded-xl shadow p-4">
-                <Link 
-                  className="group cursor-pointer"
-                  href={getAnswerUrl(post.id, answers[0].answer.id)}
-                  title="View full answer"
-                >
-                  {answers[0].answer.text}
-                </Link>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <TotemButton
-                      totemName={totemName}
-                      postId={post.id}
-                    />
-                    {answers[0].answer.totems.length > 1 && (
-                      <span className="text-sm text-gray-500">
-                        +{answers[0].answer.totems.length - 1} more totems
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="text-sm text-gray-500">
-                      {formatDistanceToNow(toDate(answers[0].answer.createdAt), { addSuffix: true })} by{' '}
-                      <Link 
-                        href={getProfileUrl(answers[0].answer.username || answers[0].answer.firebaseUid || '')}
-                        className="text-blue-600 hover:text-blue-800 hover:underline"
-                      >
-                        {getUserDisplayName(answers[0].answer)}
-                      </Link>
-                    </div>
-                    <ReportButton 
-                      contentId={answers[0].answer.id} 
-                      contentType="answer" 
-                      iconOnly={true}
-                      parentId={post.id}
-                    />
-                  </div>
+          return (
+            <div key={totemName} className="relative flex items-center gap-4 mb-6">
+              {/* Number Circle */}
+              <div className="flex flex-col items-center">
+                <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
+                  {index + 1}
                 </div>
+                {/* Connecting Line */}
+                {index < sortedTotems.length - 1 && (
+                  <div className="w-0.5 h-16 bg-blue-300 mt-2"></div>
+                )}
               </div>
-            )}
-          </div>
-        ))}
+
+              {/* Totem Card */}
+              <div className="flex-1 bg-white rounded-xl shadow p-4">
+                {/* Answers */}
+                <div className="space-y-4">
+                  {answersToShow.map((answerData, answerIndex) => (
+                    <div key={`${answerData.answer.id}-${answerIndex}`}>
+                      <Link 
+                        className="group cursor-pointer block"
+                        href={getAnswerUrl(post.id, answerData.answer.id)}
+                        title="View full answer"
+                      >
+                        <div className="text-gray-600 mb-3">
+                          {answerData.answer.text}
+                        </div>
+                      </Link>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <TotemButton
+                            totemName={totemName}
+                            postId={post.id}
+                          />
+                          {answerData.answer.totems.length > 1 && (
+                            <span className="text-sm text-gray-500">
+                              +{answerData.answer.totems.length - 1} more totems
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          <div className="text-sm text-gray-500">
+                            {formatDistanceToNow(toDate(answerData.answer.createdAt), { addSuffix: true })} by{' '}
+                            <Link 
+                              href={getProfileUrl(answerData.answer.username || answerData.answer.firebaseUid || '')}
+                              className="text-blue-600 hover:text-blue-800 hover:underline"
+                            >
+                              {getUserDisplayName(answerData.answer)}
+                            </Link>
+                          </div>
+                          <ReportButton 
+                            contentId={answerData.answer.id} 
+                            contentType="answer" 
+                            iconOnly={true}
+                            parentId={post.id}
+                          />
+                        </div>
+                      </div>
+                      {/* Separator for multiple answers */}
+                      {isExpanded && answerIndex < answersToShow.length - 1 && (
+                        <div className="border-t border-gray-100 mt-4"></div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Show More/Less Button */}
+                {hasMultipleAnswers && (
+                  <div className="mt-4 pt-3 border-t border-gray-100">
+                    <button
+                      onClick={() => toggleExpanded(totemName)}
+                      className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      {isExpanded 
+                        ? 'Show less' 
+                        : `Show more (${Math.min(answers.length - 1, 4)} more answers)`
+                      }
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {selectedQuestion && (

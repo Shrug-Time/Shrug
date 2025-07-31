@@ -30,7 +30,7 @@ export function TotemPageClient({ posts, totemName }: TotemPageClientProps) {
   // Filter posts to only show those with this totem
   const relevantPosts = posts.filter(post => 
     post.answers.some(answer => 
-      answer.totems.some(t => t.name === totemName)
+      answer.totems.some(t => t.name.toLowerCase() === totemName.toLowerCase())
     )
   );
 
@@ -43,7 +43,7 @@ export function TotemPageClient({ posts, totemName }: TotemPageClientProps) {
     
     // Calculate total likes for this totem in this post
     const totalLikes = post.answers.reduce((sum, answer) => {
-      const totem = answer.totems.find(t => t.name === totemName);
+      const totem = answer.totems.find(t => t.name.toLowerCase() === totemName.toLowerCase());
       return sum + (totem ? getTotemLikes(totem) : 0);
     }, 0);
     
