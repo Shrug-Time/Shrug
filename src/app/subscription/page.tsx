@@ -1,10 +1,12 @@
 "use client";
 
 import { SubscriptionManagement } from '@/components/subscription/SubscriptionManagement';
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-export default function SubscriptionPage() {
+// Client component that uses useSearchParams
+function SubscriptionContent() {
   const searchParams = useSearchParams();
   const [showSuccess, setShowSuccess] = useState(false);
   const success = searchParams?.get('success');
@@ -58,5 +60,13 @@ export default function SubscriptionPage() {
         }}
       />
     </div>
+  );
+}
+
+export default function SubscriptionPage() {
+  return (
+    <Suspense fallback={<div className="container mx-auto px-4 py-8">Loading...</div>}>
+      <SubscriptionContent />
+    </Suspense>
   );
 } 
