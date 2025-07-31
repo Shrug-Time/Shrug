@@ -7,7 +7,6 @@
 
 import Stripe from 'stripe';
 import { db } from '@/lib/firebaseAdmin';
-import { UserService } from './userService';
 import { MembershipTier, UserProfile } from '@/types/models';
 
 // Initialize Stripe only if secret key is available
@@ -40,6 +39,57 @@ const stripe = process.env.STRIPE_SECRET_KEY
       }
       return db;
     }
+
+    /**
+     * Server-side method to get user by Firebase UID using Admin SDK
+     */
+    private static async getUserByFirebaseUid(firebaseUid: string): Promise<UserProfile | null> {
+      try {
+        if (!firebaseUid) {
+          throw new Error('Firebase UID is required');
+        }
+        
+        const userDoc = await this.getFirestore().collection('users').doc(firebaseUid).get();
+        if (!userDoc.exists) return null;
+        
+        return {
+          ...userDoc.data() as UserProfile,
+          firebaseUid: userDoc.id
+        };
+      } catch (error) {
+        console.error('Error finding user by Firebase UID:', error);
+        throw error;
+      }
+    }
+
+    /**
+     * Server-side method to update user profile using Admin SDK
+     */
+    private static async updateUserProfile(firebaseUid: string, updates: Partial<UserProfile>): Promise<UserProfile | null> {
+      try {
+        const userRef = this.getFirestore().collection('users').doc(firebaseUid);
+        const userDoc = await userRef.get();
+        
+        if (!userDoc.exists) {
+          throw new Error('User profile not found');
+        }
+        
+        // Ensure updates include updatedAt timestamp
+        const timestampedUpdates = {
+          ...updates,
+          updatedAt: Date.now()
+        };
+        
+        await userRef.update(timestampedUpdates);
+        
+        // Return the updated profile
+        return await this.getUserByFirebaseUid(firebaseUid);
+      } catch (error) {
+        console.error('Error updating user profile:', error);
+        throw error;
+      }
+    }
+
   // Collection references
   private static readonly USERS_COLLECTION = 'users';
   private static readonly SUBSCRIPTIONS_COLLECTION = 'subscriptions';
@@ -47,7 +97,7 @@ const stripe = process.env.STRIPE_SECRET_KEY
   
   // Subscription plan configuration
   private static readonly PREMIUM_PLAN = {
-    id: 'price_premium_monthly',
+    id: 'price_1Rq6EKP3DqdzB0CltTMyPA3N',
     name: 'Premium',
     price: 999, // $9.99 in cents
     currency: 'usd',
@@ -55,7 +105,46 @@ const stripe = process.env.STRIPE_SECRET_KEY
   };
 
   /**
-   * Creates a Stripe checkout session for subscription
+   * Creates a Payment Intent for embedded subscription payments
+   */
+  static async createPaymentIntent(userId: string): Promise<{ clientSecret: string; customerId: string }> {
+    try {
+      // Get or create Stripe customer
+      const customerId = await this.getOrCreateStripeCustomer(userId);
+      
+      // Create payment intent
+      const paymentIntent = await this.getStripe().paymentIntents.create({
+        amount: this.PREMIUM_PLAN.price,
+        currency: this.PREMIUM_PLAN.currency,
+        customer: customerId,
+        metadata: {
+          userId: userId,
+          priceId: this.PREMIUM_PLAN.id,
+          type: 'subscription'
+        },
+        automatic_payment_methods: {
+          enabled: true,
+        },
+        payment_method_options: {
+          card: {
+            setup_future_usage: 'off_session',
+          },
+        },
+        setup_future_usage: 'off_session',
+      });
+
+      return {
+        clientSecret: paymentIntent.client_secret!,
+        customerId,
+      };
+    } catch (error) {
+      console.error('Error creating payment intent:', error);
+      throw new Error('Failed to create payment intent');
+    }
+  }
+
+  /**
+   * Creates a Stripe checkout session for subscription (legacy method)
    */
   static async createCheckoutSession(userId: string): Promise<{ sessionId: string; url: string }> {
     try {
@@ -91,6 +180,103 @@ const stripe = process.env.STRIPE_SECRET_KEY
   }
 
   /**
+   * Confirms a payment and creates subscription
+   */
+  static async confirmPayment(paymentIntentId: string): Promise<boolean> {
+    try {
+      const paymentIntent = await this.getStripe().paymentIntents.retrieve(paymentIntentId);
+      
+      if (paymentIntent.status === 'succeeded') {
+        const userId = paymentIntent.metadata.userId;
+        if (userId) {
+          // Upgrade user to premium
+          await this.updateMembershipTier(userId, 'premium');
+          console.log(`User ${userId} upgraded to premium via payment intent ${paymentIntentId}`);
+          return true;
+        }
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error confirming payment:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Creates a subscription from a successful payment intent
+   */
+  static async createSubscriptionFromPayment(paymentIntentId: string): Promise<boolean> {
+    try {
+      const paymentIntent = await this.getStripe().paymentIntents.retrieve(paymentIntentId, {
+        expand: ['payment_method']
+      });
+      
+      if (paymentIntent.status !== 'succeeded') {
+        console.error('Payment intent not succeeded:', paymentIntent.status);
+        return false;
+      }
+
+      const userId = paymentIntent.metadata.userId;
+      if (!userId) {
+        console.error('No userId in payment intent metadata');
+        return false;
+      }
+
+      const customerId = paymentIntent.customer as string;
+      // Extract payment method ID - it could be a string or expanded object
+      const paymentMethodId = typeof paymentIntent.payment_method === 'string' 
+        ? paymentIntent.payment_method 
+        : (paymentIntent.payment_method as any)?.id;
+
+      if (!paymentMethodId) {
+        console.error('No payment method found on payment intent');
+        return false;
+      }
+
+      // Attach the payment method to the customer for future use
+      await this.getStripe().paymentMethods.attach(paymentMethodId, {
+        customer: customerId,
+      });
+
+      // Set as default payment method
+      await this.getStripe().customers.update(customerId, {
+        invoice_settings: {
+          default_payment_method: paymentMethodId,
+        },
+      });
+
+      // Create the subscription
+      const subscription = await this.getStripe().subscriptions.create({
+        customer: customerId,
+        items: [
+          {
+            price: this.PREMIUM_PLAN.id,
+          },
+        ],
+        default_payment_method: paymentMethodId,
+        metadata: {
+          userId: userId,
+          createdFrom: 'embedded_checkout',
+        },
+      });
+
+      if (subscription.status === 'active') {
+        // Update user to premium
+        await this.updateMembershipTier(userId, 'premium');
+        console.log(`Subscription ${subscription.id} created for user ${userId}`);
+        return true;
+      } else {
+        console.error('Subscription not active:', subscription.status);
+        return false;
+      }
+    } catch (error) {
+      console.error('Error creating subscription from payment:', error);
+      return false;
+    }
+  }
+
+  /**
    * Gets or creates a Stripe customer for the user
    */
   private static async getOrCreateStripeCustomer(userId: string): Promise<string> {
@@ -106,7 +292,7 @@ const stripe = process.env.STRIPE_SECRET_KEY
       }
 
       // Get user profile for customer creation
-      const userProfile = await UserService.getUserByFirebaseUid(userId);
+      const userProfile = await this.getUserByFirebaseUid(userId);
       if (!userProfile) {
         throw new Error('User profile not found');
       }
@@ -143,6 +329,9 @@ const stripe = process.env.STRIPE_SECRET_KEY
   static async handleWebhook(event: Stripe.Event): Promise<void> {
     try {
       switch (event.type) {
+        case 'payment_intent.succeeded':
+          await this.handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent);
+          break;
         case 'checkout.session.completed':
           await this.handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
           break;
@@ -166,7 +355,23 @@ const stripe = process.env.STRIPE_SECRET_KEY
   }
 
   /**
-   * Handles successful checkout completion
+   * Handles successful Payment Intent (embedded checkout)
+   */
+  private static async handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent): Promise<void> {
+    const userId = paymentIntent.metadata?.userId;
+    if (!userId) {
+      console.error('No userId in payment intent metadata');
+      return;
+    }
+
+    // Update user to premium
+    await this.updateMembershipTier(userId, 'premium');
+    
+    console.log(`User ${userId} upgraded to premium via payment intent ${paymentIntent.id}`);
+  }
+
+  /**
+   * Handles successful checkout completion (hosted checkout)
    */
   private static async handleCheckoutCompleted(session: Stripe.Checkout.Session): Promise<void> {
     const userId = session.metadata?.userId;
@@ -262,7 +467,7 @@ const stripe = process.env.STRIPE_SECRET_KEY
    */
   static async isPremiumMember(firebaseUid: string): Promise<boolean> {
     try {
-      const userProfile = await UserService.getUserByFirebaseUid(firebaseUid);
+      const userProfile = await this.getUserByFirebaseUid(firebaseUid);
       if (!userProfile) return false;
 
       // Check local membership tier first
@@ -296,7 +501,7 @@ const stripe = process.env.STRIPE_SECRET_KEY
       const refreshesLimit = tier === 'premium' ? 20 : 5;
       
       // Update the user profile
-      await UserService.updateProfile(firebaseUid, {
+      await this.updateUserProfile(firebaseUid, {
         membershipTier: tier,
         refreshesRemaining: refreshesLimit,
         refreshResetTime: Date.now()
@@ -306,7 +511,7 @@ const stripe = process.env.STRIPE_SECRET_KEY
       await this.recordSubscriptionChange(firebaseUid, tier);
       
       // Return the updated profile
-      return await UserService.getUserByFirebaseUid(firebaseUid);
+      return await this.getUserByFirebaseUid(firebaseUid);
     } catch (error) {
       console.error('Error updating membership tier:', error);
       throw error;
@@ -326,7 +531,7 @@ const stripe = process.env.STRIPE_SECRET_KEY
         .add({
         firebaseUid,
         tier,
-        previousTier: (await UserService.getUserByFirebaseUid(firebaseUid))?.membershipTier || 'free',
+        previousTier: (await this.getUserByFirebaseUid(firebaseUid))?.membershipTier || 'free',
         timestamp: Date.now(),
         source: 'stripe'
       });

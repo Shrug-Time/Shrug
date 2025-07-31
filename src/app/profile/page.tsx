@@ -23,7 +23,6 @@ export default function ProfilePage() {
   const { user: currentUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [isEditingSections, setIsEditingSections] = useState(false);
-  const [isCreatingCurriculum, setIsCreatingCurriculum] = useState(false);
   const [selectedTab, setSelectedTab] = useState<string>('home');
   const [userPosts, setUserPosts] = useState<Post[]>([]);
   const [userAnswers, setUserAnswers] = useState<Post[]>([]);
@@ -136,12 +135,7 @@ export default function ProfilePage() {
   
   const handleSaveSections = () => {
     setIsEditingSections(false);
-    setIsCreatingCurriculum(false);
     loadSections();
-  };
-  
-  const handleCreateCurriculum = () => {
-    setIsCreatingCurriculum(true);
   };
 
   const navigateSection = (sectionId: string, direction: 'left' | 'right', totalItems: number) => {
@@ -215,25 +209,7 @@ export default function ProfilePage() {
     );
   }
   
-  // If we're creating a curriculum, show the custom section creator with series pre-selected
-  if (isCreatingCurriculum) {
-    return (
-      <div className="max-w-4xl mx-auto p-4">
-        <CustomSectionCreator 
-          userId={profile.firebaseUid}
-          defaultOrganizationMethod="series"
-          onSave={(section) => {
-            handleSaveSections();
-            setToastMessage({
-              message: 'Curriculum created successfully!',
-              type: 'success'
-            });
-          }}
-          onCancel={() => setIsCreatingCurriculum(false)}
-        />
-      </div>
-    );
-  }
+
 
   return (
     <div className="flex min-h-screen">
@@ -292,12 +268,6 @@ export default function ProfilePage() {
                     className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
                   >
                     Customize Page
-                  </button>
-                  <button
-                    onClick={handleCreateCurriculum}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
-                  >
-                    📚 Create Curriculum
                   </button>
                   <button
                     onClick={() => setIsEditingSections(true)}
