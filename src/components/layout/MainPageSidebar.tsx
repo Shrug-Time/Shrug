@@ -11,7 +11,7 @@ interface MainPageSidebarProps {
 
 export function MainPageSidebar({ isExpanded, onToggle }: MainPageSidebarProps) {
   const router = useRouter();
-  const { profile } = useUser();
+  const { profile, refetch } = useUser();
   const [expandedSections, setExpandedSections] = useState<string[]>(['recentTotems', 'popularTotems']);
   const [recentTotems, setRecentTotems] = useState<string[]>([]);
   const [popularTotems, setPopularTotems] = useState<string[]>([]);
@@ -20,18 +20,29 @@ export function MainPageSidebar({ isExpanded, onToggle }: MainPageSidebarProps) 
   // Load recent totems from user's recent activity
   useEffect(() => {
     const loadRecentTotems = async () => {
-      if (!profile) return;
+      if (!profile) {
+        console.log('📋 No profile available for loading totems');
+        return;
+      }
       
       try {
+        console.log('🔍 Loading totems for profile:', profile.firebaseUid);
+        console.log('📊 Profile totems data:', profile.totems);
+        
         // Get user's recent totems from their profile
         const userTotems = profile.totems?.recent || [];
+        console.log('📋 User recent totems:', userTotems);
         setRecentTotems(userTotems.slice(0, 10)); // Show last 10
         
-        // TODO: Implement popular totems algorithm
-        // For now, show some placeholder data
-        setPopularTotems(['Fishing', 'Flies', 'Streams', 'Gear', 'Techniques']);
+        // Load real popular totems instead of placeholder data
+        console.log('🔍 Loading popular totems...');
+        const popularTotemsData = await TotemService.getPopularTotems(10);
+        console.log('📊 Popular totems data received:', popularTotemsData);
+        setPopularTotems(popularTotemsData.map(totem => totem.name));
       } catch (error) {
-        console.error('Error loading totems:', error);
+        console.error('❌ Error loading totems:', error);
+        // Fallback to placeholder data if there's an error
+        setPopularTotems(['Fishing', 'Flies', 'Streams', 'Gear', 'Techniques']);
       } finally {
         setIsLoading(false);
       }
@@ -39,6 +50,39 @@ export function MainPageSidebar({ isExpanded, onToggle }: MainPageSidebarProps) 
 
     loadRecentTotems();
   }, [profile]);
+
+  // Refresh user profile data periodically to catch totem interaction updates
+  useEffect(() => {
+    if (!profile) return;
+    
+    const refreshInterval = setInterval(async () => {
+      try {
+        await refetch();
+      } catch (error) {
+        console.error('Error refreshing user profile:', error);
+      }
+    }, 10000); // Refresh every 10 seconds
+    
+    return () => clearInterval(refreshInterval);
+  }, [profile, refetch]);
+
+  // Listen for totem interaction events to refresh immediately
+  useEffect(() => {
+    const handleTotemInteraction = async () => {
+      try {
+        await refetch();
+      } catch (error) {
+        console.error('Error refreshing user profile after totem interaction:', error);
+      }
+    };
+
+    // Listen for custom totem interaction events
+    window.addEventListener('totem-interaction', handleTotemInteraction);
+    
+    return () => {
+      window.removeEventListener('totem-interaction', handleTotemInteraction);
+    };
+  }, [refetch]);
 
   const toggleSection = (section: string) => {
     if (expandedSections.includes(section)) {
@@ -120,7 +164,7 @@ export function MainPageSidebar({ isExpanded, onToggle }: MainPageSidebarProps) 
                         onClick={() => handleTotemClick(totem)}
                         className="block w-full p-2 text-sm text-left text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                       >
-                        #{totem}
+                        {totem}
                       </button>
                     </li>
                   ))}
@@ -154,21 +198,28 @@ export function MainPageSidebar({ isExpanded, onToggle }: MainPageSidebarProps) 
           
           {expandedSections.includes('popularTotems') && (
             <div className="mt-2 pl-10">
-              <ul className="space-y-1">
-                {popularTotems.map((totem, index) => (
-                  <li key={index}>
-                    <button
-                      onClick={() => handleTotemClick(totem)}
-                      className="block w-full p-2 text-sm text-left text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                    >
-                      #{totem}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              <p className="text-xs text-gray-400 mt-2 italic">
-                Popular algorithm coming soon
-              </p>
+              {isLoading ? (
+                <div className="space-y-2">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                  ))}
+                </div>
+              ) : popularTotems.length > 0 ? (
+                <ul className="space-y-1">
+                  {popularTotems.map((totem, index) => (
+                    <li key={index}>
+                      <button
+                        onClick={() => handleTotemClick(totem)}
+                        className="block w-full p-2 text-sm text-left text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                      >
+                        {totem}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-gray-500 italic">No popular totems</p>
+              )}
             </div>
           )}
         </div>

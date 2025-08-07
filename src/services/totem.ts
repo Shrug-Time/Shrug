@@ -1,6 +1,7 @@
 import { db } from '@/firebase';
 import { doc, getDoc, runTransaction } from 'firebase/firestore';
 import type { Post, TotemLike } from '@/types/models';
+import { TotemService as StandardizedTotemService } from '@/services/standardized';
 
 export class TotemService {
   /**
@@ -13,11 +14,13 @@ export class TotemService {
     firebaseUid: string,
     isUnlike: boolean = false
   ): Promise<void> {
+    console.log('🔧 [OLD] handleTotemLike called:', { postId, totemName, firebaseUid, isUnlike });
+    
     if (!db) throw new Error("Firebase is not initialized");
     
     const postRef = doc(db, "posts", postId);
 
-    return runTransaction(db, async (transaction) => {
+    const result = await runTransaction(db, async (transaction) => {
       // Get the current post state
       const postDoc = await transaction.get(postRef);
       if (!postDoc.exists()) {
@@ -81,6 +84,17 @@ export class TotemService {
       // Update only the answers array
       transaction.update(postRef, { answers: post.answers });
     });
+    
+    console.log('✅ [OLD] handleTotemLike transaction completed successfully');
+    
+    // Update user's recent totems after successful interaction
+    try {
+      console.log('🔄 [OLD] Calling updateUserRecentTotems:', { firebaseUid, totemName });
+      await StandardizedTotemService.updateUserRecentTotems(firebaseUid, totemName);
+      console.log('✅ [OLD] updateUserRecentTotems completed successfully');
+    } catch (error) {
+      console.error('❌ [OLD] Error updating user recent totems:', error);
+    }
   }
 
   /**

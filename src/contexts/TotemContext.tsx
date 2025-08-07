@@ -1,11 +1,25 @@
-import React, { createContext, useContext, useCallback, useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { TotemService } from '@/services/totem';
 import { UserService } from '@/services/userService';
+import { useAuth } from '@/contexts/AuthContext';
+import { Post } from '@/types/models';
 import { PostService } from '@/services/firebase';
 import { TotemRefreshModal } from '@/components/totem/TotemRefreshModal';
-import type { Post } from '@/types/models';
 import useFirebase from '@/hooks/useFirebase';
+
+interface TotemState {
+  isLiked: boolean;
+  count: number;
+  crispness: number;
+  lastCalculated?: number;
+}
+
+interface RefreshModalData {
+  isOpen: boolean;
+  postId: string;
+  totemName: string;
+  currentCrispness: number;
+}
 
 interface TotemContextType {
   toggleLike: (postId: string, totemName: string) => Promise<boolean>;
@@ -28,19 +42,54 @@ export function useTotem() {
   return context;
 }
 
-export function TotemProvider({ children }: { children: React.ReactNode }) {
+export function TotemProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const [likeState, setLikeState] = useState<Record<string, { isLiked: boolean; count: number; crispness: number; lastCalculated?: number }>>({}); 
+  const [likeState, setLikeState] = useState<Record<string, TotemState>>({});
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
-  const [refreshesRemaining, setRefreshesRemaining] = useState(5);
-  const [refreshData, setRefreshData] = useState<{
-    isOpen: boolean;
-    postId: string;
-    totemName: string;
-    currentCrispness: number;
-  } | null>(null);
+  const [refreshesRemaining, setRefreshesRemaining] = useState(0);
+  const [refreshData, setRefreshData] = useState<RefreshModalData | null>(null);
+  const { db } = useFirebase();
+
+  // Calculate crispness from like history
+  // Consider ALL likes (both active and inactive) for crispness calculation
+  const calculateCrispnessLocal = (likeHistory: any[]): number => {
+    const now = Date.now();
+    const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+    
+    // Only consider ACTIVE likes for crispness calculation
+    // Inactive likes represent users who are no longer engaged
+    if (!likeHistory || likeHistory.length === 0) return 0;
+    
+    // Filter to only active likes
+    const activeLikes = likeHistory.filter(like => like.isActive);
+    
+    if (activeLikes.length === 0) return 0;
+    
+    console.log(`[Crispness] Calculating for ${activeLikes.length} active likes (${likeHistory.length} total)`);
+    
+    // Calculate individual crispness for each active like based on original timestamp
+    const individualCrispnessValues = activeLikes.map(like => {
+      const lastUpdated = like.originalTimestamp || like.lastUpdatedAt;
+      const timeSinceLike = now - lastUpdated;
+      const likeCrispness = Math.max(0, 100 * (1 - (timeSinceLike / ONE_WEEK_MS)));
+      
+      console.log(`[Crispness] Like timestamp: ${new Date(lastUpdated).toISOString()}, age: ${Math.round(timeSinceLike/86400000)} days, crispness: ${likeCrispness.toFixed(1)}%, active: ${like.isActive}`);
+      
+      return likeCrispness;
+    });
+
+    // Calculate average crispness
+    const totalCrispness = individualCrispnessValues.reduce((sum, val) => sum + val, 0);
+    const averageCrispness = individualCrispnessValues.length > 0 
+      ? totalCrispness / individualCrispnessValues.length 
+      : 0;
+    
+    console.log(`[Crispness] Final calculation: ${averageCrispness.toFixed(1)}% (total: ${totalCrispness.toFixed(1)}, count: ${individualCrispnessValues.length})`);
+    
+    return parseFloat(averageCrispness.toFixed(2));
+  };
   
   // Load user's refresh count on mount
   useEffect(() => {
@@ -119,7 +168,7 @@ export function TotemProvider({ children }: { children: React.ReactNode }) {
       
       // Calculate crispness based on ALL likes (active and inactive)
       // This is different from the UI state but gives better decay behavior
-      const calculatedCrispness = calculateCrispnessFromLikeHistory(totem.likeHistory || []);
+      const calculatedCrispness = calculateCrispnessLocal(totem.likeHistory || []);
       
       // Always use the calculated crispness, never the static value
       const crispness = calculatedCrispness;
@@ -152,45 +201,6 @@ export function TotemProvider({ children }: { children: React.ReactNode }) {
       setLoadingStates(prev => ({ ...prev, [key]: false }));
     }
   }, [user]);
-
-  // Calculate crispness from like history
-  // Consider ALL likes (both active and inactive) for crispness calculation
-  const calculateCrispnessFromLikeHistory = (likeHistory: any[]): number => {
-    const now = Date.now();
-    const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-    
-    // Only consider ACTIVE likes for crispness calculation
-    // Inactive likes represent users who are no longer engaged
-    if (!likeHistory || likeHistory.length === 0) return 0;
-    
-    // Filter to only active likes
-    const activeLikes = likeHistory.filter(like => like.isActive);
-    
-    if (activeLikes.length === 0) return 0;
-    
-    console.log(`[Crispness] Calculating for ${activeLikes.length} active likes (${likeHistory.length} total)`);
-    
-    // Calculate individual crispness for each active like based on original timestamp
-    const individualCrispnessValues = activeLikes.map(like => {
-      const lastUpdated = like.originalTimestamp || like.lastUpdatedAt;
-      const timeSinceLike = now - lastUpdated;
-      const likeCrispness = Math.max(0, 100 * (1 - (timeSinceLike / ONE_WEEK_MS)));
-      
-      console.log(`[Crispness] Like timestamp: ${new Date(lastUpdated).toISOString()}, age: ${Math.round(timeSinceLike/86400000)} days, crispness: ${likeCrispness.toFixed(1)}%, active: ${like.isActive}`);
-      
-      return likeCrispness;
-    });
-
-    // Calculate average crispness
-    const totalCrispness = individualCrispnessValues.reduce((sum, val) => sum + val, 0);
-    const averageCrispness = individualCrispnessValues.length > 0 
-      ? totalCrispness / individualCrispnessValues.length 
-      : 0;
-    
-    console.log(`[Crispness] Final calculation: ${averageCrispness.toFixed(1)}% (total: ${totalCrispness.toFixed(1)}, count: ${individualCrispnessValues.length})`);
-    
-    return parseFloat(averageCrispness.toFixed(2));
-  };
 
   // Load initial state for all totems in a post
   const loadPostTotems = useCallback(async (postId: string, totemNames: string[]) => {

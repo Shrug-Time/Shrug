@@ -143,10 +143,152 @@ export class TotemService {
    */
   static async getPopularTotems(maxResults: number = 10): Promise<Totem[]> {
     try {
+      console.log('🔍 getPopularTotems called with maxResults:', maxResults);
+      
+      // Get totems from posts instead of a separate totems collection
+      const postsRef = collection(db, this.POSTS_COLLECTION);
+      console.log('📊 Querying posts collection for totems');
+      
+      const postsSnapshot = await getDocs(postsRef);
+      console.log('📊 Total posts found:', postsSnapshot.docs.length);
+      
+      if (postsSnapshot.docs.length === 0) {
+        console.log('⚠️ No posts found in database');
+        return [];
+      }
+      
+      // Extract all totems from posts and count their usage
+      const totemCounts: Record<string, { count: number; totem: Totem }> = {};
+      
+      postsSnapshot.docs.forEach(doc => {
+        const post = doc.data() as Post;
+        
+        // Get totems from totemAssociations
+        if (post.totemAssociations) {
+          post.totemAssociations.forEach(association => {
+            const totemName = association.totemName;
+            if (!totemCounts[totemName]) {
+              totemCounts[totemName] = {
+                count: 0,
+                totem: {
+                  name: totemName,
+                  crispness: 0,
+                  likeHistory: [],
+                  usageCount: 0
+                }
+              };
+            }
+            totemCounts[totemName].count++;
+          });
+        }
+        
+        // Also get totems from answers
+        if (post.answers) {
+          post.answers.forEach(answer => {
+            if (answer.totems) {
+              answer.totems.forEach(totem => {
+                const totemName = totem.name;
+                if (!totemCounts[totemName]) {
+                  totemCounts[totemName] = {
+                    count: 0,
+                    totem: {
+                      name: totemName,
+                      crispness: totem.crispness || 0,
+                      likeHistory: totem.likeHistory || [],
+                      usageCount: 0
+                    }
+                  };
+                }
+                totemCounts[totemName].count++;
+                // Update usage count and like history from the totem data
+                totemCounts[totemName].totem.usageCount = (totemCounts[totemName].totem.usageCount || 0) + 1;
+                if (totem.likeHistory) {
+                  totemCounts[totemName].totem.likeHistory = [
+                    ...totemCounts[totemName].totem.likeHistory,
+                    ...totem.likeHistory
+                  ];
+                }
+              });
+            }
+          });
+        }
+      });
+      
+      console.log('📊 Found totems in posts:', Object.keys(totemCounts).length);
+      console.log('📋 Sample totem counts:', Object.entries(totemCounts).slice(0, 5).map(([name, data]) => `${name}: ${data.count} uses`));
+      
+      // Sort by usage count and take top results
+      const popularTotems = Object.values(totemCounts)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, maxResults)
+        .map(data => data.totem);
+      
+      console.log('✅ getPopularTotems returning:', popularTotems.map(t => t.name));
+      return popularTotems;
+    } catch (error) {
+      console.error('❌ Error getting popular totems:', error);
+      handleServiceError('get popular totems', error);
+      return [];
+    }
+  }
+
+  /**
+   * Update user's recent totems when they interact with a totem
+   * @param firebaseUid User ID
+   * @param totemName Totem name
+   */
+  static async updateUserRecentTotems(firebaseUid: string, totemName: string): Promise<void> {
+    try {
+      console.log('🔧 updateUserRecentTotems called:', { firebaseUid, totemName });
+      
+      const userRef = doc(db, 'users', firebaseUid);
+      const userDoc = await getDoc(userRef);
+      
+      if (!userDoc.exists()) {
+        console.log('❌ User document does not exist');
+        return;
+      }
+      
+      const userData = userDoc.data();
+      console.log('📊 Current user data totems:', userData.totems);
+      
+      const recentTotems = userData.totems?.recent || [];
+      console.log('📋 Current recent totems:', recentTotems);
+      
+      // Remove totem if it already exists (to move it to front)
+      const filteredTotems = recentTotems.filter((t: string) => t !== totemName);
+      
+      // Add totem to front of array (most recent first)
+      const updatedRecentTotems = [totemName, ...filteredTotems].slice(0, 10);
+      console.log('🔄 Updated recent totems:', updatedRecentTotems);
+      
+      // Update user profile
+      await updateDoc(userRef, {
+        'totems.recent': updatedRecentTotems,
+        updatedAt: Date.now()
+      });
+      
+      console.log('✅ User recent totems updated successfully');
+    } catch (error) {
+      console.error('❌ Error updating user recent totems:', error);
+    }
+  }
+
+  /**
+   * Get recent totems from posts created in the last few days
+   * @param maxResults Maximum number of totems to return
+   * @param days Number of days to look back
+   * @returns Recent totems from platform activity
+   */
+  static async getRecentTotems(maxResults: number = 10, days: number = 7): Promise<Totem[]> {
+    try {
       const totemsRef = collection(db, this.TOTEMS_COLLECTION);
+      const cutoffTime = Date.now() - (days * 24 * 60 * 60 * 1000);
+      
       const q = query(
         totemsRef,
-        orderBy('usageCount', 'desc'),
+        where('lastInteraction', '>=', cutoffTime),
+        orderBy('lastInteraction', 'desc'),
         limit(maxResults)
       );
       
@@ -156,7 +298,7 @@ export class TotemService {
         validateTotem({ id: doc.id, ...doc.data() })
       );
     } catch (error) {
-      handleServiceError('get popular totems', error);
+      handleServiceError('get recent totems', error);
       return [];
     }
   }
@@ -175,7 +317,7 @@ export class TotemService {
       }
       
       // Use transaction to ensure data consistency
-      return await runTransaction(db, async (transaction) => {
+      const result = await runTransaction(db, async (transaction) => {
         // Get or create the totem
         let totem = await this.getTotem(totemName);
         if (!totem) {
@@ -286,6 +428,18 @@ export class TotemService {
           lastInteraction: now
         };
       });
+      
+      // Update user's recent totems after successful like
+      await this.updateUserRecentTotems(firebaseUid, totemName);
+      
+      // Dispatch custom event to notify components of totem interaction
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('totem-interaction', { 
+          detail: { totemName, firebaseUid, action: 'like' } 
+        }));
+      }
+      
+      return result;
     } catch (error) {
       handleServiceError('like totem', error);
     }
@@ -311,7 +465,7 @@ export class TotemService {
       }
       
       // Use transaction to ensure data consistency
-      return await runTransaction(db, async (transaction) => {
+      const result = await runTransaction(db, async (transaction) => {
         const postRef = doc(db, this.POSTS_COLLECTION, postId);
         const postDoc = await transaction.get(postRef);
         
@@ -389,6 +543,18 @@ export class TotemService {
           lastInteraction: now
         };
       });
+      
+      // Update user's recent totems after successful unlike
+      await this.updateUserRecentTotems(firebaseUid, totemName);
+      
+      // Dispatch custom event to notify components of totem interaction
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('totem-interaction', { 
+          detail: { totemName, firebaseUid, action: 'unlike' } 
+        }));
+      }
+      
+      return result;
     } catch (error) {
       handleServiceError('unlike totem', error);
     }

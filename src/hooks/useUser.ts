@@ -10,6 +10,27 @@ export function useUser() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
+  const fetchUserProfile = async (user: any) => {
+    try {
+      setIsLoading(true);
+      let userProfile = await UserService.getCurrentUser();
+      
+      if (!userProfile) {
+        userProfile = await UserService.createDefaultProfile(user);
+      }
+      
+      setProfile(userProfile);
+      setError(null);
+      return userProfile;
+    } catch (err) {
+      console.error('Error fetching user profile:', err);
+      setError('Failed to load user profile');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!auth) {
       setProfile(null);
@@ -26,25 +47,24 @@ export function useUser() {
           return;
         }
 
-        setIsLoading(true);
-        let userProfile = await UserService.getCurrentUser();
-        
-        if (!userProfile) {
-          userProfile = await UserService.createDefaultProfile(user);
-        }
-        
-        setProfile(userProfile);
-        setError(null);
+        await fetchUserProfile(user);
       } catch (err) {
-        console.error('Error fetching user profile:', err);
-        setError('Failed to load user profile');
-      } finally {
-        setIsLoading(false);
+        console.error('Error in auth state change:', err);
       }
     });
 
     return () => unsubscribe();
   }, [router]);
+
+  const refetch = async () => {
+    if (!auth?.currentUser) return;
+    
+    try {
+      await fetchUserProfile(auth.currentUser);
+    } catch (err) {
+      console.error('Error refetching user profile:', err);
+    }
+  };
 
   const updateProfile = async (updates: Partial<UserProfile>) => {
     if (!auth || !auth.currentUser || !profile) return;
@@ -77,5 +97,6 @@ export function useUser() {
     isLoading,
     error,
     updateProfile,
+    refetch,
   };
 } 
