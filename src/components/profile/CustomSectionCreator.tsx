@@ -44,28 +44,22 @@ export function CustomSectionCreator({
     const loadAnswers = async () => {
       try {
         setIsLoading(true);
-        console.log('Fetching user answers...');
         const userAnswers = await getUserAnswers(userId);
-        console.log('Received user answers:', userAnswers.length, userAnswers);
         
         // If no answers were found, check if there's a problem
         if (userAnswers.length === 0) {
           // Try to get posts as a fallback to see if query is working
           try {
-            console.log('No answers found, checking if user has any posts...');
             // Using PostService if available
             const { PostService } = await import('@/services/standardized');
             const postResult = await PostService.getUserPosts(userId, 10);
-            console.log('User posts result:', postResult);
             
             if (postResult.posts && postResult.posts.length > 0) {
-              console.log('User has posts but no answers. This might be expected.');
               setToast({
                 message: 'No answers found for your profile. Create some answers first!',
                 type: 'info'
               });
             } else {
-              console.log('User has no posts either. Might be a data access issue.');
               setToast({
                 message: 'Unable to retrieve your content. This might be a permissions issue.',
                 type: 'error'
@@ -100,7 +94,6 @@ export function CustomSectionCreator({
         });
         
         const totemArray = Array.from(totemSet).sort();
-        console.log('Extracted totems:', totemArray);
         setTotems(totemArray);
         
         // Initialize ordered list if in edit mode
@@ -136,12 +129,6 @@ export function CustomSectionCreator({
   
   // Filter answers by selected totem
   useEffect(() => {
-    console.log('Filtering answers...', { 
-      selectedTotem, 
-      totalAnswers: answers.length, 
-      sortOption 
-    });
-    
     let filtered = [...answers];
     
     // Apply totem filter if selected
@@ -163,7 +150,6 @@ export function CustomSectionCreator({
     
     // Apply sort
     filtered = sortAnswers(filtered, sortOption);
-    console.log('Filtered answers:', filtered.length, filtered);
     
     setFilteredAnswers(filtered);
   }, [selectedTotem, answers, sortOption]);

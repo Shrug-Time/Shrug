@@ -364,6 +364,84 @@ export class UserService {
       throw error;
     }
   }
+
+  /**
+   * Get users that a user is following
+   * @param userId Firebase UID of the user
+   * @returns Array of user profiles that the user is following
+   */
+  static async getFollowing(userId: string): Promise<UserProfile[]> {
+    try {
+      const userProfile = await this.getUserByFirebaseUid(userId);
+      if (!userProfile) {
+        throw new Error('User not found');
+      }
+
+      const followingIds = userProfile.following || [];
+      if (followingIds.length === 0) {
+        return [];
+      }
+
+      const followingProfiles: UserProfile[] = [];
+      
+      // Get profiles for all following IDs
+      for (const followingId of followingIds) {
+        try {
+          const profile = await this.getUserByFirebaseUid(followingId);
+          if (profile) {
+            followingProfiles.push(profile);
+          }
+        } catch (error) {
+          console.error(`Error fetching profile for ${followingId}:`, error);
+          // Continue with other profiles even if one fails
+        }
+      }
+
+      return followingProfiles;
+    } catch (error) {
+      console.error('Error getting following list:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get users that are following a user
+   * @param userId Firebase UID of the user
+   * @returns Array of user profiles that are following the user
+   */
+  static async getFollowers(userId: string): Promise<UserProfile[]> {
+    try {
+      const userProfile = await this.getUserByFirebaseUid(userId);
+      if (!userProfile) {
+        throw new Error('User not found');
+      }
+
+      const followerIds = userProfile.followers || [];
+      if (followerIds.length === 0) {
+        return [];
+      }
+
+      const followerProfiles: UserProfile[] = [];
+      
+      // Get profiles for all follower IDs
+      for (const followerId of followerIds) {
+        try {
+          const profile = await this.getUserByFirebaseUid(followerId);
+          if (profile) {
+            followerProfiles.push(profile);
+          }
+        } catch (error) {
+          console.error(`Error fetching profile for ${followerId}:`, error);
+          // Continue with other profiles even if one fails
+        }
+      }
+
+      return followerProfiles;
+    } catch (error) {
+      console.error('Error getting followers list:', error);
+      throw error;
+    }
+  }
   
   /**
    * Updates a user's refresh count

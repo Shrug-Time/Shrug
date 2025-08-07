@@ -78,14 +78,9 @@ export default function ProfileCustomizationPage() {
     const file = e.target.files?.[0];
     if (!file || !profile) return;
 
-    console.log('Starting avatar upload for file:', file.name, 'size:', file.size);
-
     try {
       setIsUploading(true);
-      console.log('Calling UserService.uploadAvatar...');
-      
       const updatedProfile = await UserService.uploadAvatar(file, profile.firebaseUid);
-      console.log('Avatar upload successful, updated profile:', updatedProfile);
       
       // The profile will be updated automatically through the useUser hook
       // No need to manually update it here

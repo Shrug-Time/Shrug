@@ -45,7 +45,6 @@ function ProfileContent({ userID }: { userID: string }) {
 
   // Determine identifier type (username, firebaseUid, or legacy userId)
   const idType = detectUserIdentifierType(userID);
-  console.log(`Profile - Identified user ID type: ${idType} for value: ${userID}`);
 
   const navigateSection = (sectionId: string, direction: 'left' | 'right', totalItems: number) => {
     const currentStart = sectionStartIndex.get(sectionId) || 0;
@@ -128,7 +127,6 @@ function ProfileContent({ userID }: { userID: string }) {
   } = useQuery({
     queryKey: ['userPosts', userID, idType],
     queryFn: async () => {
-      console.log('Fetching posts for user:', userID);
       try {
         let userIdentifier = userID;
         
@@ -155,7 +153,6 @@ function ProfileContent({ userID }: { userID: string }) {
           return true;
         });
         
-        console.log(`Fetched ${uniquePosts.length} posts for user ${userIdentifier}`);
         return uniquePosts;
       } catch (error) {
         console.error('Error fetching user posts:', error);
@@ -429,8 +426,18 @@ function ProfileContent({ userID }: { userID: string }) {
                   
                   {/* Follower/Following counts */}
                   <div className="flex space-x-4 mt-3 text-sm text-gray-500">
-                    <span>{userData.followers?.length || 0} followers</span>
-                    <span>{userData.following?.length || 0} following</span>
+                    <Link 
+                      href={`/profile/${userData.firebaseUid}/followers`}
+                      className="hover:text-blue-600 transition-colors cursor-pointer"
+                    >
+                      {userData.followers?.length || 0} followers
+                    </Link>
+                    <Link 
+                      href={`/profile/${userData.firebaseUid}/following`}
+                      className="hover:text-blue-600 transition-colors cursor-pointer"
+                    >
+                      {userData.following?.length || 0} following
+                    </Link>
                   </div>
                 </div>
                 

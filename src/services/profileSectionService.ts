@@ -59,10 +59,20 @@ export class ProfileSectionService {
         return this.createDefaultSections(userId);
       }
       
-      return snapshot.docs.map(doc => ({
+      const sections = snapshot.docs.map(doc => ({
         ...doc.data() as ProfileSection,
         id: doc.id
       }));
+      
+      // Check for duplicate sections and remove them
+      const uniqueSections = this.removeDuplicateSections(sections);
+      
+      if (uniqueSections.length !== sections.length) {
+        // Update the database to remove duplicates
+        await this.cleanupDuplicateSections(userId, uniqueSections);
+      }
+      
+      return uniqueSections;
     } catch (error) {
       console.error('Error getting profile sections:', error);
       throw error;
@@ -76,6 +86,22 @@ export class ProfileSectionService {
    */
   static async createDefaultSections(userId: string): Promise<ProfileSection[]> {
     try {
+      // Double-check that no sections exist before creating defaults
+      const sectionsRef = collection(
+        db, 
+        this.USERS_COLLECTION, 
+        userId, 
+        this.SECTIONS_COLLECTION
+      );
+      
+      const existingSnapshot = await getDocs(sectionsRef);
+      if (!existingSnapshot.empty) {
+        return existingSnapshot.docs.map(doc => ({
+          ...doc.data() as ProfileSection,
+          id: doc.id
+        }));
+      }
+      
       const timestamp = Date.now();
       const batch = writeBatch(db);
       
@@ -198,6 +224,68 @@ export class ProfileSectionService {
     } catch (error) {
       console.error('Error creating default sections:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Remove duplicate sections based on title and type
+   * @param sections Array of sections to deduplicate
+   * @returns Array of unique sections
+   */
+  private static removeDuplicateSections(sections: ProfileSection[]): ProfileSection[] {
+    const seen = new Map<string, ProfileSection>();
+    const uniqueSections: ProfileSection[] = [];
+    
+    for (const section of sections) {
+      const key = `${section.title}-${section.type}`;
+      if (!seen.has(key)) {
+        seen.set(key, section);
+        uniqueSections.push(section);
+      } else {
+        // Keep the one with the lower position (earlier in the list)
+        const existing = seen.get(key)!;
+        if (section.position < existing.position) {
+          // Replace the existing one with this one
+          const index = uniqueSections.indexOf(existing);
+          uniqueSections[index] = section;
+          seen.set(key, section);
+        }
+      }
+    }
+    
+    return uniqueSections;
+  }
+
+  /**
+   * Clean up duplicate sections from the database
+   * @param userId Firebase UID of the user
+   * @param uniqueSections Array of unique sections to keep
+   */
+  private static async cleanupDuplicateSections(userId: string, uniqueSections: ProfileSection[]): Promise<void> {
+    try {
+      const sectionsRef = collection(
+        db, 
+        this.USERS_COLLECTION, 
+        userId, 
+        this.SECTIONS_COLLECTION
+      );
+      
+      const snapshot = await getDocs(sectionsRef);
+      const batch = writeBatch(db);
+      
+      // Get all section IDs that should be kept
+      const keepIds = new Set(uniqueSections.map(s => s.id));
+      
+      // Delete sections that are not in the unique list
+      snapshot.docs.forEach(doc => {
+        if (!keepIds.has(doc.id)) {
+          batch.delete(doc.ref);
+        }
+      });
+      
+      await batch.commit();
+    } catch (error) {
+      console.error('Error cleaning up duplicate sections:', error);
     }
   }
   

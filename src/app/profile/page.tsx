@@ -256,8 +256,18 @@ export default function ProfilePage() {
                   
                   {/* Follower/Following counts */}
                   <div className="flex space-x-4 mt-3 text-sm text-gray-500">
-                    <span>{profile.followers?.length || 0} followers</span>
-                    <span>{profile.following?.length || 0} following</span>
+                    <Link 
+                      href="/profile/followers"
+                      className="hover:text-blue-600 transition-colors cursor-pointer"
+                    >
+                      {profile.followers?.length || 0} followers
+                    </Link>
+                    <Link 
+                      href="/profile/following"
+                      className="hover:text-blue-600 transition-colors cursor-pointer"
+                    >
+                      {profile.following?.length || 0} following
+                    </Link>
                   </div>
                 </div>
                 

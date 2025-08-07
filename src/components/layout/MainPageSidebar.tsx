@@ -21,23 +21,16 @@ export function MainPageSidebar({ isExpanded, onToggle }: MainPageSidebarProps) 
   useEffect(() => {
     const loadRecentTotems = async () => {
       if (!profile) {
-        console.log('📋 No profile available for loading totems');
         return;
       }
       
       try {
-        console.log('🔍 Loading totems for profile:', profile.firebaseUid);
-        console.log('📊 Profile totems data:', profile.totems);
-        
         // Get user's recent totems from their profile
         const userTotems = profile.totems?.recent || [];
-        console.log('📋 User recent totems:', userTotems);
         setRecentTotems(userTotems.slice(0, 10)); // Show last 10
         
         // Load real popular totems instead of placeholder data
-        console.log('🔍 Loading popular totems...');
         const popularTotemsData = await TotemService.getPopularTotems(10);
-        console.log('📊 Popular totems data received:', popularTotemsData);
         setPopularTotems(popularTotemsData.map(totem => totem.name));
       } catch (error) {
         console.error('❌ Error loading totems:', error);

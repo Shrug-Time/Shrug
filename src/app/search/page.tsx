@@ -29,12 +29,9 @@ function SearchPageContent() {
 
   // Perform search when query changes
   useEffect(() => {
-    console.log(`[SearchPage] useEffect triggered - query: "${query}", filter: ${filter}, sortBy: ${sortBy}`);
     if (query.trim()) {
-      console.log(`[SearchPage] Calling performSearch with: "${query.trim()}"`);
       performSearch(query.trim());
     } else {
-      console.log(`[SearchPage] No query, clearing results`);
       setResults([]);
       setError(null);
     }
@@ -45,9 +42,6 @@ function SearchPageContent() {
     setError(null);
     
     try {
-      console.log(`[SearchPage] Performing search for: "${searchQuery}"`);
-      console.log(`[SearchPage] Filter: ${filter}, Sort: ${sortBy}`);
-      
       const types = filter === 'all' 
         ? ['post', 'user', 'totem'] 
         : filter === 'posts' 
@@ -56,15 +50,12 @@ function SearchPageContent() {
             ? ['user'] 
             : ['totem'];
       
-      console.log(`[SearchPage] Search types:`, types);
-      
       const searchResults = await SearchService.search(searchQuery, {
         types: types as any,
         limit: 50,
         sortBy
       });
       
-      console.log(`[SearchPage] Search results:`, searchResults);
       setResults(searchResults);
     } catch (err) {
       console.error('Search error:', err);
@@ -79,15 +70,11 @@ function SearchPageContent() {
   };
 
   const handleResultClick = (result: SearchResult) => {
-    console.log(`[SearchPage] Result clicked:`, result);
-    console.log(`[SearchPage] Navigating to: ${result.url}`);
     router.push(result.url);
   };
 
   const getFilteredResults = () => {
-    console.log(`[SearchPage] Filtering results. Filter: ${filter}, Total results: ${results.length}`);
     if (filter === 'all') {
-      console.log(`[SearchPage] Returning all ${results.length} results`);
       return results;
     }
     const typeMap = {
@@ -96,7 +83,6 @@ function SearchPageContent() {
       'totems': 'totem'
     };
     const filtered = results.filter(result => result.type === typeMap[filter]);
-    console.log(`[SearchPage] Filtered to ${filtered.length} ${filter} results`);
     return filtered;
   };
 
