@@ -12,9 +12,10 @@ export class TotemService {
     postId: string,
     totemName: string,
     firebaseUid: string,
-    isUnlike: boolean = false
+    isUnlike: boolean = false,
+    answerId?: string
   ): Promise<void> {
-    console.log('🔧 [OLD] handleTotemLike called:', { postId, totemName, firebaseUid, isUnlike });
+    console.log('🔧 [OLD] handleTotemLike called:', { postId, totemName, firebaseUid, isUnlike, answerId });
     
     if (!db) throw new Error("Firebase is not initialized");
     
@@ -29,10 +30,12 @@ export class TotemService {
 
       const post = postDoc.data() as Post;
       
-      // Find the answer containing the totem
-      const answer = post.answers.find(a => 
-        a.totems.some(t => t.name.toLowerCase() === totemName.toLowerCase())
-      );
+      // If answerId is provided, find the specific answer, otherwise find any answer with the totem
+      const answer = answerId 
+        ? post.answers.find(a => a.id === answerId)
+        : post.answers.find(a => 
+            a.totems.some(t => t.name.toLowerCase() === totemName.toLowerCase())
+          );
       const totem = answer?.totems.find(t => t.name.toLowerCase() === totemName.toLowerCase());
 
       if (!totem) {
@@ -100,7 +103,7 @@ export class TotemService {
   /**
    * Check if a user has liked a totem
    */
-  static async hasUserLiked(postId: string, totemName: string, firebaseUid: string): Promise<boolean> {
+  static async hasUserLiked(postId: string, totemName: string, firebaseUid: string, answerId?: string): Promise<boolean> {
     if (!db) throw new Error("Firebase is not initialized");
     
     const postRef = doc(db, "posts", postId);
@@ -111,9 +114,13 @@ export class TotemService {
     }
 
     const post = postDoc.data() as Post;
-    const answer = post.answers.find(a => 
-      a.totems.some(t => t.name.toLowerCase() === totemName.toLowerCase())
-    );
+    
+    // If answerId is provided, find the specific answer, otherwise find any answer with the totem
+    const answer = answerId 
+      ? post.answers.find(a => a.id === answerId)
+      : post.answers.find(a => 
+          a.totems.some(t => t.name.toLowerCase() === totemName.toLowerCase())
+        );
     const totem = answer?.totems.find(t => t.name.toLowerCase() === totemName.toLowerCase());
 
     if (!totem?.likeHistory) {
@@ -185,10 +192,11 @@ export class TotemService {
   static async toggleLike(
     postId: string,
     totemName: string,
-    firebaseUid: string
+    firebaseUid: string,
+    answerId?: string
   ): Promise<boolean> {
     try {
-      console.log(`[DEBUG] toggleLike called - postId: ${postId}, totemName: ${totemName}, firebaseUid: ${firebaseUid}`);
+      console.log(`[DEBUG] toggleLike called - postId: ${postId}, totemName: ${totemName}, firebaseUid: ${firebaseUid}, answerId: ${answerId}`);
       
       if (!db) throw new Error("Firebase is not initialized");
       
@@ -200,9 +208,13 @@ export class TotemService {
       }
 
       const post = postDoc.data() as Post;
-      const answer = post.answers.find(a => 
-        a.totems.some(t => t.name.toLowerCase() === totemName.toLowerCase())
-      );
+      
+      // If answerId is provided, find the specific answer, otherwise find any answer with the totem
+      const answer = answerId 
+        ? post.answers.find(a => a.id === answerId)
+        : post.answers.find(a => 
+            a.totems.some(t => t.name.toLowerCase() === totemName.toLowerCase())
+          );
       const totem = answer?.totems.find(t => t.name.toLowerCase() === totemName.toLowerCase());
 
       if (!totem) {
@@ -215,7 +227,7 @@ export class TotemService {
       
       // Toggle the like state
       console.log(`[DEBUG] toggleLike - calling handleTotemLike with isUnlike: ${isCurrentlyLiked}`);
-      await this.handleTotemLike(postId, totemName, firebaseUid, isCurrentlyLiked);
+      await this.handleTotemLike(postId, totemName, firebaseUid, isCurrentlyLiked, answerId);
       
       return true;
     } catch (error) {
@@ -253,35 +265,48 @@ export class TotemService {
   /**
    * Check if a user has inactive likes for a totem
    */
-  static async hasInactiveLikes(postId: string, totemName: string, firebaseUid: string): Promise<boolean> {
+  static async hasInactiveLikes(postId: string, totemName: string, firebaseUid: string, answerId?: string): Promise<boolean> {
+    console.log(`[DEBUG] hasInactiveLikes called - postId: ${postId}, totemName: ${totemName}, firebaseUid: ${firebaseUid}, answerId: ${answerId}`);
+    
     if (!db) throw new Error("Firebase is not initialized");
     
     const postRef = doc(db, "posts", postId);
     const postDoc = await getDoc(postRef);
     
     if (!postDoc.exists()) {
+      console.log(`[DEBUG] hasInactiveLikes - post not found`);
       return false;
     }
 
     const post = postDoc.data() as Post;
-    const answer = post.answers.find(a => 
-      a.totems.some(t => t.name.toLowerCase() === totemName.toLowerCase())
-    );
+    
+    // If answerId is provided, find the specific answer, otherwise find any answer with the totem
+    const answer = answerId 
+      ? post.answers.find(a => a.id === answerId)
+      : post.answers.find(a => 
+          a.totems.some(t => t.name.toLowerCase() === totemName.toLowerCase())
+        );
     const totem = answer?.totems.find(t => t.name.toLowerCase() === totemName.toLowerCase());
 
     if (!totem?.likeHistory) {
+      console.log(`[DEBUG] hasInactiveLikes - no totem or likeHistory found`);
       return false;
     }
 
-    return totem.likeHistory.some(
+    console.log(`[DEBUG] hasInactiveLikes - totem likeHistory:`, totem.likeHistory);
+    
+    const hasInactive = totem.likeHistory.some(
       like => like.firebaseUid === firebaseUid && !like.isActive
     );
+    
+    console.log(`[DEBUG] hasInactiveLikes - result: ${hasInactive}`);
+    return hasInactive;
   }
   
   /**
    * Get the crispness of an inactive like
    */
-  static async getInactiveLikeCrispness(postId: string, totemName: string, firebaseUid: string): Promise<number> {
+  static async getInactiveLikeCrispness(postId: string, totemName: string, firebaseUid: string, answerId?: string): Promise<number> {
     if (!db) throw new Error("Firebase is not initialized");
     
     const postRef = doc(db, "posts", postId);
@@ -292,9 +317,13 @@ export class TotemService {
     }
 
     const post = postDoc.data() as Post;
-    const answer = post.answers.find(a => 
-      a.totems.some(t => t.name.toLowerCase() === totemName.toLowerCase())
-    );
+    
+    // If answerId is provided, find the specific answer, otherwise find any answer with the totem
+    const answer = answerId 
+      ? post.answers.find(a => a.id === answerId)
+      : post.answers.find(a => 
+          a.totems.some(t => t.name.toLowerCase() === totemName.toLowerCase())
+        );
     const totem = answer?.totems.find(t => t.name.toLowerCase() === totemName.toLowerCase());
 
     if (!totem?.likeHistory) {
@@ -321,8 +350,8 @@ export class TotemService {
   /**
    * Refresh a previously inactive like to make it active
    */
-  static async refreshLike(postId: string, totemName: string, firebaseUid: string): Promise<boolean> {
-    console.log(`[DEBUG] refreshLike called - postId: ${postId}, totemName: ${totemName}, firebaseUid: ${firebaseUid}`);
+  static async refreshLike(postId: string, totemName: string, firebaseUid: string, answerId?: string): Promise<boolean> {
+    console.log(`[DEBUG] refreshLike called - postId: ${postId}, totemName: ${totemName}, firebaseUid: ${firebaseUid}, answerId: ${answerId}`);
     
     if (!db) throw new Error("Firebase is not initialized");
     
@@ -338,10 +367,12 @@ export class TotemService {
 
         const post = postDoc.data() as Post;
         
-        // Find the answer containing the totem
-        const answer = post.answers.find(a => 
-          a.totems.some(t => t.name.toLowerCase() === totemName.toLowerCase())
-        );
+        // If answerId is provided, find the specific answer, otherwise find any answer with the totem
+        const answer = answerId 
+          ? post.answers.find(a => a.id === answerId)
+          : post.answers.find(a => 
+              a.totems.some(t => t.name.toLowerCase() === totemName.toLowerCase())
+            );
         const totem = answer?.totems.find(t => t.name.toLowerCase() === totemName.toLowerCase());
 
         if (!totem || !totem.likeHistory) {

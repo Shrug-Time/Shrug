@@ -9,6 +9,7 @@ import { AuthModal } from '@/components/auth/AuthModal';
 interface TotemButtonProps {
   postId: string;
   totemName: string;
+  answerId?: string; // Optional answer ID for specific totem instance
   className?: string;
   showCount?: boolean;
   showCrispnessValue?: boolean;
@@ -17,21 +18,27 @@ interface TotemButtonProps {
 export function TotemButton({ 
   postId, 
   totemName, 
+  answerId,
   className = '', 
   showCount = true, 
   showCrispnessValue = true 
 }: TotemButtonProps) {
   const { user } = useAuth();
-  const { toggleLike, isLiked, getLikeCount, getCrispness, loadPostTotems } = useTotem();
+  const { toggleLike, isLiked, getLikeCount, getCrispness, loadPostTotems, loadTotemState } = useTotem();
   const [isLoading, setIsLoading] = useState(false);
   const { isAuthModalOpen, setIsAuthModalOpen, handleAuthRequired } = useAuthModal();
 
   // Load totem state when component mounts
   useEffect(() => {
     if (user) {
-      loadPostTotems(postId, [totemName]);
+      // If we have an answerId, load the specific totem instance
+      if (answerId) {
+        loadTotemState(postId, totemName, answerId);
+      } else {
+        loadPostTotems(postId, [totemName]);
+      }
     }
-  }, [postId, totemName, user, loadPostTotems]);
+  }, [postId, totemName, answerId, user, loadPostTotems, loadTotemState]);
 
   const handleClick = async (e: React.MouseEvent) => {
     e.preventDefault(); // Prevent navigation when clicking the like button
@@ -42,7 +49,7 @@ export function TotemButton({
       
       setIsLoading(true);
       try {
-        await toggleLike(postId, totemName);
+        await toggleLike(postId, totemName, answerId);
       } catch (error) {
         console.error('[TotemButton] Error:', error);
       } finally {
@@ -55,9 +62,9 @@ export function TotemButton({
     }
   };
 
-  const liked = user ? isLiked(postId, totemName) : false;
-  const likeCount = getLikeCount(postId, totemName);
-  const crispness = getCrispness(postId, totemName);
+  const liked = user ? isLiked(postId, totemName, answerId) : false;
+  const likeCount = getLikeCount(postId, totemName, answerId);
+  const crispness = getCrispness(postId, totemName, answerId);
   const shouldShowCrispness = crispness !== undefined && crispness >= 0 && showCrispnessValue;
 
   return (

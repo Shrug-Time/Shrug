@@ -19,17 +19,19 @@ interface RefreshModalData {
   postId: string;
   totemName: string;
   currentCrispness: number;
+  answerId?: string;
 }
 
 interface TotemContextType {
-  toggleLike: (postId: string, totemName: string) => Promise<boolean>;
-  isLiked: (postId: string, totemName: string) => boolean;
-  getLikeCount: (postId: string, totemName: string) => number;
-  getCrispness: (postId: string, totemName: string) => number | undefined;
+  toggleLike: (postId: string, totemName: string, answerId?: string) => Promise<boolean>;
+  isLiked: (postId: string, totemName: string, answerId?: string) => boolean;
+  getLikeCount: (postId: string, totemName: string, answerId?: string) => number;
+  getCrispness: (postId: string, totemName: string, answerId?: string) => number | undefined;
   refreshesRemaining: number;
   isLoading: boolean;
   error: Error | null;
   loadPostTotems: (postId: string, totemNames: string[]) => Promise<void>;
+  loadTotemState: (postId: string, totemName: string, answerId?: string) => Promise<void>;
 }
 
 const TotemContext = createContext<TotemContextType | null>(null);
@@ -126,10 +128,11 @@ export function TotemProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   // Function to load a single totem's state
-  const loadTotemState = useCallback(async (postId: string, totemName: string) => {
+  const loadTotemState = useCallback(async (postId: string, totemName: string, answerId?: string) => {
     if (!user) return;
     
-    const key = `${postId}-${totemName}`;
+    // Create unique key that includes answerId if provided
+    const key = answerId ? `${postId}-${answerId}-${totemName}` : `${postId}-${totemName}`;
     
     // Check if we already have this state and avoid reloading unnecessarily
     if (loadingStates[key]) return; // Already loading this totem
@@ -145,9 +148,12 @@ export function TotemProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const answer = post.answers.find(a => 
-        a.totems.some(t => t.name.toLowerCase() === totemName.toLowerCase())
-      );
+      // If answerId is provided, find the specific answer, otherwise find any answer with the totem
+      const answer = answerId 
+        ? post.answers.find(a => a.id === answerId)
+        : post.answers.find(a => 
+            a.totems.some(t => t.name.toLowerCase() === totemName.toLowerCase())
+          );
       const totem = answer?.totems.find(t => t.name.toLowerCase() === totemName.toLowerCase());
 
       if (!totem) {
@@ -223,22 +229,30 @@ export function TotemProvider({ children }: { children: ReactNode }) {
     }
   }, [user, loadTotemState]);
 
-  const toggleLike = useCallback(async (postId: string, totemName: string) => {
+  const toggleLike = useCallback(async (postId: string, totemName: string, answerId?: string) => {
     if (!user) return false;
     
     setIsLoading(true);
     setError(null);
     
-    const key = `${postId}-${totemName}`;
+    // Create unique key that includes answerId if provided
+    const key = answerId ? `${postId}-${answerId}-${totemName}` : `${postId}-${totemName}`;
     const currentState = likeState[key];
     
     // Check if this would be a re-like of a previously liked totem
     try {
-      const hadPreviousLike = await TotemService.hasInactiveLikes(postId, totemName, user.uid);
+      console.log(`[DEBUG] toggleLike - checking for inactive likes: postId=${postId}, totemName=${totemName}, answerId=${answerId}`);
+      const hadPreviousLike = await TotemService.hasInactiveLikes(postId, totemName, user.uid, answerId);
+      console.log(`[DEBUG] toggleLike - hadPreviousLike: ${hadPreviousLike}, currentState?.isLiked: ${currentState?.isLiked}`);
+      
+      // Also check if user currently has an active like
+      const isCurrentlyLiked = await TotemService.hasUserLiked(postId, totemName, user.uid, answerId);
+      console.log(`[DEBUG] toggleLike - isCurrentlyLiked: ${isCurrentlyLiked}`);
       
       if (!currentState?.isLiked && hadPreviousLike) {
         // User is re-liking a totem they previously liked
-        const previousCrispness = await TotemService.getInactiveLikeCrispness(postId, totemName, user.uid);
+        console.log(`[DEBUG] toggleLike - showing refresh modal`);
+        const previousCrispness = await TotemService.getInactiveLikeCrispness(postId, totemName, user.uid, answerId);
         
         // Show the refresh modal
         setRefreshData({
@@ -246,6 +260,7 @@ export function TotemProvider({ children }: { children: ReactNode }) {
           postId,
           totemName,
           currentCrispness: previousCrispness,
+          answerId, // Add answerId to refresh data
         });
         
         setIsLoading(false);
@@ -253,7 +268,7 @@ export function TotemProvider({ children }: { children: ReactNode }) {
       }
       
       // Regular like/unlike (no previous like)
-      return await completeLikeToggle(postId, totemName, false);
+      return await completeLikeToggle(postId, totemName, false, answerId);
     } catch (error) {
       console.error('[TotemContext] Error checking previous likes:', error);
       setError(error as Error);
@@ -262,23 +277,39 @@ export function TotemProvider({ children }: { children: ReactNode }) {
     }
   }, [user, likeState]);
 
-  const completeLikeToggle = async (postId: string, totemName: string, useRefresh: boolean) => {
+  const completeLikeToggle = async (postId: string, totemName: string, useRefresh: boolean, answerId?: string) => {
     if (!user) return false;
     
-    console.log(`[DEBUG] completeLikeToggle called - postId: ${postId}, totemName: ${totemName}, useRefresh: ${useRefresh}`);
+    console.log(`[DEBUG] completeLikeToggle called - postId: ${postId}, totemName: ${totemName}, answerId: ${answerId}, useRefresh: ${useRefresh}`);
     
-    const key = `${postId}-${totemName}`;
+    // Create unique key that includes answerId if provided
+    const key = answerId ? `${postId}-${answerId}-${totemName}` : `${postId}-${totemName}`;
     const currentState = likeState[key];
     
     // Optimistically update UI
-    setLikeState(prev => ({
-      ...prev,
-      [key]: {
-        isLiked: !(currentState?.isLiked ?? false),
-        count: (currentState?.count ?? 0) + (currentState?.isLiked ? -1 : 1),
-        crispness: currentState?.crispness ?? 0
+    setLikeState(prev => {
+      const newIsLiked = !(currentState?.isLiked ?? false);
+      const newCount = (currentState?.count ?? 0) + (currentState?.isLiked ? -1 : 1);
+      
+      // Recalculate crispness based on the new like state
+      let newCrispness = currentState?.crispness ?? 0;
+      if (newIsLiked && !currentState?.isLiked) {
+        // Adding a like - set to 100% for new like
+        newCrispness = 100;
+      } else if (!newIsLiked && currentState?.isLiked) {
+        // Removing a like - set to 0% for unlike
+        newCrispness = 0;
       }
-    }));
+      
+      return {
+        ...prev,
+        [key]: {
+          isLiked: newIsLiked,
+          count: newCount,
+          crispness: newCrispness
+        }
+      };
+    });
     
     try {
       let success;
@@ -286,7 +317,7 @@ export function TotemProvider({ children }: { children: ReactNode }) {
       if (useRefresh) {
         // Use a refresh
         console.log(`[DEBUG] completeLikeToggle - calling TotemService.refreshLike`);
-        success = await TotemService.refreshLike(postId, totemName, user.uid);
+        success = await TotemService.refreshLike(postId, totemName, user.uid, answerId);
         
         if (success) {
           // Update user's refresh count
@@ -297,7 +328,7 @@ export function TotemProvider({ children }: { children: ReactNode }) {
       } else {
         // Regular toggle
         console.log(`[DEBUG] completeLikeToggle - calling TotemService.toggleLike`);
-        success = await TotemService.toggleLike(postId, totemName, user.uid);
+        success = await TotemService.toggleLike(postId, totemName, user.uid, answerId);
       }
       
       console.log(`[DEBUG] completeLikeToggle - operation success: ${success}`);
@@ -309,9 +340,9 @@ export function TotemProvider({ children }: { children: ReactNode }) {
           [key]: currentState ?? { isLiked: false, count: 0, crispness: 0 }
         }));
       } else {
-        // Reload the state to ensure we have the latest data
-        console.log(`[DEBUG] completeLikeToggle - reloading state`);
-        await loadTotemState(postId, totemName);
+        // Don't reload state since the backend operation succeeded
+        // The optimistic update should be correct
+        console.log(`[DEBUG] completeLikeToggle - operation succeeded, keeping optimistic update`);
       }
       return success;
     } catch (error) {
@@ -339,9 +370,9 @@ export function TotemProvider({ children }: { children: ReactNode }) {
       return;
     }
     
-    const { postId, totemName } = refreshData;
-    console.log(`[DEBUG] handleRestore - calling completeLikeToggle with postId: ${postId}, totemName: ${totemName}`);
-    const success = await completeLikeToggle(postId, totemName, false);
+    const { postId, totemName, answerId } = refreshData;
+    console.log(`[DEBUG] handleRestore - calling completeLikeToggle with postId: ${postId}, totemName: ${totemName}, answerId: ${answerId}`);
+    const success = await completeLikeToggle(postId, totemName, false, answerId);
     console.log(`[DEBUG] handleRestore - completeLikeToggle result: ${success}`);
     setRefreshData(null);
     return success;
@@ -350,25 +381,25 @@ export function TotemProvider({ children }: { children: ReactNode }) {
   const handleRefresh = async () => {
     if (!refreshData || !user || refreshesRemaining <= 0) return;
     
-    const { postId, totemName } = refreshData;
-    const success = await completeLikeToggle(postId, totemName, true);
+    const { postId, totemName, answerId } = refreshData;
+    const success = await completeLikeToggle(postId, totemName, true, answerId);
     setRefreshData(null);
     return success;
   };
 
-  const isLiked = useCallback((postId: string, totemName: string) => {
-    const key = `${postId}-${totemName}`;
+  const isLiked = useCallback((postId: string, totemName: string, answerId?: string) => {
+    const key = answerId ? `${postId}-${answerId}-${totemName}` : `${postId}-${totemName}`;
     return likeState[key]?.isLiked ?? false;
   }, [likeState]);
 
-  const getLikeCount = useCallback((postId: string, totemName: string) => {
-    const key = `${postId}-${totemName}`;
+  const getLikeCount = useCallback((postId: string, totemName: string, answerId?: string) => {
+    const key = answerId ? `${postId}-${answerId}-${totemName}` : `${postId}-${totemName}`;
     return likeState[key]?.count ?? 0;
   }, [likeState]);
 
-  const getCrispness = useCallback((postId: string, totemName: string) => {
+  const getCrispness = useCallback((postId: string, totemName: string, answerId?: string) => {
     // If we don't have state for this post/totem pair, return undefined
-    const key = `${postId}-${totemName}`;
+    const key = answerId ? `${postId}-${answerId}-${totemName}` : `${postId}-${totemName}`;
     const state = likeState[key];
     
     if (!state || state.crispness === undefined) {
@@ -421,6 +452,7 @@ export function TotemProvider({ children }: { children: ReactNode }) {
     isLoading,
     error,
     loadPostTotems,
+    loadTotemState,
   };
 
   return (

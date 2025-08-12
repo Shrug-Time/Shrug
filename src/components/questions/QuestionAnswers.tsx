@@ -67,6 +67,14 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
     });
   };
 
+  // Create a stable dependency array for totem names
+  const totemNames = useMemo(() => 
+    post.answers.flatMap(answer => 
+      answer.totems.map(totem => totem.name)
+    ).sort(), // Sort to ensure stable order
+    [post.answers]
+  );
+
   // Calculate sorted totems reactively - updates when totem states change
   const sortedTotems = useMemo(() => {
     // Create individual answer-totem pairs for ranking
@@ -99,32 +107,56 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
       return b.crispness - a.crispness;
     });
 
-    // Group sorted pairs by totem while preserving sort order
-    const result: Array<{
+    // Create simple totem structure - each totem is independent
+    const totemMap = new Map<string, {
       totemName: string;
       answers: typeof sortedPairs;
       totalLikes: number;
       averageCrispness: number;
-    }> = [];
+      children: Map<string, typeof totemMap>;
+    }>();
 
-    const seenTotems = new Set<string>();
-
+    // Group totems by name (exact match)
     sortedPairs.forEach(pair => {
-      if (!seenTotems.has(pair.totem.name)) {
-        seenTotems.add(pair.totem.name);
-        
-        // Get all pairs for this totem (they're already sorted)
+      if (!totemMap.has(pair.totem.name)) {
         const totemPairs = sortedPairs.filter(p => p.totem.name === pair.totem.name);
-        
-        result.push({
+        totemMap.set(pair.totem.name, {
           totemName: pair.totem.name,
           answers: totemPairs,
           totalLikes: totemPairs.reduce((sum, { likes }) => sum + likes, 0),
           averageCrispness: totemPairs.length > 0 
             ? totemPairs.reduce((sum, { crispness }) => sum + crispness, 0) / totemPairs.length 
-            : 0
+            : 0,
+          children: new Map()
         });
       }
+    });
+
+    // Second pass: build nested structure
+    const result: Array<{
+      totemName: string;
+      answers: typeof sortedPairs;
+      totalLikes: number;
+      averageCrispness: number;
+      children: Array<typeof result>;
+    }> = [];
+
+    // Convert Map to array and sort by total likes
+    const sortedTotemEntries = Array.from(totemMap.entries()).sort((a, b) => {
+      if (a[1].totalLikes !== b[1].totalLikes) {
+        return b[1].totalLikes - a[1].totalLikes;
+      }
+      return b[1].averageCrispness - a[1].averageCrispness;
+    });
+
+    sortedTotemEntries.forEach(([totemName, totemData]) => {
+      result.push({
+        totemName: totemData.totemName,
+        answers: totemData.answers,
+        totalLikes: totemData.totalLikes,
+        averageCrispness: totemData.averageCrispness,
+        children: [] // For now, we'll implement nested totems in the next iteration
+      });
     });
 
     return result;
@@ -132,12 +164,8 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
     post.answers, 
     post.id, 
     getCrispness,
-    // Include all totem names to trigger re-calculation when their states change
-    ...post.answers.flatMap(answer => answer.totems.map(totem => totem.name)),
-    // Include current crispness values to detect when they change
-    ...post.answers.flatMap(answer => 
-      answer.totems.map(totem => getCrispness(post.id, totem.name))
-    )
+    getTotemLikes,
+    totemNames
   ]); // Re-calculate when answers or any totem state changes
 
   if (sortedTotems.length === 0) {
@@ -171,7 +199,7 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
 
       {/* Totem Pole Layout */}
       <div className="relative">
-        {sortedTotems.map(({ totemName, answers }, index) => {
+        {sortedTotems.map(({ totemName, answers, children }, index) => {
           const isExpanded = expandedTotems.has(totemName);
           const hasMultipleAnswers = answers.length > 1;
           const answersToShow = isExpanded ? answers.slice(0, 5) : [answers[0]];
@@ -191,6 +219,16 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
 
               {/* Totem Card */}
               <div className="flex-1 bg-white rounded-xl shadow p-4">
+                {/* Totem Name Header */}
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">{totemName}</h3>
+                  <div className="flex items-center space-x-2 text-sm text-gray-500">
+                    <span>{answers.length} answers</span>
+                    <span>•</span>
+                    <span>{formatDistanceToNow(toDate(answers[0]?.answer.createdAt || Date.now()), { addSuffix: true })}</span>
+                  </div>
+                </div>
+
                 {/* Answers */}
                 <div className="space-y-4">
                   {answersToShow.map((answerData, answerIndex) => (
@@ -207,15 +245,15 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
                       
                       <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center space-x-2">
-                          <TotemButton 
-                            totemName={answerData.totem.name}
-                            postId={post.id}
-                          />
-                          {answerData.answer.totems.length > 1 && (
-                            <span className="text-sm text-gray-500">
-                              +{answerData.answer.totems.length - 1} more totems
-                            </span>
-                          )}
+                          {/* Render all totems for this answer */}
+                          {answerData.answer.totems.map((totem, totemIndex) => (
+                            <TotemButton 
+                              key={`${answerData.answer.id}-${totem.name}-${totemIndex}`}
+                              totemName={totem.name}
+                              postId={post.id}
+                              answerId={answerData.answer.id}
+                            />
+                          ))}
                         </div>
                         <div className="flex items-center space-x-3">
                           <div className="text-sm text-gray-500">
@@ -250,6 +288,21 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
                         : `Show more (${Math.min(answers.length - 1, 4)} more answers)`
                       }
                     </button>
+                  </div>
+                )}
+
+                {/* Nested Totems */}
+                {children.length > 0 && (
+                  <div className="mt-4 pt-3 border-t border-gray-100">
+                    <div className="space-y-2">
+                      {children.map((childTotem, childIndex) => (
+                        <div key={childTotem.totemName} className="flex items-center space-x-2 text-sm">
+                          <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
+                          <span className="text-gray-600">{childTotem.totemName}</span>
+                          <span className="text-gray-400">({childTotem.answers.length} answers)</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
