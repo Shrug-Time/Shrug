@@ -117,7 +117,7 @@ export function QuestionList({
   const getBestAnswer = useCallback((post: Post) => {
     if (!post.answers || post.answers.length === 0) return null;
     
-    // Find the answer with the highest likes for any totem
+    // Find the answer with the highest likes for any totem, using crispness as tiebreaker
     return post.answers.reduce((best, current, index) => {
       // Get the highest likes from any totem in the current answer
       const currentMaxLikes = current.totems?.reduce((max, totem) => 
@@ -127,7 +127,23 @@ export function QuestionList({
       const bestMaxLikes = best.answer.totems?.reduce((max, totem) => 
         getTotemLikes(totem) > max ? getTotemLikes(totem) : max, 0) || 0;
       
-      return currentMaxLikes > bestMaxLikes ? { answer: current, index } : best;
+      // Primary comparison: likes
+      if (currentMaxLikes > bestMaxLikes) {
+        return { answer: current, index };
+      } else if (currentMaxLikes === bestMaxLikes && currentMaxLikes > 0) {
+        // Tiebreaker: crispness
+        const currentMaxCrispness = current.totems?.reduce((max, totem) => 
+          (totem.crispness || 0) > max ? (totem.crispness || 0) : max, 0) || 0;
+        
+        const bestMaxCrispness = best.answer.totems?.reduce((max, totem) => 
+          (totem.crispness || 0) > max ? (totem.crispness || 0) : max, 0) || 0;
+        
+        if (currentMaxCrispness > bestMaxCrispness) {
+          return { answer: current, index };
+        }
+      }
+      
+      return best;
     }, { answer: post.answers[0], index: 0 });
   }, []);
 
@@ -137,16 +153,28 @@ export function QuestionList({
     return totems.reduce((best, current) => {
       const bestLikes = getTotemLikes(best);
       const currentLikes = getTotemLikes(current);
-      return currentLikes > bestLikes ? current : best;
+      
+      // Primary comparison: likes
+      if (currentLikes > bestLikes) {
+        return current;
+      } else if (currentLikes === bestLikes) {
+        // Tiebreaker: crispness
+        const bestCrispness = best.crispness || 0;
+        const currentCrispness = current.crispness || 0;
+        return currentCrispness > bestCrispness ? current : best;
+      }
+      
+      return best;
     }, totems[0]);
   }, []);
 
-  const renderTotemButton = (postId: string, totemName: string) => {
+  const renderTotemButton = (postId: string, totemName: string, answerId?: string) => {
     return (
       <TotemButton
         key={totemName}
         totemName={totemName}
         postId={postId}
+        answerId={answerId}
       />
     );
   };
@@ -170,7 +198,7 @@ export function QuestionList({
       ? post.answers.find(answer => answer.firebaseUid === user.uid)
       : null;
     
-    const answerToShow = userAnswer || (post.answers && post.answers.length > 0 ? post.answers[0] : null);
+    const answerToShow = userAnswer || (post.answers && post.answers.length > 0 ? getBestAnswer(post)?.answer : null);
     const firstParagraph = answerToShow?.text?.split('\n')[0] || '';
     
     const topTotem = answerToShow?.totems?.reduce((top, current) => {
@@ -224,7 +252,7 @@ export function QuestionList({
           )}
         </div>
         <div className="flex items-center justify-between mt-3">
-          {topTotem && renderTotemButton(post.id, topTotem.name)}
+          {topTotem && answerToShow && renderTotemButton(post.id, topTotem.name, answerToShow.id)}
           <button
             onClick={() => handleAnswerClick(post)}
             className="inline-flex items-center justify-center w-8 h-8 rounded-full text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
