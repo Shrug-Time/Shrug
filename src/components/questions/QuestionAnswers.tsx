@@ -256,15 +256,22 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
                       
                       <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center space-x-2">
-                          {/* Render all totems for this answer */}
-                          {answerData.answer.totems.map((totem, totemIndex) => (
-                            <TotemButton 
-                              key={`${answerData.answer.id}-${totem.name}-${totemIndex}`}
-                              totemName={totem.name}
-                              postId={post.id}
-                              answerId={answerData.answer.id}
-                            />
-                          ))}
+                          {/* Only show the specific totem for this bin */}
+                          <TotemButton 
+                            key={`${answerData.answer.id}-${totemName}`}
+                            totemName={totemName}
+                            postId={post.id}
+                            answerId={answerData.answer.id}
+                          />
+                          {/* Show other totems count if there are more */}
+                          {answerData.answer.totems.length > 1 && (
+                            <Link
+                              href={getAnswerUrl(post.id, answerData.answer.id)}
+                              className="text-sm text-gray-500 hover:text-gray-700"
+                            >
+                              +{answerData.answer.totems.length - 1} more
+                            </Link>
+                          )}
                         </div>
                         <div className="flex items-center space-x-3">
                           <div className="text-sm text-gray-500">

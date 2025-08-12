@@ -89,59 +89,86 @@ export function TotemPageClient({ posts, totemName }: TotemPageClientProps) {
         <h1 className="text-2xl font-bold text-gray-900 mb-4">
           {totemName}
         </h1>
-        <p className="text-gray-600">
-          {relevantPosts.length} posts using this totem
-        </p>
+        <div className="flex items-center space-x-4 text-gray-600">
+          <span>{Object.values(postsByQuestion).flat().length} answers</span>
+          <span>•</span>
+          <span>{Object.values(postsByQuestion).flat().reduce((sum, { totalLikes }) => sum + totalLikes, 0)} total likes</span>
+        </div>
       </div>
 
       <div className="space-y-8">
         {Object.entries(postsByQuestion).map(([question, questionPosts]) => (
           <div key={question} className="space-y-4">
             <h2 className="text-xl font-semibold text-gray-900">{question}</h2>
-            <div className="space-y-4">
-              {questionPosts.map(({ post }) => (
-                <div key={post.id} className="bg-white rounded-xl shadow p-4">
-                  {/* Show all answers that use this totem */}
-                  {post.answers
-                    .filter(answer => answer.totems.some(t => t.name === totemName))
-                    .map((answer, index) => {
-                      const totem = answer.totems.find(t => t.name === totemName);
-                      if (!totem) return null;
-                      
-                      return (
-                        <div key={`${post.id}-${index}`} className="mb-4 last:mb-0">
-                          <div className="text-gray-600 mb-4">
-                            {answer.text}
+            
+            {/* Flatten and sort all answers across posts for this question */}
+            {(() => {
+              const allAnswers = questionPosts.flatMap(({ post }) => 
+                post.answers
+                  .filter(answer => answer.totems.some(t => t.name === totemName))
+                  .map(answer => ({
+                    answer,
+                    post,
+                    totem: answer.totems.find(t => t.name === totemName)!,
+                    likes: answer.totems.find(t => t.name === totemName)?.likeHistory?.filter(like => like.isActive).length || 0,
+                    crispness: answer.totems.find(t => t.name === totemName)?.crispness || 0
+                  }))
+              ).sort((a, b) => {
+                // Sort by likes first, then crispness
+                if (b.likes !== a.likes) {
+                  return b.likes - a.likes;
+                }
+                return b.crispness - a.crispness;
+              });
+
+              return (
+                <div className="space-y-6">
+                  {allAnswers.map((answerData, index) => (
+                    <div key={`${answerData.post.id}-${answerData.answer.id}`} className="relative flex items-center gap-4">
+                      {/* Number Circle */}
+                      <div className="flex flex-col items-center">
+                        <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
+                          {index + 1}
+                        </div>
+                        {index < allAnswers.length - 1 && (
+                          <div className="w-0.5 h-6 bg-blue-200 mt-1"></div>
+                        )}
+                      </div>
+
+                      {/* Answer Content */}
+                      <div className="flex-1 bg-white rounded-xl shadow p-4">
+                        <div className="text-gray-600 mb-4">
+                          {answerData.answer.text}
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <TotemButton
+                              totemName={totemName}
+                              postId={answerData.post.id}
+                              answerId={answerData.answer.id}
+                            />
+                            {answerData.answer.totems.length > 1 && (
+                              <span className="text-sm text-gray-500">
+                                +{answerData.answer.totems.length - 1} more totems
+                              </span>
+                            )}
                           </div>
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-2">
-                              <TotemButton
-                                totemName={totemName}
-                                postId={post.id}
-                                answerId={answer.id}
-                              />
-                              {answer.totems.length > 1 && (
-                                <span className="text-sm text-gray-500">
-                                  +{answer.totems.length - 1} more totems
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {formatDistanceToNow(getDate(post.createdAt), { addSuffix: true })} by{' '}
-                              <Link 
-                                href={getProfileUrl(answer.username || answer.firebaseUid || '')}
-                                className="text-blue-600 hover:text-blue-800 hover:underline"
-                              >
-                                {getUserDisplayName(answer)}
-                              </Link>
-                            </div>
+                          <div className="text-sm text-gray-500">
+                            {formatDistanceToNow(getDate(answerData.post.createdAt), { addSuffix: true })} by{' '}
+                            <Link 
+                              href={getProfileUrl(answerData.answer.username || answerData.answer.firebaseUid || '')}
+                              className="text-blue-600 hover:text-blue-800 hover:underline"
+                            >
+                              {getUserDisplayName(answerData.answer)}
+                            </Link>
                           </div>
                         </div>
-                      );
-                    })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              );
+            })()}
           </div>
         ))}
       </div>

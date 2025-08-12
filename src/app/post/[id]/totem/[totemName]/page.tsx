@@ -86,26 +86,40 @@ export default function QuestionTotemPage() {
         </p>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-6">
         {totemAnswers.map(({ answer, totem }, index) => (
-          <div key={`${answer.firebaseUid}-${index}`} className="bg-white rounded-xl shadow p-4">
-            <div className="text-gray-600 mb-4">
-              {answer.text}
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <TotemButton
-                  totemName={totemName}
-                  postId={post.id}
-                />
-                {answer.totems.length > 1 && (
-                  <span className="text-sm text-gray-500">
-                    +{answer.totems.length - 1} more totems
-                  </span>
-                )}
+          <div key={`${answer.firebaseUid}-${index}`} className="relative flex items-center gap-4">
+            {/* Number Circle */}
+            <div className="flex flex-col items-center">
+              <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
+                {index + 1}
               </div>
-              <div className="text-sm text-gray-500">
-                {formatDistanceToNow(toDate(answer.createdAt), { addSuffix: true })} by {getUserDisplayName(answer)}
+              {index < totemAnswers.length - 1 && (
+                <div className="w-0.5 h-6 bg-blue-200 mt-1"></div>
+              )}
+            </div>
+
+            {/* Answer Content */}
+            <div className="flex-1 bg-white rounded-xl shadow p-4">
+              <div className="text-gray-600 mb-4">
+                {answer.text}
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <TotemButton
+                    totemName={totemName}
+                    postId={post.id}
+                    answerId={answer.id}
+                  />
+                  {answer.totems.length > 1 && (
+                    <span className="text-sm text-gray-500">
+                      +{answer.totems.length - 1} more totems
+                    </span>
+                  )}
+                </div>
+                <div className="text-sm text-gray-500">
+                  {formatDistanceToNow(toDate(answer.createdAt), { addSuffix: true })} by {getUserDisplayName(answer)}
+                </div>
               </div>
             </div>
           </div>
