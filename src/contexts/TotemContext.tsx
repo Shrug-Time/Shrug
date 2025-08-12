@@ -154,14 +154,21 @@ export function TotemProvider({ children }: { children: ReactNode }) {
         : post.answers.find(a => 
             a.totems.some(t => t.name.toLowerCase() === totemName.toLowerCase())
           );
-      const totem = answer?.totems.find(t => t.name.toLowerCase() === totemName.toLowerCase());
+          
+      // When answerId is provided, use exact name match for the specific totem in that specific answer
+      // Otherwise, use case-insensitive matching for general searches
+      const totem = answer?.totems.find(t => 
+        answerId 
+          ? t.name === totemName  // Exact match when we have a specific answer
+          : t.name.toLowerCase() === totemName.toLowerCase()  // Case-insensitive for general search
+      );
 
       if (!totem) {
         return;
       }
 
-      console.log(`[TotemState] Loading state for ${totemName} (${postId})`);
-      console.log(`[TotemState] Totem has ${totem.likeHistory?.length || 0} likes in history, stored crispness: ${totem.crispness || 0}`);
+      console.log(`[TotemState] Loading state for ${totemName} (${postId}) answerId: ${answerId}`);
+      console.log(`[TotemState] Answer: ${answer?.id}, Totem: ${totem.name}, LikeHistory: ${totem.likeHistory?.length || 0} likes, stored crispness: ${totem.crispness || 0}`);
       
       // Determine if the current user has liked this totem
       // This only checks active likes for UI purposes
@@ -315,9 +322,9 @@ export function TotemProvider({ children }: { children: ReactNode }) {
       let success;
       
       if (useRefresh) {
-        // Use a refresh
-        console.log(`[DEBUG] completeLikeToggle - calling TotemService.refreshLike`);
-        success = await TotemService.refreshLike(postId, totemName, user.uid, answerId);
+        // Use a refresh to get 100% crispness
+        console.log(`[DEBUG] completeLikeToggle - calling TotemService.refreshToFullCrispness`);
+        success = await TotemService.refreshToFullCrispness(postId, totemName, user.uid, answerId);
         
         if (success) {
           // Update user's refresh count
@@ -371,11 +378,47 @@ export function TotemProvider({ children }: { children: ReactNode }) {
     }
     
     const { postId, totemName, answerId } = refreshData;
-    console.log(`[DEBUG] handleRestore - calling completeLikeToggle with postId: ${postId}, totemName: ${totemName}, answerId: ${answerId}`);
-    const success = await completeLikeToggle(postId, totemName, false, answerId);
-    console.log(`[DEBUG] handleRestore - completeLikeToggle result: ${success}`);
-    setRefreshData(null);
-    return success;
+    console.log(`[DEBUG] handleRestore - calling TotemService.refreshLike directly to restore previous like`);
+    
+    // Create unique key for state update
+    const key = answerId ? `${postId}-${answerId}-${totemName}` : `${postId}-${totemName}`;
+    const currentState = likeState[key];
+    
+    // Optimistically update UI
+    setLikeState(prev => ({
+      ...prev,
+      [key]: {
+        isLiked: true,
+        count: (currentState?.count ?? 0) + 1,
+        crispness: refreshData.currentCrispness // Use the preserved crispness from the modal
+      }
+    }));
+    
+    try {
+      // Call refreshLike directly to restore the inactive like
+      const success = await TotemService.refreshLike(postId, totemName, user.uid, answerId);
+      console.log(`[DEBUG] handleRestore - refreshLike result: ${success}`);
+      
+      if (!success) {
+        // Revert on failure
+        setLikeState(prev => ({
+          ...prev,
+          [key]: currentState ?? { isLiked: false, count: 0, crispness: 0 }
+        }));
+      }
+      
+      setRefreshData(null);
+      return success;
+    } catch (error) {
+      console.error('[TotemContext] Error restoring like:', error);
+      // Revert on error
+      setLikeState(prev => ({
+        ...prev,
+        [key]: currentState ?? { isLiked: false, count: 0, crispness: 0 }
+      }));
+      setRefreshData(null);
+      return false;
+    }
   };
   
   const handleRefresh = async () => {

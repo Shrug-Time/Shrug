@@ -53,10 +53,18 @@ export default function QuestionTotemPage() {
       return {
         answer,
         totem,
-        likes: getTotemLikes(totem)
+        likes: getTotemLikes(totem),
+        crispness: totem.crispness || 0
       };
     })
-    .sort((a, b) => b.likes - a.likes);
+    .sort((a, b) => {
+      // Primary sort: highest likes first
+      if (b.likes !== a.likes) {
+        return b.likes - a.likes;
+      }
+      // Tiebreaker: highest crispness first
+      return b.crispness - a.crispness;
+    });
 
   const totalLikes = totemAnswers.reduce((sum, { likes }) => sum + likes, 0);
 

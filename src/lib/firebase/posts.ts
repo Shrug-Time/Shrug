@@ -38,14 +38,52 @@ export async function getPostsForTotem(totemName: string): Promise<Post[]> {
     ...doc.data()
   })) as Post[];
 
-  // Filter posts that have answers with the specified totem and convert timestamps
+  // Filter posts that have answers with the specified totem (case-insensitive) and convert timestamps
   return posts
     .filter(post => 
       post.answers.some(answer => 
-        answer.totems?.some(totem => totem.name === totemName)
+        answer.totems?.some(totem => totem.name.toLowerCase() === totemName.toLowerCase())
       )
     )
-    .map(post => convertTimestamps(post));
+    .map(post => convertTimestamps(post))
+    .sort((a, b) => {
+      // Sort by the highest like count for this totem across all answers in the post
+      const aMaxLikes = Math.max(...a.answers
+        .filter(answer => answer.totems?.some(t => t.name.toLowerCase() === totemName.toLowerCase()))
+        .map(answer => {
+          const totem = answer.totems?.find(t => t.name.toLowerCase() === totemName.toLowerCase());
+          return totem?.likeHistory?.filter(like => like.isActive).length || 0;
+        }));
+      
+      const bMaxLikes = Math.max(...b.answers
+        .filter(answer => answer.totems?.some(t => t.name.toLowerCase() === totemName.toLowerCase()))
+        .map(answer => {
+          const totem = answer.totems?.find(t => t.name.toLowerCase() === totemName.toLowerCase());
+          return totem?.likeHistory?.filter(like => like.isActive).length || 0;
+        }));
+      
+      // Primary sort: highest likes first
+      if (bMaxLikes !== aMaxLikes) {
+        return bMaxLikes - aMaxLikes;
+      }
+      
+      // Tiebreaker: highest crispness first
+      const aMaxCrispness = Math.max(...a.answers
+        .filter(answer => answer.totems?.some(t => t.name.toLowerCase() === totemName.toLowerCase()))
+        .map(answer => {
+          const totem = answer.totems?.find(t => t.name.toLowerCase() === totemName.toLowerCase());
+          return totem?.crispness || 0;
+        }));
+      
+      const bMaxCrispness = Math.max(...b.answers
+        .filter(answer => answer.totems?.some(t => t.name.toLowerCase() === totemName.toLowerCase()))
+        .map(answer => {
+          const totem = answer.totems?.find(t => t.name.toLowerCase() === totemName.toLowerCase());
+          return totem?.crispness || 0;
+        }));
+      
+      return bMaxCrispness - aMaxCrispness;
+    });
 }
 
 /**

@@ -89,8 +89,8 @@ export function AnswerForm({ selectedQuestion, onAnswerSubmitted }: AnswerFormPr
     }
 
     const newTotemObj: Totem = {
-      id: newTotem.trim().toLowerCase(), // Normalize to lowercase
-      name: newTotem.trim().toLowerCase(), // Normalize to lowercase
+      id: newTotem.trim(), // Keep original case for ID
+      name: newTotem.trim(), // Keep original case for display
       likeHistory: [],
       crispness: 100,
       category: { id: 'general', name: 'General', description: '', children: [], usageCount: 0 },

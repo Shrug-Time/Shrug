@@ -87,11 +87,14 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
 
     post.answers.forEach(answer => {
       answer.totems.forEach(totem => {
+        const likes = getTotemLikes(totem);
+        const crispness = getCrispness(post.id, totem.name, answer.id) || totem.crispness || 0;
+        
         answerTotemPairs.push({
           answer,
           totem,
-          likes: getTotemLikes(totem),
-          crispness: getCrispness(post.id, totem.name) || 0
+          likes,
+          crispness
         });
       });
     });
@@ -119,7 +122,15 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
     // Group totems by name (exact match)
     sortedPairs.forEach(pair => {
       if (!totemMap.has(pair.totem.name)) {
-        const totemPairs = sortedPairs.filter(p => p.totem.name === pair.totem.name);
+        const totemPairs = sortedPairs
+          .filter(p => p.totem.name === pair.totem.name)
+          .sort((a, b) => {
+            // Ensure individual answers within each totem are sorted by likes first, then crispness
+            if (b.likes !== a.likes) {
+              return b.likes - a.likes;
+            }
+            return b.crispness - a.crispness;
+          });
         totemMap.set(pair.totem.name, {
           totemName: pair.totem.name,
           answers: totemPairs,

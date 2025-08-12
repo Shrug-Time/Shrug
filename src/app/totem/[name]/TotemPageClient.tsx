@@ -41,19 +41,46 @@ export function TotemPageClient({ posts, totemName }: TotemPageClientProps) {
       acc[key] = [];
     }
     
-    // Calculate total likes for this totem in this post
+    // Calculate total active likes for this totem in this post
     const totalLikes = post.answers.reduce((sum, answer) => {
       const totem = answer.totems.find(t => t.name.toLowerCase() === totemName.toLowerCase());
-      return sum + (totem ? getTotemLikes(totem) : 0);
+      if (totem) {
+        // Count only active likes
+        const activeLikes = totem.likeHistory?.filter(like => like.isActive).length || 0;
+        return sum + activeLikes;
+      }
+      return sum;
     }, 0);
     
     acc[key].push({ post, totalLikes });
     return acc;
   }, {} as Record<string, Array<{ post: Post; totalLikes: number }>>);
 
-  // Sort posts within each question by total likes
+  // Sort posts within each question by total likes (highest first), then by crispness as tiebreaker
   Object.keys(postsByQuestion).forEach(question => {
-    postsByQuestion[question].sort((a, b) => b.totalLikes - a.totalLikes);
+    postsByQuestion[question].sort((a, b) => {
+      // Primary sort: highest likes first
+      if (b.totalLikes !== a.totalLikes) {
+        return b.totalLikes - a.totalLikes;
+      }
+      
+      // Tiebreaker: highest crispness first
+      const aCrispness = Math.max(...a.post.answers
+        .filter(answer => answer.totems?.some(t => t.name.toLowerCase() === totemName.toLowerCase()))
+        .map(answer => {
+          const totem = answer.totems?.find(t => t.name.toLowerCase() === totemName.toLowerCase());
+          return totem?.crispness || 0;
+        }));
+      
+      const bCrispness = Math.max(...b.post.answers
+        .filter(answer => answer.totems?.some(t => t.name.toLowerCase() === totemName.toLowerCase()))
+        .map(answer => {
+          const totem = answer.totems?.find(t => t.name.toLowerCase() === totemName.toLowerCase());
+          return totem?.crispness || 0;
+        }));
+      
+      return bCrispness - aCrispness;
+    });
   });
 
   return (
@@ -91,6 +118,7 @@ export function TotemPageClient({ posts, totemName }: TotemPageClientProps) {
                               <TotemButton
                                 totemName={totemName}
                                 postId={post.id}
+                                answerId={answer.id}
                               />
                               {answer.totems.length > 1 && (
                                 <span className="text-sm text-gray-500">

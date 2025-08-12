@@ -19,7 +19,8 @@ export function QuestionList({ posts }: QuestionListProps) {
           post,
           answer,
           totem,
-          likes: getTotemLikes(totem)
+          likes: getTotemLikes(totem),
+          crispness: totem.crispness || 0
         });
       });
     });
@@ -29,11 +30,19 @@ export function QuestionList({ posts }: QuestionListProps) {
     answer: any;
     totem: any;
     likes: number;
+    crispness: number;
   }>>);
 
-  // Sort posts within each totem by likes
+  // Sort posts within each totem by likes first, then crispness as tiebreaker
   Object.keys(postsByTotem).forEach(totemName => {
-    postsByTotem[totemName].sort((a, b) => b.likes - a.likes);
+    postsByTotem[totemName].sort((a, b) => {
+      // Primary sort: highest likes first
+      if (b.likes !== a.likes) {
+        return b.likes - a.likes;
+      }
+      // Tiebreaker: highest crispness first
+      return b.crispness - a.crispness;
+    });
   });
 
   return (

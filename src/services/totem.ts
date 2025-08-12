@@ -165,12 +165,18 @@ export class TotemService {
     const now = Date.now();
     const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
     
-    // Consider ALL likes (both active and inactive) for crispness calculation
-    // This ensures crispness decays over time regardless of like status
+    // Only consider ACTIVE likes for crispness calculation
+    // If no active likes, crispness should be 0
     if (!likeHistory || likeHistory.length === 0) return 0;
 
-    // Calculate individual crispness for each like based on original timestamp
-    const individualCrispnessValues = likeHistory.map(like => {
+    // Filter to only active likes
+    const activeLikes = likeHistory.filter(like => like.isActive);
+    
+    // If no active likes, crispness is 0
+    if (activeLikes.length === 0) return 0;
+
+    // Calculate individual crispness for each active like based on original timestamp
+    const individualCrispnessValues = activeLikes.map(like => {
       const timeSinceLike = now - (like.originalTimestamp || like.lastUpdatedAt);
       const likeCrispness = Math.max(0, 100 * (1 - (timeSinceLike / ONE_WEEK_MS)));
       return likeCrispness;
@@ -348,7 +354,7 @@ export class TotemService {
   }
   
   /**
-   * Refresh a previously inactive like to make it active
+   * Refresh a previously inactive like to make it active (preserves decay)
    */
   static async refreshLike(postId: string, totemName: string, firebaseUid: string, answerId?: string): Promise<boolean> {
     console.log(`[DEBUG] refreshLike called - postId: ${postId}, totemName: ${totemName}, firebaseUid: ${firebaseUid}, answerId: ${answerId}`);
@@ -390,11 +396,10 @@ export class TotemService {
 
         console.log(`[DEBUG] refreshLike - updating like at index ${inactiveLikeIndex} to active`);
         
-        // Update the like to be active and refresh the timestamp
-        const newTimestamp = Date.now();
+        // Update the like to be active but preserve the original timestamp for decay
         totem.likeHistory[inactiveLikeIndex].isActive = true;
-        totem.likeHistory[inactiveLikeIndex].originalTimestamp = newTimestamp; // Update original timestamp for crispness
-        totem.likeHistory[inactiveLikeIndex].lastUpdatedAt = newTimestamp; // Update last updated timestamp
+        // DO NOT update originalTimestamp - this preserves the decay level
+        totem.likeHistory[inactiveLikeIndex].lastUpdatedAt = Date.now(); // Only update last updated timestamp
 
         // Calculate crispness
         totem.crispness = this.calculateCrispnessFromLikeHistory(totem.likeHistory);
@@ -405,6 +410,68 @@ export class TotemService {
       });
     } catch (error) {
       console.error('Error refreshing like:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Refresh a previously inactive like to 100% crispness (resets timestamp)
+   */
+  static async refreshToFullCrispness(postId: string, totemName: string, firebaseUid: string, answerId?: string): Promise<boolean> {
+    console.log(`[DEBUG] refreshToFullCrispness called - postId: ${postId}, totemName: ${totemName}, firebaseUid: ${firebaseUid}, answerId: ${answerId}`);
+    
+    if (!db) throw new Error("Firebase is not initialized");
+    
+    const postRef = doc(db, "posts", postId);
+
+    try {
+      return runTransaction(db, async (transaction) => {
+        // Get the current post state
+        const postDoc = await transaction.get(postRef);
+        if (!postDoc.exists()) {
+          return false;
+        }
+
+        const post = postDoc.data() as Post;
+        
+        // If answerId is provided, find the specific answer, otherwise find any answer with the totem
+        const answer = answerId 
+          ? post.answers.find(a => a.id === answerId)
+          : post.answers.find(a => 
+              a.totems.some(t => t.name.toLowerCase() === totemName.toLowerCase())
+            );
+        const totem = answer?.totems.find(t => t.name.toLowerCase() === totemName.toLowerCase());
+
+        if (!totem || !totem.likeHistory) {
+          return false;
+        }
+
+        // Find existing like
+        const inactiveLikeIndex = totem.likeHistory.findIndex(
+          (like) => like.firebaseUid === firebaseUid && !like.isActive
+        );
+
+        if (inactiveLikeIndex === -1) {
+          return false; // No inactive like to refresh
+        }
+
+        console.log(`[DEBUG] refreshToFullCrispness - updating like at index ${inactiveLikeIndex} to active with 100% crispness`);
+        
+        // Update the like to be active and reset timestamp for 100% crispness
+        const newTimestamp = Date.now();
+        totem.likeHistory[inactiveLikeIndex].isActive = true;
+        totem.likeHistory[inactiveLikeIndex].originalTimestamp = newTimestamp; // Reset for 100% crispness
+        totem.likeHistory[inactiveLikeIndex].lastUpdatedAt = newTimestamp; // Update last updated timestamp
+
+        // Calculate crispness
+        totem.crispness = this.calculateCrispnessFromLikeHistory(totem.likeHistory);
+
+        // Update only the answers array
+        transaction.update(postRef, { answers: post.answers });
+        return true;
+      });
+    } catch (error) {
+      console.error('Error refreshing to full crispness:', error);
       return false;
     }
   }
