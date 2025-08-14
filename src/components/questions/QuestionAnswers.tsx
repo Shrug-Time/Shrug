@@ -88,7 +88,8 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
     post.answers.forEach(answer => {
       answer.totems.forEach(totem => {
         const likes = getTotemLikes(totem);
-        const crispness = getCrispness(post.id, totem.name, answer.id) || totem.crispness || 0;
+        const contextCrispness = getCrispness(post.id, totem.name, answer.id);
+        const crispness = contextCrispness !== undefined ? contextCrispness : (totem.crispness || 0);
         
         answerTotemPairs.push({
           answer,
@@ -110,63 +111,23 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
       return b.crispness - a.crispness;
     });
 
-    // Create simple totem structure - each totem is independent
-    const totemMap = new Map<string, {
-      totemName: string;
-      answers: typeof sortedPairs;
-      totalLikes: number;
-      averageCrispness: number;
-      children: Map<string, typeof totemMap>;
-    }>();
-
-    // Group totems by name (exact match)
-    sortedPairs.forEach(pair => {
-      if (!totemMap.has(pair.totem.name)) {
-        const totemPairs = sortedPairs
-          .filter(p => p.totem.name === pair.totem.name)
-          .sort((a, b) => {
-            // Ensure individual answers within each totem are sorted by likes first, then crispness
-            if (b.likes !== a.likes) {
-              return b.likes - a.likes;
-            }
-            return b.crispness - a.crispness;
-          });
-        totemMap.set(pair.totem.name, {
-          totemName: pair.totem.name,
-          answers: totemPairs,
-          totalLikes: totemPairs.reduce((sum, { likes }) => sum + likes, 0),
-          averageCrispness: totemPairs.length > 0 
-            ? totemPairs.reduce((sum, { crispness }) => sum + crispness, 0) / totemPairs.length 
-            : 0,
-          children: new Map()
-        });
-      }
-    });
-
-    // Second pass: build nested structure
+    // Convert to simplified result structure - each totem gets its own ranking position
     const result: Array<{
       totemName: string;
       answers: typeof sortedPairs;
       totalLikes: number;
       averageCrispness: number;
-      children: Array<typeof result>;
+      children: Array<any>;
     }> = [];
 
-    // Convert Map to array and sort by total likes
-    const sortedTotemEntries = Array.from(totemMap.entries()).sort((a, b) => {
-      if (a[1].totalLikes !== b[1].totalLikes) {
-        return b[1].totalLikes - a[1].totalLikes;
-      }
-      return b[1].averageCrispness - a[1].averageCrispness;
-    });
-
-    sortedTotemEntries.forEach(([totemName, totemData]) => {
+    // Each sorted pair becomes its own ranking item
+    sortedPairs.forEach(pair => {
       result.push({
-        totemName: totemData.totemName,
-        answers: totemData.answers,
-        totalLikes: totemData.totalLikes,
-        averageCrispness: totemData.averageCrispness,
-        children: [] // For now, we'll implement nested totems in the next iteration
+        totemName: pair.totem.name,
+        answers: [pair], // Single answer-totem pair
+        totalLikes: pair.likes,
+        averageCrispness: pair.crispness,
+        children: []
       });
     });
 
