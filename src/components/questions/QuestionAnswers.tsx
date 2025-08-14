@@ -14,7 +14,7 @@ import { AuthModal } from '@/components/auth/AuthModal';
 import { getAnswerUrl, getPostUrl, getProfileUrl } from '@/utils/routes';
 import { ReportButton } from '@/components/reports/ReportButton';
 import { useTotem } from '@/contexts/TotemContext';
-import { FormattedText } from '@/utils/textFormatting';
+import { FormattedText, truncateAnswerPreview } from '@/utils/textFormatting';
 
 // Helper function to safely convert various date formats to a Date object
 const toDate = (dateField: any): Date => {
@@ -178,7 +178,7 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
           const answersToShow = isExpanded ? answers.slice(0, 5) : [answers[0]];
 
           return (
-            <div key={totemName} className="relative flex items-center gap-4 mb-6">
+            <div key={`${totemName}-${index}-${answers[0]?.answer.id || index}`} className="relative flex items-center gap-4 mb-6">
               {/* Number Circle */}
               <div className="flex flex-col items-center">
                 <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
@@ -212,7 +212,7 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
                         title="View full answer"
                       >
                         <div className="text-gray-600 mb-3">
-                          <FormattedText text={answerData.answer.text} />
+                          <FormattedText text={truncateAnswerPreview(answerData.answer.text)} disableLinks={true} />
                         </div>
                       </Link>
                       

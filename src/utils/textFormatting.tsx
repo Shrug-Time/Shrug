@@ -131,16 +131,55 @@ export function truncateText(text: string, maxLength: number): string {
 }
 
 /**
+ * Smart truncation for answer previews - shows first paragraph up to word limit
+ * @param text The text to truncate
+ * @param maxWords Maximum number of words (default: 25)
+ * @param firstParagraphMaxWords Maximum words for first paragraph to show in full (default: 30)
+ * @returns Truncated text with ellipsis if needed
+ */
+export function truncateAnswerPreview(text: string, maxWords: number = 25, firstParagraphMaxWords: number = 30): string {
+  if (!text) return '';
+  
+  // Get first paragraph
+  const firstParagraph = text.split('\n')[0] || '';
+  const words = firstParagraph.split(/\s+/).filter(word => word.length > 0);
+  
+  // If first paragraph is within the comfortable limit, show it all
+  if (words.length <= firstParagraphMaxWords) {
+    return firstParagraph;
+  }
+  
+  // Otherwise, truncate to maxWords with ellipsis
+  const truncatedWords = words.slice(0, maxWords);
+  return truncatedWords.join(' ') + '...';
+}
+
+/**
  * Component for rendering formatted text with links
  */
 interface FormattedTextProps {
   text: string;
   className?: string;
   maxLength?: number;
+  disableLinks?: boolean; // Option to disable link creation when inside other links
 }
 
-export function FormattedText({ text, className = '', maxLength }: FormattedTextProps) {
+export function FormattedText({ text, className = '', maxLength, disableLinks = false }: FormattedTextProps) {
   const processedText = maxLength ? truncateText(text, maxLength) : text;
+  
+  if (disableLinks) {
+    // Just return text with line breaks, no links
+    return (
+      <span className={className}>
+        {processedText.split('\n').map((line, index, lines) => (
+          <React.Fragment key={index}>
+            {line}
+            {index < lines.length - 1 && <br />}
+          </React.Fragment>
+        ))}
+      </span>
+    );
+  }
   
   return (
     <span className={className}>

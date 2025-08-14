@@ -20,7 +20,7 @@ import Image from 'next/image';
 import { TotemSelector } from '@/components/totem/TotemSelector';
 import { Button } from '@/components/ui/button';
 import { ReportButton } from '@/components/reports/ReportButton';
-import { FormattedText } from '@/utils/textFormatting';
+import { FormattedText, truncateAnswerPreview } from '@/utils/textFormatting';
 
 // Helper function to safely convert various date formats to a Date object
 const toDate = (dateField: any): Date => {
@@ -200,7 +200,7 @@ export function QuestionList({
       : null;
     
     const answerToShow = userAnswer || (post.answers && post.answers.length > 0 ? getBestAnswer(post)?.answer : null);
-    const firstParagraph = answerToShow?.text?.split('\n')[0] || '';
+    const previewText = answerToShow?.text ? truncateAnswerPreview(answerToShow.text) : '';
     
     const topTotem = answerToShow?.totems?.reduce((top, current) => {
       const topLikes = getTotemLikes(top);
@@ -234,14 +234,14 @@ export function QuestionList({
           <Link href={getPostUrl(post.id)} className="block hover:bg-gray-50 rounded-lg transition-colors">
             <h2 className="text-lg font-semibold mb-2 text-gray-900 hover:text-blue-600">{post.question}</h2>
           </Link>
-          {firstParagraph && answerToShow && (
+          {previewText && answerToShow && (
             answerToShow.id ? (
               <Link 
                 href={getAnswerUrl(post.id, answerToShow.id)}
                 className="block hover:bg-gray-50 rounded-lg transition-colors p-2"
               >
                 <div className="text-gray-600 text-sm line-clamp-2">
-                  <FormattedText text={firstParagraph} />
+                  <FormattedText text={previewText} disableLinks={true} />
                 </div>
               </Link>
             ) : (
@@ -250,7 +250,7 @@ export function QuestionList({
                 className="block hover:bg-gray-50 rounded-lg transition-colors p-2"
               >
                 <div className="text-gray-600 text-sm line-clamp-2">
-                  <FormattedText text={firstParagraph} />
+                  <FormattedText text={previewText} disableLinks={true} />
                 </div>
               </Link>
             )

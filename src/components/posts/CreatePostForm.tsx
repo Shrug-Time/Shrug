@@ -20,8 +20,6 @@ export function CreatePostForm({
 }: CreatePostFormProps) {
   const { isVerified, verificationStatus, sendVerificationEmail, refreshVerificationStatus } = useAuth();
   const [question, setQuestion] = useState('');
-  const [categories, setCategories] = useState<string[]>([]);
-  const [newCategory, setNewCategory] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSendingVerification, setIsSendingVerification] = useState(false);
@@ -52,7 +50,6 @@ export function CreatePostForm({
         firebaseUid,
         username,
         name,
-        categories,
         createdAt: now,
         updatedAt: now,
         lastInteraction: now,
@@ -72,17 +69,6 @@ export function CreatePostForm({
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleAddCategory = () => {
-    if (newCategory.trim() && !categories.includes(newCategory.trim())) {
-      setCategories([...categories, newCategory.trim()]);
-      setNewCategory('');
-    }
-  };
-
-  const handleRemoveCategory = (category: string) => {
-    setCategories(categories.filter(c => c !== category));
   };
 
   const handleSendVerification = async () => {
@@ -176,49 +162,6 @@ export function CreatePostForm({
             placeholder="What would you like to ask?"
             required
           />
-        </div>
-        
-        <div className="mb-6">
-          <label htmlFor="categories" className="block text-gray-700 mb-2">
-            Categories (optional)
-          </label>
-          <div className="flex gap-2 mb-2">
-            <input
-              type="text"
-              id="categories"
-              value={newCategory}
-              onChange={(e) => setNewCategory(e.target.value)}
-              className="flex-1 p-3 border rounded-lg"
-              placeholder="Add a category"
-            />
-            <button
-              type="button"
-              onClick={handleAddCategory}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg"
-            >
-              Add
-            </button>
-          </div>
-          
-          {categories.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-2">
-              {categories.map((category) => (
-                <span
-                  key={category}
-                  className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full flex items-center"
-                >
-                  {category}
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveCategory(category)}
-                    className="ml-2 text-blue-500 hover:text-blue-700"
-                  >
-                    &times;
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
         </div>
         
         {error && (
