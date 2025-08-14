@@ -20,6 +20,7 @@ import Image from 'next/image';
 import { TotemSelector } from '@/components/totem/TotemSelector';
 import { Button } from '@/components/ui/button';
 import { ReportButton } from '@/components/reports/ReportButton';
+import { FormattedText } from '@/utils/textFormatting';
 
 // Helper function to safely convert various date formats to a Date object
 const toDate = (dateField: any): Date => {
@@ -239,14 +240,18 @@ export function QuestionList({
                 href={getAnswerUrl(post.id, answerToShow.id)}
                 className="block hover:bg-gray-50 rounded-lg transition-colors p-2"
               >
-                <p className="text-gray-600 text-sm line-clamp-2">{firstParagraph}</p>
+                <div className="text-gray-600 text-sm line-clamp-2">
+                  <FormattedText text={firstParagraph} />
+                </div>
               </Link>
             ) : (
               <Link 
                 href={getPostUrl(post.id)}
                 className="block hover:bg-gray-50 rounded-lg transition-colors p-2"
               >
-                <p className="text-gray-600 text-sm line-clamp-2">{firstParagraph}</p>
+                <div className="text-gray-600 text-sm line-clamp-2">
+                  <FormattedText text={firstParagraph} />
+                </div>
               </Link>
             )
           )}

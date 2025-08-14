@@ -8,6 +8,7 @@ import { TotemButton } from '@/components/totem/TotemButton';
 import { getTotemLikes, getUserDisplayName } from '@/utils/componentHelpers';
 import Link from 'next/link';
 import { getPostUrl, getProfileUrl } from '@/utils/routes';
+import { FormattedText } from '@/utils/textFormatting';
 
 // Helper function to safely convert various date formats to a Date object
 const toDate = (dateField: any): Date => {
@@ -60,7 +61,7 @@ export default function AnswerPage() {
 
       <div className="bg-white rounded-xl shadow p-4">
         <div className="text-gray-600 mb-4">
-          {answer.text}
+          <FormattedText text={answer.text} />
         </div>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">

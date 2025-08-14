@@ -2,6 +2,7 @@ import { Post } from '@/types/models';
 import { formatDistanceToNow } from 'date-fns';
 import { TotemButton } from '@/components/totem/TotemButton';
 import { getTotemLikes } from '@/utils/componentHelpers';
+import { FormattedText } from '@/utils/textFormatting';
 
 interface QuestionListProps {
   posts: Post[];
@@ -62,7 +63,7 @@ export function QuestionList({ posts }: QuestionListProps) {
           {totemPosts[0] && (
             <div className="bg-white rounded-xl shadow p-4">
               <div className="text-gray-600 mb-4">
-                {totemPosts[0].answer.text}
+                <FormattedText text={totemPosts[0].answer.text} />
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">

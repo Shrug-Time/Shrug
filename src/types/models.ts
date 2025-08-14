@@ -33,6 +33,7 @@ export interface Answer {
   lastInteraction?: number;
   isVerified?: boolean;
   isPremium?: boolean;
+  imageUrls?: string[];
 }
 
 export interface Post {

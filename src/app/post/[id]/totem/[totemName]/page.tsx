@@ -9,6 +9,7 @@ import { getTotemLikes, getUserDisplayName } from '@/utils/componentHelpers';
 import Link from 'next/link';
 import { TotemButton } from '@/components/totem/TotemButton';
 import type { Post, Answer, Totem } from '@/types/models';
+import { FormattedText } from '@/utils/textFormatting';
 
 // Helper function to safely convert various date formats to a Date object
 const toDate = (dateField: any): Date => {
@@ -102,7 +103,7 @@ export default function QuestionTotemPage() {
             {/* Answer Content */}
             <div className="flex-1 bg-white rounded-xl shadow p-4">
               <div className="text-gray-600 mb-4">
-                {answer.text}
+                <FormattedText text={answer.text} />
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">

@@ -14,6 +14,7 @@ import { AuthModal } from '@/components/auth/AuthModal';
 import { getAnswerUrl, getPostUrl, getProfileUrl } from '@/utils/routes';
 import { ReportButton } from '@/components/reports/ReportButton';
 import { useTotem } from '@/contexts/TotemContext';
+import { FormattedText } from '@/utils/textFormatting';
 
 // Helper function to safely convert various date formats to a Date object
 const toDate = (dateField: any): Date => {
@@ -211,7 +212,7 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
                         title="View full answer"
                       >
                         <div className="text-gray-600 mb-3">
-                          {answerData.answer.text}
+                          <FormattedText text={answerData.answer.text} />
                         </div>
                       </Link>
                       

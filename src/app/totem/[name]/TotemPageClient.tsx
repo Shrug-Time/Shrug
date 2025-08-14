@@ -9,6 +9,7 @@ import { getTotemLikes, getUserDisplayName } from '@/utils/componentHelpers';
 import { formatDistanceToNow } from 'date-fns';
 import { getProfileUrl } from '@/utils/routes';
 import Link from 'next/link';
+import { FormattedText } from '@/utils/textFormatting';
 
 // Helper function to safely convert various date formats to a Date object
 const getDate = (timestamp: any): Date => {
@@ -138,7 +139,7 @@ export function TotemPageClient({ posts, totemName }: TotemPageClientProps) {
                       {/* Answer Content */}
                       <div className="flex-1 bg-white rounded-xl shadow p-4">
                         <div className="text-gray-600 mb-4">
-                          {answerData.answer.text}
+                          <FormattedText text={answerData.answer.text} />
                         </div>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-2">
