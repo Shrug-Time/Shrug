@@ -1,9 +1,14 @@
 import React from 'react';
 
 /**
- * URL regex pattern to match various URL formats
+ * URL regex pattern to match various URL formats:
+ * - Full URLs: https://example.com, http://example.com
+ * - Domain names: example.com, subdomain.example.com
+ * - With www: www.example.com  
+ * - All TLDs: .com, .org, .gov, .edu, .net, .uk, .tech, etc.
+ * - With paths: example.com/path/to/page
  */
-const URL_REGEX = /(https?:\/\/[^\s<>"{}|\\^`[\]]+)/gi;
+const URL_REGEX = /(https?:\/\/[^\s<>"{}|\\^`[\]]+|(?:www\.)?[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}(?:\/[^\s]*)?)/gi;
 
 /**
  * Email regex pattern
@@ -25,10 +30,16 @@ export function linkifyText(text: string): React.ReactNode {
     // Check if this part is a URL
     if (URL_REGEX.test(part)) {
       URL_REGEX.lastIndex = 0; // Reset regex for next use
+      
+      // Add protocol if missing
+      const href = part.startsWith('http://') || part.startsWith('https://') 
+        ? part 
+        : `https://${part}`;
+      
       return (
         <a
           key={index}
-          href={part}
+          href={href}
           target="_blank"
           rel="noopener noreferrer"
           className="text-blue-600 hover:text-blue-800 underline break-all"
@@ -136,4 +147,30 @@ export function FormattedText({ text, className = '', maxLength }: FormattedText
       {formatText(processedText)}
     </span>
   );
+}
+
+/**
+ * Test function to check if URL regex works with various formats
+ * (for debugging - remove in production)
+ */
+export function testUrlRegex() {
+  const testUrls = [
+    'x.com',
+    'example.org', 
+    'government.gov',
+    'university.edu',
+    'site.net',
+    'www.example.com',
+    'subdomain.example.co.uk',
+    'https://example.com',
+    'http://test.tech',
+    'blog.site/path/to/page'
+  ];
+  
+  console.log('URL Regex Test Results:');
+  testUrls.forEach(url => {
+    const matches = URL_REGEX.test(url);
+    URL_REGEX.lastIndex = 0; // Reset for next test
+    console.log(`${url} → ${matches ? '✅ Match' : '❌ No match'}`);
+  });
 }
