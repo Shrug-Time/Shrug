@@ -27,15 +27,15 @@ export function MainPageSidebar({ isExpanded, onToggle }: MainPageSidebarProps) 
       try {
         // Get user's recent totems from their profile
         const userTotems = profile.totems?.recent || [];
-        setRecentTotems(userTotems.slice(0, 10)); // Show last 10
+        setRecentTotems(userTotems.slice(0, 5)); // Show last 5
         
         // Load real popular totems instead of placeholder data
-        const popularTotemsData = await TotemService.getPopularTotems(10);
+        const popularTotemsData = await TotemService.getPopularTotems(5);
         setPopularTotems(popularTotemsData.map(totem => totem.name));
       } catch (error) {
         console.error('❌ Error loading totems:', error);
-        // Fallback to placeholder data if there's an error
-        setPopularTotems(['Fishing', 'Flies', 'Streams', 'Gear', 'Techniques']);
+        // Fallback to placeholder data if there's an error (limited to 5)
+        setPopularTotems(['Fishing', 'Flies', 'Streams', 'Gear', 'Techniques'].slice(0, 5));
       } finally {
         setIsLoading(false);
       }
