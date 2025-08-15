@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Post, ProfileSection } from '@/types/models';
+import { useDeleteAnswer } from '@/hooks/useDeleteAnswer';
 
 interface FeaturedAnswersSectionProps {
   section: ProfileSection;
@@ -21,6 +22,7 @@ export const FeaturedAnswersSection = ({
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedAnswers, setSelectedAnswers] = useState<Post[]>([]);
+  const { deleteAnswer, isDeleting } = useDeleteAnswer();
   
   // Get posts whose IDs are in the section's contentIds
   const displayPosts = posts.filter(post => 
@@ -67,6 +69,18 @@ export const FeaturedAnswersSection = ({
       setIsLoading(false);
     }
   };
+
+  const handleDeleteAnswer = async (post: Post, answerId: string) => {
+    if (!confirm('Are you sure you want to delete this answer? This action cannot be undone.')) {
+      return;
+    }
+
+    const success = await deleteAnswer(post.id, answerId);
+    if (success) {
+      // Refresh the section data
+      onSectionUpdate();
+    }
+  };
   
   return (
     <div className="mb-10">
@@ -105,12 +119,26 @@ export const FeaturedAnswersSection = ({
           {displayPosts.length > 0 ? (
             displayPosts.map(post => (
               <div key={post.id} className="p-4 border border-gray-200 rounded-md">
-                <h3 className="font-medium">{post.question || 'Answer Title'}</h3>
-                <p className="text-gray-600 text-sm mt-1">
-                  {post.answers && post.answers[0]?.text 
-                    ? post.answers[0].text.substring(0, 150) + '...'
-                    : 'No answer text available'}
-                </p>
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <h3 className="font-medium">{post.question || 'Answer Title'}</h3>
+                    <p className="text-gray-600 text-sm mt-1">
+                      {post.answers && post.answers[0]?.text 
+                        ? post.answers[0].text.substring(0, 150) + '...'
+                        : 'No answer text available'}
+                    </p>
+                  </div>
+                  {isOwner && post.answers && post.answers[0] && (
+                    <button
+                      onClick={() => handleDeleteAnswer(post, post.answers[0].id)}
+                      disabled={isDeleting}
+                      className="ml-4 text-red-600 hover:text-red-800 disabled:opacity-50"
+                      title="Delete answer"
+                    >
+                      {isDeleting ? '...' : 'Delete'}
+                    </button>
+                  )}
+                </div>
               </div>
             ))
           ) : (

@@ -21,6 +21,7 @@ import { TotemSelector } from '@/components/totem/TotemSelector';
 import { Button } from '@/components/ui/button';
 import { ReportButton } from '@/components/reports/ReportButton';
 import { FormattedText, truncateAnswerPreview } from '@/utils/textFormatting';
+import { useDeleteAnswer } from '@/hooks/useDeleteAnswer';
 
 // Helper function to safely convert various date formats to a Date object
 const toDate = (dateField: any): Date => {
@@ -48,6 +49,7 @@ interface QuestionListProps {
   showAllTotems?: boolean;
   showUserAnswers?: boolean;
   sectionId?: string;
+  showDeleteButtons?: boolean;
 }
 
 export function QuestionList({
@@ -58,7 +60,8 @@ export function QuestionList({
   onLoadMore,
   showAllTotems = false,
   showUserAnswers = false,
-  sectionId = 'default'
+  sectionId = 'default',
+  showDeleteButtons = false
 }: QuestionListProps) {
   const router = useRouter();
   const { user } = useAuth();
@@ -67,6 +70,7 @@ export function QuestionList({
   const [selectedQuestion, setSelectedQuestion] = useState<Post | null>(null);
   const queryClient = useQueryClient();
   const { isAuthModalOpen, setIsAuthModalOpen, handleAuthRequired } = useAuthModal();
+  const { deleteAnswer, isDeleting } = useDeleteAnswer();
 
   // Load initial state of likes for all posts
   useEffect(() => {
@@ -194,6 +198,24 @@ export function QuestionList({
     });
   };
 
+  const handleDeleteAnswer = async (post: Post, answerId: string) => {
+    if (!confirm('Are you sure you want to delete this answer? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const success = await deleteAnswer(post.id, answerId);
+      if (success) {
+        // Invalidate queries to refresh the data
+        queryClient.invalidateQueries({ queryKey: ['posts'] });
+        queryClient.invalidateQueries({ queryKey: ['userPosts'] });
+        queryClient.invalidateQueries({ queryKey: ['userAnswers'] });
+      }
+    } catch (error) {
+      console.error('Error deleting answer:', error);
+    }
+  };
+
   const renderQuestion = useCallback((post: Post, index: number) => {
     const userAnswer = showUserAnswers && user 
       ? post.answers.find(answer => answer.firebaseUid === user.uid)
@@ -207,6 +229,7 @@ export function QuestionList({
       const currentLikes = getTotemLikes(current);
       return currentLikes > topLikes ? current : top;
     }, answerToShow?.totems?.[0]);
+    
     
     // Use index in the key to ensure uniqueness even when the same post appears in different sections
     const uniqueKey = `${sectionId}-${post.id}-${index}`;
@@ -257,17 +280,32 @@ export function QuestionList({
           )}
         </div>
         <div className="flex items-center justify-between mt-3">
-          {topTotem && answerToShow && renderTotemButton(post.id, topTotem.name, answerToShow.id)}
-          <button
-            onClick={() => handleAnswerClick(post)}
-            className="inline-flex items-center justify-center w-8 h-8 rounded-full text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            +
-          </button>
+          <div className="flex items-center space-x-2">
+            {topTotem && answerToShow && renderTotemButton(post.id, topTotem.name, answerToShow.id)}
+          </div>
+          <div className="flex items-center space-x-2">
+            {/* Show delete button for user's own answers only on profile pages */}
+            {showDeleteButtons && answerToShow && user && answerToShow.firebaseUid === user.uid && answerToShow.id && (
+              <button
+                onClick={() => handleDeleteAnswer(post, answerToShow.id)}
+                disabled={isDeleting}
+                className="inline-flex items-center justify-center w-8 h-8 rounded-full text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Delete answer"
+              >
+                {isDeleting ? '...' : '×'}
+              </button>
+            )}
+            <button
+              onClick={() => handleAnswerClick(post)}
+              className="inline-flex items-center justify-center w-8 h-8 rounded-full text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              +
+            </button>
+          </div>
         </div>
       </div>
     );
-  }, [getTotemLikes, renderTotemButton, showUserAnswers, user, handleAuthRequired, sectionId]);
+  }, [getTotemLikes, renderTotemButton, showUserAnswers, user, handleAuthRequired, sectionId, handleDeleteAnswer, isDeleting]);
 
   // Calculate total likes for each post
   const postsWithLikes = posts.map(post => ({

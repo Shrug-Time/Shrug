@@ -636,6 +636,7 @@ export default function ProfilePage() {
                   onLoadMore={() => {}}
                   showAllTotems={false}
                   sectionId="questions-tab"
+                  showDeleteButtons={true}
                 />
               ) : (
                 <p className="text-gray-600">No questions yet</p>
@@ -659,6 +660,7 @@ export default function ProfilePage() {
                   showAllTotems={false}
                   showUserAnswers={true}
                   sectionId="answers-tab"
+                  showDeleteButtons={true}
                 />
               ) : (
                 <p className="text-gray-600">No answers yet</p>
