@@ -10,7 +10,7 @@ import type { Post, Answer } from '@/types/models';
 /**
  * User identifier types used in the application
  */
-export type UserIdentifierType = 'firebaseUid' | 'username';
+export type UserIdentifierType = 'firebaseUid' | 'username' | 'legacy';
 
 /**
  * Detects the type of user identifier provided
@@ -23,13 +23,18 @@ export function detectUserIdentifierType(identifier: string): UserIdentifierType
     throw new Error('Invalid user identifier: empty value');
   }
   
-  // Firebase UIDs are typically 28 characters
-  // while usernames are typically shorter and alphanumeric
+  // Firebase UIDs are typically 28 characters long and alphanumeric
   if (identifier.length >= 20 && /^[A-Za-z0-9]{20,}$/.test(identifier)) {
     return 'firebaseUid';
-  } else {
+  }
+  
+  // Usernames are typically 3-15 characters, alphanumeric with underscores/hyphens
+  if (/^[a-zA-Z0-9_-]{3,15}$/.test(identifier)) {
     return 'username';
   }
+  
+  // Everything else is legacy (contains special chars, wrong length, etc)
+  return 'legacy';
 }
 
 /**
@@ -105,4 +110,24 @@ export function isFirebaseUid(id: string): boolean {
 export function isUsername(id: string): boolean {
   // Usernames are typically shorter and may contain underscores and hyphens
   return /^[a-z0-9_-]{3,15}$/i.test(id);
+}
+
+/**
+ * Extracts a specific identifier from a user object (handles both legacy and standard formats)
+ */
+export function extractUserIdentifier(user: any, field: 'firebaseUid' | 'username'): string | null {
+  if (!user) return null;
+  
+  if (field === 'firebaseUid') {
+    return user.firebaseUid || user.uid || user.id || user.userId || null;
+  } else {
+    return user.username || user.userID || user.name || null;
+  }
+}
+
+/**
+ * Normalizes user profile IDs for consistency
+ */
+export function normalizeUserProfileIds(profile: any): any {
+  return profile;
 } 

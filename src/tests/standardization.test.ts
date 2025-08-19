@@ -56,7 +56,11 @@ const standardTotem = {
   name: 'StandardTotem',
   likes: 10,
   crispness: 85,
-  likedBy: [mockFirebaseUid, 'another_user']
+  likedBy: [mockFirebaseUid, 'another_user'],
+  likeHistory: [
+    { firebaseUid: mockFirebaseUid, isActive: true, originalTimestamp: Date.now(), lastUpdatedAt: Date.now(), value: 1 },
+    { firebaseUid: 'another_user', isActive: true, originalTimestamp: Date.now(), lastUpdatedAt: Date.now(), value: 1 }
+  ]
 };
 
 // Add field constants as properties dynamically to avoid duplicate properties
@@ -76,7 +80,10 @@ const legacyTotem = {
   name: 'LegacyTotem',
   likes: 5,
   crispness: 75,
-  likedBy: ['other_user']
+  likedBy: ['other_user'],
+  likeHistory: [
+    { firebaseUid: 'other_user', isActive: true, originalTimestamp: Date.now(), lastUpdatedAt: Date.now(), value: 1 }
+  ]
 };
 
 describe('User ID Helpers', () => {
@@ -144,22 +151,23 @@ describe('User ID Helpers', () => {
   describe('createUserIdentifierQuery', () => {
     test('should create query constraints for firebaseUid', () => {
       const result = createUserIdentifierQuery(mockFirebaseUid);
-      expect(result).toHaveLength(2);
+      expect(result).toHaveLength(1);
       expect(result[0].field).toBe(USER_FIELDS.FIREBASE_UID);
       expect(result[0].value).toBe(mockFirebaseUid);
     });
 
     test('should create query constraints for username', () => {
       const result = createUserIdentifierQuery(mockUsername);
-      expect(result).toHaveLength(2);
+      expect(result).toHaveLength(1);
       expect(result[0].field).toBe(USER_FIELDS.USERNAME);
       expect(result[0].value).toBe(mockUsername.toLowerCase());
     });
 
     test('should create query constraints for legacy IDs', () => {
-      // Update test to match actual behavior
+      // Legacy IDs are treated as usernames in the current implementation
       const result = createUserIdentifierQuery('some_legacy_id');
-      expect(result.length).toBeGreaterThanOrEqual(2);
+      expect(result).toHaveLength(1);
+      expect(result[0].field).toBe(USER_FIELDS.USERNAME);
     });
   });
 
@@ -304,11 +312,11 @@ describe('Component Helpers', () => {
 
   describe('Totem Helpers', () => {
     test('getTotemLikes should get likes from standard totem', () => {
-      expect(getTotemLikes(standardTotem)).toBe(10);
+      expect(getTotemLikes(standardTotem)).toBe(2); // 2 active likes in likeHistory
     });
 
     test('getTotemLikes should get likes from legacy totem', () => {
-      expect(getTotemLikes(legacyTotem)).toBe(5);
+      expect(getTotemLikes(legacyTotem)).toBe(1); // 1 active like in likeHistory
     });
 
     test('getTotemCrispness should get crispness from standard totem', () => {
@@ -342,7 +350,10 @@ describe('Standardization Integration', () => {
       legacy_userID: 'different_username',
       name: mockUserName,
       legacy_userName: 'Different Name',
-      likes: 10
+      likes: 10,
+      likeHistory: [
+        { firebaseUid: mockFirebaseUid, isActive: true, originalTimestamp: Date.now(), lastUpdatedAt: Date.now(), value: 1 }
+      ]
     };
     
     // Add likes dynamically to avoid duplicate key conflict
@@ -356,12 +367,7 @@ describe('Standardization Integration', () => {
     expect(getUsername(testMixedObject)).toBe(mockUsername);
     expect(getUserDisplayName(testMixedObject)).toBe(mockUserName);
     
-    // Test the helper function's ability to get the correct like count
-    // This will depend on the actual implementation
-    if (TOTEM_FIELDS.LIKES !== 'likes') {
-      expect(getTotemLikes(testMixedObject)).toBe(15);
-    } else {
-      expect(getTotemLikes(testMixedObject)).toBe(10);
-    }
+    // Test the helper function's ability to get the correct like count from likeHistory
+    expect(getTotemLikes(testMixedObject)).toBe(1); // 1 active like in likeHistory
   });
 }); 

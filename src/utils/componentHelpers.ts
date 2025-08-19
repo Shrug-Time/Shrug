@@ -22,8 +22,8 @@ export function getUserDisplayName(obj: any): string {
   // If username is available, use that
   if (obj[USER_FIELDS.USERNAME]) return obj[USER_FIELDS.USERNAME];
   
-  // Direct property access
-  return obj.name || obj.username || 'Anonymous';
+  // Direct property access (including legacy fields)
+  return obj.name || obj.username || obj.userName || 'Anonymous';
 }
 
 /**
@@ -38,8 +38,8 @@ export function getFirebaseUid(obj: any): string {
   // Try standardized fields
   if (obj[USER_FIELDS.FIREBASE_UID]) return obj[USER_FIELDS.FIREBASE_UID];
   
-  // Direct property access
-  return obj.firebaseUid || '';
+  // Direct property access (including legacy fields)
+  return obj.firebaseUid || obj.userId || obj.uid || '';
 }
 
 /**
@@ -54,8 +54,8 @@ export function getUsername(obj: any): string {
   // Try standardized fields
   if (obj[USER_FIELDS.USERNAME]) return obj[USER_FIELDS.USERNAME];
   
-  // Direct property access
-  return obj.username || '';
+  // Direct property access (including legacy fields)
+  return obj.username || obj.userID || '';
 }
 
 /**

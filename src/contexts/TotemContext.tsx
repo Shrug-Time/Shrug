@@ -170,6 +170,13 @@ export function TotemProvider({ children }: { children: ReactNode }) {
       console.log(`[TotemState] Loading state for ${totemName} (${postId}) answerId: ${answerId}`);
       console.log(`[TotemState] Answer: ${answer?.id}, Totem: ${totem.name}, LikeHistory: ${totem.likeHistory?.length || 0} likes, stored crispness: ${totem.crispness || 0}`);
       
+      // Debug: Log the actual like history details
+      if (totem.likeHistory && totem.likeHistory.length > 0) {
+        totem.likeHistory.forEach((like, index) => {
+          console.log(`[TotemState] Like ${index}: firebaseUid=${like.firebaseUid}, isActive=${like.isActive}, currentUser=${user.uid}`);
+        });
+      }
+      
       // Determine if the current user has liked this totem
       // This only checks active likes for UI purposes
       const isLiked = totem.likeHistory?.some(

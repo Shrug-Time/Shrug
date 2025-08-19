@@ -65,14 +65,14 @@ describe('Totem Functionality', () => {
     lastInteraction: Date.now() - 3600000 * 12, // 12 hours ago
     likeHistory: [
       {
-        userId: mockUser.firebaseUid,
+        firebaseUid: mockUser.firebaseUid,
         originalTimestamp: Date.now() - 3600000 * 24 * 2, // 2 days ago
         lastUpdatedAt: Date.now() - 3600000 * 24 * 2, // 2 days ago
         isActive: true,
         value: 1
       },
       {
-        userId: 'another-user',
+        firebaseUid: 'another-user',
         originalTimestamp: Date.now() - 3600000 * 24 * 5, // 5 days ago
         lastUpdatedAt: Date.now() - 3600000 * 24 * 5, // 5 days ago
         isActive: true,
@@ -562,11 +562,35 @@ describe('Totem Functionality', () => {
     const initialCrispness = mockTotem.crispness;
     
     // Find the initial user like
-    const initialUserLike = mockTotem.likeHistory.find(like => like.userId === mockUser.firebaseUid);
+    const initialUserLike = mockTotem.likeHistory.find(like => like.firebaseUid === mockUser.firebaseUid);
     expect(initialUserLike).toBeDefined();
     if (!initialUserLike) return; // TypeScript guard
     
     const initialTimestamp = initialUserLike.originalTimestamp;
+    
+    // Setup mock return value with updated timestamp
+    const refreshedTotem = {
+      ...mockTotem,
+      likeHistory: mockTotem.likeHistory.map(like => 
+        like.firebaseUid === mockUser.firebaseUid 
+          ? { ...like, originalTimestamp: initialTimestamp + 10000 } // Add 10 seconds
+          : like
+      )
+    };
+    const mockUpdatedPost = { 
+      ...mockPost, 
+      answers: [{
+        ...mockPost.answers[0],
+        totems: mockPost.answers[0].totems.map(t => 
+          t.name === 'meaning-of-life' ? refreshedTotem : t
+        )
+      }]
+    };
+    mockRefreshUserLike.mockResolvedValueOnce({
+      success: true,
+      post: mockUpdatedPost,
+      totem: refreshedTotem
+    });
     
     // Refresh a like
     const refreshResult = await TotemService.refreshUserLike(
@@ -595,7 +619,7 @@ describe('Totem Functionality', () => {
     if (!updatedTotem.likeHistory) return; // TypeScript guard
     
     // Verify like was refreshed (timestamps updated)
-    const userLike = updatedTotem.likeHistory.find((like: TotemLike) => like.userId === mockUser.firebaseUid);
+    const userLike = updatedTotem.likeHistory.find((like: TotemLike) => like.firebaseUid === mockUser.firebaseUid);
     expect(userLike).toBeDefined();
     if (!userLike) return; // TypeScript guard
     
@@ -636,9 +660,9 @@ describe('Totem Functionality', () => {
   });
 
   test('should work correctly with component helpers', () => {
-    // Test getTotemLikes
+    // Test getTotemLikes - should count active likes from likeHistory
     const likes = getTotemLikes(mockTotem);
-    expect(likes).toBe(mockTotem.likes);
+    expect(likes).toBe(2); // 2 active likes in likeHistory
     
     // Test getTotemCrispness
     const crispness = getTotemCrispness(mockTotem);

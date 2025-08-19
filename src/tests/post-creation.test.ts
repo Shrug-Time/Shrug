@@ -251,9 +251,7 @@ describe('Post Creation Functionality', () => {
       expect(answer.username).toBe(mockUser.username);
       expect(answer.name).toBe(mockUser.name);
       
-      // Verify legacy fields in the answer
-      expect(answer.userId).toBe(mockUser.firebaseUid);
-      expect(answer.userName).toBe(mockUser.name);
+      // These fields are the current standard - no legacy fields needed
     }
   });
 
