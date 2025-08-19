@@ -50,6 +50,7 @@ interface QuestionListProps {
   showUserAnswers?: boolean;
   sectionId?: string;
   showDeleteButtons?: boolean;
+  sortByCrispness?: boolean;
 }
 
 export function QuestionList({
@@ -61,11 +62,12 @@ export function QuestionList({
   showAllTotems = false,
   showUserAnswers = false,
   sectionId = 'default',
-  showDeleteButtons = false
+  showDeleteButtons = false,
+  sortByCrispness = false
 }: QuestionListProps) {
   const router = useRouter();
   const { user } = useAuth();
-  const { toggleLike, loadPostTotems } = useTotem();
+  const { toggleLike, loadPostTotems, getCrispness } = useTotem();
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState<Post | null>(null);
   const queryClient = useQueryClient();
@@ -119,37 +121,64 @@ export function QuestionList({
     }
   }, [user]);
 
+  const getMaxCrispness = useCallback((post: Post): number => {
+    if (!post.answers || post.answers.length === 0) return 0;
+    
+    let maxCrispness = 0;
+    post.answers.forEach(answer => {
+      answer.totems.forEach(totem => {
+        // Use live crispness from TotemContext, fallback to stored value
+        const contextCrispness = getCrispness(post.id, totem.name, answer.id);
+        const crispness = contextCrispness !== undefined ? contextCrispness : (totem.crispness || 0);
+        maxCrispness = Math.max(maxCrispness, crispness);
+      });
+    });
+    
+    return maxCrispness;
+  }, [getCrispness]);
+
   const getBestAnswer = useCallback((post: Post) => {
     if (!post.answers || post.answers.length === 0) return null;
     
-    // Find the answer with the highest likes for any totem, using crispness as tiebreaker
-    return post.answers.reduce((best, current, index) => {
-      // Get the highest likes from any totem in the current answer
-      const currentMaxLikes = current.totems?.reduce((max, totem) => 
-        getTotemLikes(totem) > max ? getTotemLikes(totem) : max, 0) || 0;
-      
-      // Get the highest likes from any totem in the best answer so far
-      const bestMaxLikes = best.answer.totems?.reduce((max, totem) => 
-        getTotemLikes(totem) > max ? getTotemLikes(totem) : max, 0) || 0;
-      
-      // Primary comparison: likes
-      if (currentMaxLikes > bestMaxLikes) {
-        return { answer: current, index };
-      } else if (currentMaxLikes === bestMaxLikes && currentMaxLikes > 0) {
-        // Tiebreaker: crispness
-        const currentMaxCrispness = current.totems?.reduce((max, totem) => 
-          (totem.crispness || 0) > max ? (totem.crispness || 0) : max, 0) || 0;
+    // Use the same sorting logic as QuestionAnswers: individual totem comparison with live crispness
+    const answerTotemPairs: Array<{
+      answer: Answer;
+      totem: Totem;
+      likes: number;
+      crispness: number;
+      answerIndex: number;
+    }> = [];
+
+    post.answers.forEach((answer, answerIndex) => {
+      answer.totems.forEach(totem => {
+        const likes = getTotemLikes(totem);
+        // Use live crispness from TotemContext, fallback to stored value
+        const contextCrispness = getCrispness(post.id, totem.name, answer.id);
+        const crispness = contextCrispness !== undefined ? contextCrispness : (totem.crispness || 0);
         
-        const bestMaxCrispness = best.answer.totems?.reduce((max, totem) => 
-          (totem.crispness || 0) > max ? (totem.crispness || 0) : max, 0) || 0;
-        
-        if (currentMaxCrispness > bestMaxCrispness) {
-          return { answer: current, index };
-        }
+        answerTotemPairs.push({
+          answer,
+          totem,
+          likes,
+          crispness,
+          answerIndex
+        });
+      });
+    });
+
+    // Sort by likes first, then crispness (same as QuestionAnswers)
+    answerTotemPairs.sort((a, b) => {
+      if (a.likes !== b.likes) {
+        return b.likes - a.likes; // Higher likes first
       }
-      
-      return best;
-    }, { answer: post.answers[0], index: 0 });
+      return b.crispness - a.crispness; // Higher crispness first
+    });
+
+    // Return the top answer (first in sorted list)
+    const topPair = answerTotemPairs[0];
+    if (!topPair) return null;
+    
+    return { answer: topPair.answer, index: topPair.answerIndex };
   }, []);
 
   const getBestTotem = useCallback((totems: Totem[]) => {
@@ -307,18 +336,24 @@ export function QuestionList({
     );
   }, [getTotemLikes, renderTotemButton, showUserAnswers, user, handleAuthRequired, sectionId, handleDeleteAnswer, isDeleting]);
 
-  // Calculate total likes for each post
-  const postsWithLikes = posts.map(post => ({
+  // Calculate sorting values for each post
+  const postsWithSortingValues = posts.map(post => ({
     ...post,
     totalLikes: post.answers.reduce((sum, answer) => 
       sum + answer.totems.reduce((totemSum, totem) => 
         totemSum + getTotemLikes(totem), 0
       ), 0
-    )
+    ),
+    maxCrispness: sortByCrispness ? getMaxCrispness(post) : 0
   }));
 
-  // Sort posts by total likes
-  const sortedPosts = [...postsWithLikes].sort((a, b) => b.totalLikes - a.totalLikes);
+  // Sort posts by crispness or likes depending on sortByCrispness prop
+  const sortedPosts = [...postsWithSortingValues].sort((a, b) => {
+    if (sortByCrispness) {
+      return b.maxCrispness - a.maxCrispness;
+    }
+    return b.totalLikes - a.totalLikes;
+  });
 
   if (!posts.length && !isLoading) {
     return (
@@ -336,7 +371,7 @@ export function QuestionList({
         isLoading={isLoading}
       >
         <div className="space-y-4">
-          {posts.map((post, index) => renderQuestion(post, index))}
+          {sortedPosts.slice(0, 10).map((post, index) => renderQuestion(post, index))}
         </div>
       </InfiniteScroll>
 

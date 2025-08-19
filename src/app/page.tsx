@@ -42,10 +42,10 @@ export default function Home() {
         
         switch (activeTab) {
           case 'latest':
-            // Use standardized service with createdAt ordering
+            // Get more posts and let QuestionList handle crispness-based sorting
             const latestResult = await PostService.getPaginatedPosts(
               [], // No additional constraints
-              10  // Page size
+              50  // Get more posts for better sorting selection
             );
             fetchedPosts = latestResult.posts || [];
             break;
@@ -101,6 +101,83 @@ export default function Home() {
 
     fetchPosts();
   }, [user?.uid, activeTab]);
+
+  // Force refresh when navigating back to main page
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && posts.length > 0) {
+        console.log('[MainPage] Tab became visible - refreshing posts');
+        // Trigger a re-fetch by updating the dependency
+        const fetchPosts = async () => {
+          setIsLoading(true);
+          try {
+            let fetchedPosts: Post[] = [];
+            
+            switch (activeTab) {
+              case 'latest':
+                const latestResult = await PostService.getPaginatedPosts([], 50);
+                fetchedPosts = latestResult.posts || [];
+                break;
+                
+              case 'popular':
+                const popularResult = await PostService.getPopularPosts(10);
+                fetchedPosts = popularResult.posts || [];
+                break;
+                
+              case 'for-you':
+                if (user?.uid) {
+                  const userPostsResult = await PostService.getUserPosts(user.uid, 10);
+                  const userAnswersResult = await PostService.getUserAnswers(user.uid, 10);
+                  
+                  const combinedPosts = [
+                    ...(userPostsResult.posts || []),
+                    ...(userAnswersResult.posts || [])
+                  ];
+                  
+                  const uniquePostIds = new Set<string>();
+                  fetchedPosts = combinedPosts.filter(post => {
+                    if (uniquePostIds.has(post.id)) {
+                      return false;
+                    }
+                    uniquePostIds.add(post.id);
+                    return true;
+                  });
+                  
+                  // Debug: Show like counts before sorting
+                  fetchedPosts.forEach(post => {
+                    const likes = calculateTotalLikes(post);
+                    console.log(`[MainPage] Post "${post.question.slice(0, 30)}...": ${likes} total likes`);
+                    post.answers.forEach((answer, i) => {
+                      answer.totems.forEach(totem => {
+                        const totemLikes = getTotemLikes(totem);
+                        console.log(`  Answer ${i} - ${totem.name}: ${totemLikes} likes`);
+                      });
+                    });
+                  });
+                  
+                  fetchedPosts.sort((a, b) => calculateTotalLikes(b) - calculateTotalLikes(a));
+                  console.log(`[MainPage] After sorting, top post: "${fetchedPosts[0]?.question.slice(0, 40)}..."`);
+                  fetchedPosts = fetchedPosts.slice(0, 10);
+                }
+                break;
+            }
+            
+            setPosts(fetchedPosts);
+          } catch (error) {
+            console.error('Error refreshing posts:', error);
+          } finally {
+            setIsLoading(false);
+          }
+        };
+        
+        fetchPosts();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [posts.length, activeTab, user?.uid]);
+
 
   const handleWantToAnswer = (post: Post) => {
     router.push(`/post/${post.id}`);
@@ -158,6 +235,7 @@ export default function Home() {
             hasNextPage={false}
             isLoading={isLoading}
             onLoadMore={() => {}}
+            sortByCrispness={activeTab === 'latest'}
           />
         </div>
       </main>
