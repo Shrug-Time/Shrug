@@ -20,6 +20,14 @@ export function TotemRefreshModal({
   onRestore,
   onRefresh
 }: TotemRefreshModalProps) {
+  
+  // Debug logging
+  console.log(`[DEBUG] TotemRefreshModal render:`, { 
+    isOpen, 
+    totemName, 
+    currentCrispness, 
+    refreshesRemaining 
+  });
 
   return (
     <Transition appear show={isOpen} as={Fragment}>

@@ -1,16 +1,15 @@
 "use client";
 
-import { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useSubscription } from '@/contexts/SubscriptionContext';
-import { AdSubmissionForm } from '@/components/ads/AdSubmissionForm';
-import { UserAdDashboard } from '@/components/ads/UserAdDashboard';
-import { AdminAdReview } from '@/components/ads/AdminAdReview';
+import { isFeatureEnabled } from '@/config/featureFlags';
+import { redirect } from 'next/navigation';
 
 export default function CommunityAdsPage() {
-  const { user } = useAuth();
-  const { isPremium } = useSubscription();
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'submit' | 'admin'>('dashboard');
+  // Redirect to home if ads are disabled
+  if (!isFeatureEnabled('ADS_ENABLED')) {
+    redirect('/');
+  }
+  
+  return null; // This page is disabled
 
   // Check if user is admin (you can modify this logic based on your admin system)
   const isAdmin = user?.email === 'admin@example.com' || user?.uid === 'your-admin-uid';

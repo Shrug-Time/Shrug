@@ -1,11 +1,15 @@
 "use client";
 
-import { Sidebar } from '@/components/layout/Sidebar';
-import { useUser } from '@/hooks/useUser';
-import { LoadingSpinner } from '@/components/common/LoadingSpinner';
-import { useState } from 'react';
+import { isFeatureEnabled } from '@/config/featureFlags';
+import { redirect } from 'next/navigation';
 
 export default function SubscriptionsPage() {
+  // Redirect to home if subscriber management is disabled
+  if (!isFeatureEnabled('SUBSCRIBER_MANAGEMENT_ENABLED')) {
+    redirect('/');
+  }
+  
+  return null; // This page is disabled
   const { profile, isLoading, updateProfile } = useUser();
   const [isUpdating, setIsUpdating] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<'free' | 'premium'>(

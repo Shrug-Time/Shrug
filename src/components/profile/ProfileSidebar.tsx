@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useUser } from '@/hooks/useUser';
 import { getAdminReportsUrl } from '@/utils/routes';
+import { isFeatureEnabled } from '@/config/featureFlags';
 
 export function ProfileSidebar() {
   const pathname = usePathname();
@@ -54,49 +55,55 @@ export function ProfileSidebar() {
           Customization
         </Link>
         
-        <Link 
-          href="/profile/subscriptions" 
-          className={`flex items-center px-4 py-3 text-gray-700 ${isActive('/profile/subscriptions')}`}
-        >
-          <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
-          </svg>
-          {isPremium ? (
-            <span className="flex items-center">
-              Your Subscriptions
-              <span className="ml-2 bg-blue-100 text-blue-800 text-xs font-medium px-2 py-0.5 rounded">Premium</span>
-            </span>
-          ) : (
-            <span>Your Subscriptions</span>
-          )}
-        </Link>
+        {isFeatureEnabled('SUBSCRIBER_MANAGEMENT_ENABLED') && (
+          <Link 
+            href="/profile/subscriptions" 
+            className={`flex items-center px-4 py-3 text-gray-700 ${isActive('/profile/subscriptions')}`}
+          >
+            <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+            </svg>
+            {isPremium ? (
+              <span className="flex items-center">
+                Your Subscriptions
+                <span className="ml-2 bg-blue-100 text-blue-800 text-xs font-medium px-2 py-0.5 rounded">Premium</span>
+              </span>
+            ) : (
+              <span>Your Subscriptions</span>
+            )}
+          </Link>
+        )}
         
-        <Link 
-          href="/ads" 
-          className={`flex items-center px-4 py-3 text-gray-700 ${isActive('/ads')}`}
-        >
-          <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path>
-          </svg>
-          {isPremium ? (
-            <span className="flex items-center">
-              Promotion Ads
-              <span className="ml-2 bg-green-100 text-green-800 text-xs font-medium px-2 py-0.5 rounded">Premium</span>
-            </span>
-          ) : (
-            <span>Promotion Ads</span>
-          )}
-        </Link>
+        {isFeatureEnabled('ADS_ENABLED') && (
+          <Link 
+            href="/ads" 
+            className={`flex items-center px-4 py-3 text-gray-700 ${isActive('/ads')}`}
+          >
+            <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path>
+            </svg>
+            {isPremium ? (
+              <span className="flex items-center">
+                Promotion Ads
+                <span className="ml-2 bg-green-100 text-green-800 text-xs font-medium px-2 py-0.5 rounded">Premium</span>
+              </span>
+            ) : (
+              <span>Promotion Ads</span>
+            )}
+          </Link>
+        )}
         
-        <Link 
-          href="/profile/subscribers" 
-          className={`flex items-center px-4 py-3 text-gray-700 ${isActive('/profile/subscribers')}`}
-        >
-          <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-          </svg>
-          Your Subscribers
-        </Link>
+        {isFeatureEnabled('SUBSCRIBER_MANAGEMENT_ENABLED') && (
+          <Link 
+            href="/profile/subscribers" 
+            className={`flex items-center px-4 py-3 text-gray-700 ${isActive('/profile/subscribers')}`}
+          >
+            <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+            </svg>
+            Your Subscribers
+          </Link>
+        )}
         
         <Link 
           href="/profile/analytics" 

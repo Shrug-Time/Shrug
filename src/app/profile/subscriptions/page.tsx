@@ -1,11 +1,15 @@
 "use client";
 
-import { ProfileSidebar } from '@/components/profile/ProfileSidebar';
-import { SubscriptionManagement } from '@/components/subscription/SubscriptionManagement';
-import { useAuth } from '@/contexts/AuthContext';
+import { isFeatureEnabled } from '@/config/featureFlags';
 import { redirect } from 'next/navigation';
 
 export default function SubscriptionsPage() {
+  // Redirect to home if subscriber management is disabled
+  if (!isFeatureEnabled('SUBSCRIBER_MANAGEMENT_ENABLED')) {
+    redirect('/');
+  }
+  
+  return null; // This page is disabled
   const { user, loading } = useAuth();
 
   // Wait for auth to initialize

@@ -1,10 +1,15 @@
 "use client";
 
-import { useState } from 'react';
-import { ContentGatingControls } from '@/components/gating/ContentGatingControls';
-import { useAuth } from '@/contexts/AuthContext';
+import { isFeatureEnabled } from '@/config/featureFlags';
+import { redirect } from 'next/navigation';
 
 export default function ContentGatingPage() {
+  // Redirect to home if premium content is disabled
+  if (!isFeatureEnabled('PREMIUM_CONTENT_ENABLED')) {
+    redirect('/');
+  }
+  
+  return null; // This page is disabled
   const { user } = useAuth();
   const [gatingStatus, setGatingStatus] = useState<boolean>(false);
   

@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from 'react';
-import { ProfileSidebar } from '@/components/profile/ProfileSidebar';
-import { useAuth } from '@/contexts/AuthContext';
+import { isFeatureEnabled } from '@/config/featureFlags';
 import { redirect } from 'next/navigation';
 
 export default function SubscribersPage() {
-  const { user, loading } = useAuth();
-  const [subscribers, setSubscribers] = useState([
+  // Redirect to home if subscriber management is disabled
+  if (!isFeatureEnabled('SUBSCRIBER_MANAGEMENT_ENABLED')) {
+    redirect('/');
+  }
+  
+  return null; // This page is disabled
     { id: 'user1', name: 'Jane Smith', username: 'janesmith', avatarUrl: 'https://api.dicebear.com/7.x/initials/svg?seed=JS' },
     { id: 'user2', name: 'John Doe', username: 'johndoe', avatarUrl: 'https://api.dicebear.com/7.x/initials/svg?seed=JD' },
     { id: 'user3', name: 'Alex Johnson', username: 'alexj', avatarUrl: 'https://api.dicebear.com/7.x/initials/svg?seed=AJ' },

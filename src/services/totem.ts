@@ -21,7 +21,8 @@ export class TotemService {
     
     const postRef = doc(db, "posts", postId);
 
-    const result = await runTransaction(db, async (transaction) => {
+    try {
+      const result = await runTransaction(db, async (transaction) => {
       // Get the current post state
       const postDoc = await transaction.get(postRef);
       if (!postDoc.exists()) {
@@ -53,11 +54,24 @@ export class TotemService {
       );
 
       if (existingLike) {
+        console.log('🔧 [OLD] Found existing like, updating:', { 
+          wasActive: existingLike.isActive, 
+          isUnlike,
+          willBeActive: !isUnlike 
+        });
+        
         // Check if this is a restore operation (inactive like becoming active)
         const wasInactive = !existingLike.isActive;
         
         // Update existing like
         existingLike.isActive = !isUnlike;
+        
+        console.log('🔧 [OLD] Updated existing like:', {
+          firebaseUid: existingLike.firebaseUid,
+          isActive: existingLike.isActive,
+          wasInactive,
+          lastUpdatedAt: existingLike.lastUpdatedAt
+        });
         
         // Only update lastUpdatedAt if this is NOT a restore operation
         // (i.e., if the like was already active, or if this is a new like)
@@ -84,11 +98,27 @@ export class TotemService {
       // Calculate crispness
       totem.crispness = this.calculateCrispnessFromLikeHistory(totem.likeHistory);
 
+      // Debug: Log what we're about to save
+      console.log('🔧 [OLD] About to save totem state:', {
+        totemName,
+        isUnlike,
+        likeHistory: totem.likeHistory.map(l => ({
+          firebaseUid: l.firebaseUid,
+          isActive: l.isActive,
+          originalTimestamp: l.originalTimestamp
+        })),
+        calculatedCrispness: totem.crispness
+      });
+
       // Update only the answers array
       transaction.update(postRef, { answers: post.answers });
     });
     
     console.log('✅ [OLD] handleTotemLike transaction completed successfully');
+    } catch (error) {
+      console.error('❌ [OLD] handleTotemLike transaction failed:', error);
+      throw error;
+    }
     
     // Update user's recent totems after successful interaction
     try {
@@ -349,6 +379,18 @@ export class TotemService {
     const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
     const timeSinceLike = now - inactiveLike.originalTimestamp;
     const likeCrispness = Math.max(0, 100 * (1 - (timeSinceLike / ONE_WEEK_MS)));
+    
+    // Debug logging
+    console.log(`[DEBUG] getInactiveLikeCrispness calculation:`, {
+      now,
+      originalTimestamp: inactiveLike.originalTimestamp,
+      timeSinceLike,
+      daysSinceLike: timeSinceLike / (24 * 60 * 60 * 1000),
+      ONE_WEEK_MS,
+      ratio: timeSinceLike / ONE_WEEK_MS,
+      rawCrispness: 100 * (1 - (timeSinceLike / ONE_WEEK_MS)),
+      finalCrispness: likeCrispness
+    });
     
     return parseFloat(likeCrispness.toFixed(2));
   }

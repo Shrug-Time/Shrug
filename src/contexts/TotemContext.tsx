@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
 import { TotemService } from '@/services/totem';
 import { UserService } from '@/services/userService';
 import { useAuth } from '@/contexts/AuthContext';
@@ -128,7 +128,19 @@ export function TotemProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   // Function to load a single totem's state
+  // Track ongoing loads to prevent race conditions
+  const loadingRef = useRef<Set<string>>(new Set());
+  
   const loadTotemState = useCallback(async (postId: string, totemName: string, answerId?: string) => {
+    const loadKey = `${postId}-${totemName}-${answerId || 'default'}`;
+    
+    // Prevent multiple simultaneous loads of the same totem
+    if (loadingRef.current.has(loadKey)) {
+      console.log(`[TotemState] Skipping duplicate load for ${totemName} (already loading)`);
+      return;
+    }
+    
+    loadingRef.current.add(loadKey);
     if (!user) return;
     
     // Create unique key that includes answerId if provided
@@ -167,7 +179,8 @@ export function TotemProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      console.log(`[TotemState] Loading state for ${totemName} (${postId}) answerId: ${answerId}`);
+      const stack = new Error().stack?.split('\n')[3]?.trim() || 'unknown';
+      console.log(`[TotemState] Loading state for ${totemName} (${postId}) answerId: ${answerId} - called from: ${stack}`);
       console.log(`[TotemState] Answer: ${answer?.id}, Totem: ${totem.name}, LikeHistory: ${totem.likeHistory?.length || 0} likes, stored crispness: ${totem.crispness || 0}`);
       
       // Debug: Log the actual like history details
@@ -219,6 +232,8 @@ export function TotemProvider({ children }: { children: ReactNode }) {
       setError(error as Error);
     } finally {
       setLoadingStates(prev => ({ ...prev, [key]: false }));
+      // Clean up the loading lock
+      loadingRef.current.delete(loadKey);
     }
   }, [user]);
 
@@ -266,7 +281,9 @@ export function TotemProvider({ children }: { children: ReactNode }) {
       if (!currentState?.isLiked && hadPreviousLike) {
         // User is re-liking a totem they previously liked
         console.log(`[DEBUG] toggleLike - showing refresh modal`);
+        console.log(`[DEBUG] toggleLike - calling getInactiveLikeCrispness with:`, { postId, totemName, uid: user.uid, answerId });
         const previousCrispness = await TotemService.getInactiveLikeCrispness(postId, totemName, user.uid, answerId);
+        console.log(`[DEBUG] toggleLike - getInactiveLikeCrispness returned:`, previousCrispness);
         
         // Show the refresh modal
         setRefreshData({
@@ -357,6 +374,13 @@ export function TotemProvider({ children }: { children: ReactNode }) {
         // Don't reload state since the backend operation succeeded
         // The optimistic update should be correct
         console.log(`[DEBUG] completeLikeToggle - operation succeeded, keeping optimistic update`);
+        
+        // However, refresh state after a small delay to ensure consistency
+        // This handles cases where other components might trigger reloads
+        setTimeout(() => {
+          console.log(`[DEBUG] completeLikeToggle - delayed state refresh for consistency`);
+          loadTotemState(postId, totemName, answerId);
+        }, 500); // 500ms delay to allow Firebase propagation
       }
       return success;
     } catch (error) {
