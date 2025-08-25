@@ -22,7 +22,7 @@ export class TotemService {
     const postRef = doc(db, "posts", postId);
 
     try {
-      const result = await runTransaction(db, async (transaction) => {
+      await runTransaction(db, async (transaction) => {
       // Get the current post state
       const postDoc = await transaction.get(postRef);
       if (!postDoc.exists()) {

@@ -180,7 +180,33 @@ export const sendVerificationEmail = async (): Promise<void> => {
   if (!auth) throw new Error("Auth is not initialized");
   const user = auth.currentUser;
   if (!user) throw new Error("No user logged in");
-  await sendEmailVerification(user);
+  
+  // Enhanced email verification with custom settings
+  const actionCodeSettings = {
+    // URL you want to redirect back to after email verification
+    url: `${window.location.origin}/auth/verify-success`,
+    // This must be true for email verification
+    handleCodeInApp: true,
+    iOS: {
+      bundleId: 'com.shrug.app'
+    },
+    android: {
+      packageName: 'com.shrug.app',
+      installApp: true,
+      minimumVersion: '12'
+    },
+    dynamicLinkDomain: 'shrug.page.link' // Optional: if you have Firebase Dynamic Links
+  };
+
+  try {
+    await sendEmailVerification(user, actionCodeSettings);
+    console.log('✅ Verification email sent successfully to:', user.email);
+  } catch (error) {
+    console.error('❌ Failed to send verification email:', error);
+    // Fallback to basic email verification
+    console.log('🔄 Retrying with basic email verification...');
+    await sendEmailVerification(user);
+  }
 };
 
 /**
