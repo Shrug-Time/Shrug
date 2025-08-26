@@ -26,7 +26,6 @@ const nextConfig = {
   // Disable server-side rendering for certain paths to avoid Firebase issues
   experimental: {
     // Use static export for certain paths that need Firebase
-    appDir: true,
   },
   // Ensure environment variables are properly handled
   env: {
