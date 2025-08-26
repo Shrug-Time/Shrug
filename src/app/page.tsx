@@ -235,7 +235,7 @@ export default function Home() {
             hasNextPage={false}
             isLoading={isLoading}
             onLoadMore={() => {}}
-            sortByCrispness={activeTab === 'latest'}
+            sortByCrispness={false}
           />
         </div>
       </main>

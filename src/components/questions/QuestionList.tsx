@@ -67,7 +67,7 @@ export function QuestionList({
 }: QuestionListProps) {
   const router = useRouter();
   const { user } = useAuth();
-  const { toggleLike, loadPostTotems, getCrispness } = useTotem();
+  const { toggleLike, loadPostTotems, getCrispness, isInitialLoadComplete } = useTotem();
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState<Post | null>(null);
   const queryClient = useQueryClient();
@@ -152,9 +152,29 @@ export function QuestionList({
     post.answers.forEach((answer, answerIndex) => {
       answer.totems.forEach(totem => {
         const likes = getTotemLikes(totem);
-        // Use live crispness from TotemContext, fallback to stored value
+        // Always use live calculated crispness to avoid legacy data issues
         const contextCrispness = getCrispness(post.id, totem.name, answer.id);
-        const crispness = contextCrispness !== undefined ? contextCrispness : (totem.crispness || 0);
+        // If context hasn't loaded yet, force a calculation from likeHistory
+        let crispness = contextCrispness;
+        if (crispness === undefined && totem.likeHistory) {
+          // Manually calculate crispness from like history as fallback
+          const now = Date.now();
+          const activeLikes = totem.likeHistory.filter(like => like.isActive);
+          if (activeLikes.length > 0) {
+            const totalCrispness = activeLikes.reduce((sum, like) => {
+              const lastUpdated = like.originalTimestamp || like.lastUpdatedAt;
+              const timeSinceLike = now - lastUpdated;
+              const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+              const likeCrispness = Math.max(0, 100 * (1 - (timeSinceLike / ONE_WEEK_MS)));
+              return sum + likeCrispness;
+            }, 0);
+            crispness = totalCrispness / activeLikes.length;
+          } else {
+            crispness = 0;
+          }
+        } else if (crispness === undefined) {
+          crispness = 0;
+        }
         
         answerTotemPairs.push({
           answer,
@@ -181,7 +201,7 @@ export function QuestionList({
     return { answer: topPair.answer, index: topPair.answerIndex };
   }, []);
 
-  const getBestTotem = useCallback((totems: Totem[]) => {
+  const getBestTotem = useCallback((totems: Totem[], postId: string, answerId: string) => {
     if (!totems || totems.length === 0) return null;
     
     return totems.reduce((best, current) => {
@@ -192,15 +212,15 @@ export function QuestionList({
       if (currentLikes > bestLikes) {
         return current;
       } else if (currentLikes === bestLikes) {
-        // Tiebreaker: crispness
-        const bestCrispness = best.crispness || 0;
-        const currentCrispness = current.crispness || 0;
+        // Tiebreaker: use live crispness from TotemContext
+        const bestCrispness = getCrispness(postId, best.name, answerId) ?? (best.crispness || 0);
+        const currentCrispness = getCrispness(postId, current.name, answerId) ?? (current.crispness || 0);
         return currentCrispness > bestCrispness ? current : best;
       }
       
       return best;
     }, totems[0]);
-  }, []);
+  }, [getCrispness]);
 
   const renderTotemButton = (postId: string, totemName: string, answerId?: string) => {
     return (
@@ -253,11 +273,7 @@ export function QuestionList({
     const answerToShow = userAnswer || (post.answers && post.answers.length > 0 ? getBestAnswer(post)?.answer : null);
     const previewText = answerToShow?.text ? truncateAnswerPreview(answerToShow.text) : '';
     
-    const topTotem = answerToShow?.totems?.reduce((top, current) => {
-      const topLikes = getTotemLikes(top);
-      const currentLikes = getTotemLikes(current);
-      return currentLikes > topLikes ? current : top;
-    }, answerToShow?.totems?.[0]);
+    const topTotem = answerToShow?.totems ? getBestTotem(answerToShow.totems, post.id, answerToShow.id || '') : null;
     
     
     // Use index in the key to ensure uniqueness even when the same post appears in different sections
@@ -350,6 +366,10 @@ export function QuestionList({
   // Sort posts by crispness or likes depending on sortByCrispness prop
   const sortedPosts = [...postsWithSortingValues].sort((a, b) => {
     if (sortByCrispness) {
+      // Wait for initial TotemContext load to complete before sorting by crispness
+      if (!isInitialLoadComplete) {
+        return 0; // Keep original order until totem states are loaded
+      }
       return b.maxCrispness - a.maxCrispness;
     }
     return b.totalLikes - a.totalLikes;

@@ -32,6 +32,7 @@ interface TotemContextType {
   error: Error | null;
   loadPostTotems: (postId: string, totemNames: string[]) => Promise<void>;
   loadTotemState: (postId: string, totemName: string, answerId?: string) => Promise<void>;
+  isInitialLoadComplete: boolean;
 }
 
 const TotemContext = createContext<TotemContextType | null>(null);
@@ -52,6 +53,7 @@ export function TotemProvider({ children }: { children: ReactNode }) {
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
   const [refreshesRemaining, setRefreshesRemaining] = useState(0);
   const [refreshData, setRefreshData] = useState<RefreshModalData | null>(null);
+  const [isInitialLoadComplete, setIsInitialLoadComplete] = useState(false);
   const { db } = useFirebase();
 
   // Calculate crispness from like history
@@ -69,7 +71,6 @@ export function TotemProvider({ children }: { children: ReactNode }) {
     
     if (activeLikes.length === 0) return 0;
     
-    console.log(`[Crispness] Calculating for ${activeLikes.length} active likes (${likeHistory.length} total)`);
     
     // Calculate individual crispness for each active like based on original timestamp
     const individualCrispnessValues = activeLikes.map(like => {
@@ -77,7 +78,6 @@ export function TotemProvider({ children }: { children: ReactNode }) {
       const timeSinceLike = now - lastUpdated;
       const likeCrispness = Math.max(0, 100 * (1 - (timeSinceLike / ONE_WEEK_MS)));
       
-      console.log(`[Crispness] Like timestamp: ${new Date(lastUpdated).toISOString()}, age: ${Math.round(timeSinceLike/86400000)} days, crispness: ${likeCrispness.toFixed(1)}%, active: ${like.isActive}`);
       
       return likeCrispness;
     });
@@ -88,7 +88,6 @@ export function TotemProvider({ children }: { children: ReactNode }) {
       ? totalCrispness / individualCrispnessValues.length 
       : 0;
     
-    console.log(`[Crispness] Final calculation: ${averageCrispness.toFixed(1)}% (total: ${totalCrispness.toFixed(1)}, count: ${individualCrispnessValues.length})`);
     
     return parseFloat(averageCrispness.toFixed(2));
   };
@@ -179,16 +178,6 @@ export function TotemProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const stack = new Error().stack?.split('\n')[3]?.trim() || 'unknown';
-      console.log(`[TotemState] Loading state for ${totemName} (${postId}) answerId: ${answerId} - called from: ${stack}`);
-      console.log(`[TotemState] Answer: ${answer?.id}, Totem: ${totem.name}, LikeHistory: ${totem.likeHistory?.length || 0} likes, stored crispness: ${totem.crispness || 0}`);
-      
-      // Debug: Log the actual like history details
-      if (totem.likeHistory && totem.likeHistory.length > 0) {
-        totem.likeHistory.forEach((like, index) => {
-          console.log(`[TotemState] Like ${index}: firebaseUid=${like.firebaseUid}, isActive=${like.isActive}, currentUser=${user.uid}`);
-        });
-      }
       
       // Determine if the current user has liked this totem
       // This only checks active likes for UI purposes
@@ -206,7 +195,6 @@ export function TotemProvider({ children }: { children: ReactNode }) {
       // Always use the calculated crispness, never the static value
       const crispness = calculatedCrispness;
       
-      console.log(`[TotemState] Calculated values - isLiked: ${isLiked}, count: ${count}, crispness: ${crispness.toFixed(1)}%`);
       
       // Only update if values changed
       setLikeState(prev => {
@@ -252,6 +240,8 @@ export function TotemProvider({ children }: { children: ReactNode }) {
           batch.map(totemName => loadTotemState(postId, totemName))
         );
       }
+      // Mark initial load as complete after first batch finishes
+      setIsInitialLoadComplete(true);
     } catch (error) {
       console.error('[TotemContext] Error loading post totems:', error);
       setError(error as Error);
@@ -281,9 +271,7 @@ export function TotemProvider({ children }: { children: ReactNode }) {
       if (!currentState?.isLiked && hadPreviousLike) {
         // User is re-liking a totem they previously liked
         console.log(`[DEBUG] toggleLike - showing refresh modal`);
-        console.log(`[DEBUG] toggleLike - calling getInactiveLikeCrispness with:`, { postId, totemName, uid: user.uid, answerId });
         const previousCrispness = await TotemService.getInactiveLikeCrispness(postId, totemName, user.uid, answerId);
-        console.log(`[DEBUG] toggleLike - getInactiveLikeCrispness returned:`, previousCrispness);
         
         // Show the refresh modal
         setRefreshData({
@@ -347,7 +335,6 @@ export function TotemProvider({ children }: { children: ReactNode }) {
       
       if (useRefresh) {
         // Use a refresh to get 100% crispness
-        console.log(`[DEBUG] completeLikeToggle - calling TotemService.refreshToFullCrispness`);
         success = await TotemService.refreshToFullCrispness(postId, totemName, user.uid, answerId);
         
         if (success) {
@@ -496,7 +483,6 @@ export function TotemProvider({ children }: { children: ReactNode }) {
       const decayAmount = Math.min(1, decayPercent) * state.crispness;
       const newCrispness = Math.max(0, state.crispness - decayAmount);
       
-      console.log(`[Crispness] Real-time decay after ${minutesSinceCalculation.toFixed(1)} minutes: ${state.crispness.toFixed(1)}% → ${newCrispness.toFixed(1)}%`);
       
       // Instead of updating state immediately, schedule an update
       // This prevents the setState during render error
@@ -527,6 +513,7 @@ export function TotemProvider({ children }: { children: ReactNode }) {
     error,
     loadPostTotems,
     loadTotemState,
+    isInitialLoadComplete,
   };
 
   return (
