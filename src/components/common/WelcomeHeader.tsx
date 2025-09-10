@@ -44,30 +44,18 @@ export function WelcomeHeader({ onDismiss }: WelcomeHeaderProps) {
             >
               Welcome to
             </span>
-            {/* Shrug logo - Blue geometric shapes representing people shrugging */}
-            <div className="ml-4 flex items-center space-x-1">
-              <svg width="72" height="25" viewBox="0 0 72 25" fill="none">
-                {/* Left figure */}
-                <path d="M57.5 5.5L62 2L66.5 5.5L62 9L57.5 5.5Z" fill="#0E65E8"/>
-                <rect x="60" y="9" width="4" height="14" rx="1" fill="#0E65E8"/>
-                
-                {/* Center figure */}
-                <path d="M32.5 6.5L37 3L41.5 6.5L37 10L32.5 6.5Z" fill="#0E65E8"/>
-                <rect x="35" y="10" width="4" height="12" rx="1" fill="#0E65E8"/>
-                
-                {/* Right figure */}
-                <path d="M7.5 5.5L12 2L16.5 5.5L12 9L7.5 5.5Z" fill="#0E65E8"/>
-                <rect x="10" y="9" width="4" height="14" rx="1" fill="#0E65E8"/>
-                
-                {/* Center-left figure */}
-                <path d="M45 7L49 4L53 7L49 10.5L45 7Z" fill="#0E65E8" transform="rotate(-6 49 7.25)"/>
-                <rect x="47" y="10.5" width="4" height="13" rx="1" fill="#0E65E8" transform="rotate(-6 49 17)"/>
-                
-                {/* Center-right figure */}
-                <path d="M19.5 6L24 2.5L28.5 6L24 9.5L19.5 6Z" fill="#0E65E8"/>
-                <rect x="22" y="9.5" width="4" height="13.5" rx="1" fill="#0E65E8"/>
-              </svg>
-            </div>
+            <span 
+              className="ml-3"
+              style={{ 
+                fontFamily: 'Inter',
+                fontWeight: 700,
+                fontSize: '18px',
+                letterSpacing: '0.72px',
+                color: '#0E65E8'
+              }}
+            >
+              shrug
+            </span>
           </div>
 
           {/* Body Text - exact Figma specs: 643px width, centered */}
