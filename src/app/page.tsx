@@ -12,6 +12,8 @@ import { PostService } from '@/services/standardized';
 import { getTotemLikes } from '@/utils/componentHelpers';
 import { QueryConstraint } from 'firebase/firestore';
 import { AdBanner } from '@/components/ads/AdBanner';
+import { WelcomeHeader } from '@/components/common/WelcomeHeader';
+import { useIntroductionModal } from '@/hooks/useIntroductionModal';
 
 type FeedType = 'for-you' | 'popular' | 'latest';
 
@@ -33,6 +35,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<FeedType>('latest');
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
   const router = useRouter();
+  const { shouldShowModal, isModalOpen, closeModal } = useIntroductionModal();
 
   useEffect(() => {
     const fetchPosts = async () => {
@@ -199,6 +202,11 @@ export default function Home() {
       />
       
       <main>
+        {/* Welcome Header - shows above everything for first-time users */}
+        {shouldShowModal && (
+          <WelcomeHeader onDismiss={closeModal} />
+        )}
+        
         <div className="max-w-4xl mx-auto px-4 py-8">
           <AdBanner />
           
@@ -239,6 +247,7 @@ export default function Home() {
           />
         </div>
       </main>
+
     </div>
   );
 }

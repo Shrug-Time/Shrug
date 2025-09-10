@@ -22,6 +22,8 @@ import { Button } from '@/components/ui/button';
 import { ReportButton } from '@/components/reports/ReportButton';
 import { FormattedText, truncateAnswerPreview } from '@/utils/textFormatting';
 import { useDeleteAnswer } from '@/hooks/useDeleteAnswer';
+import { TotemTooltip } from '@/components/tooltips/TotemTooltip';
+import { useFirstLoginTooltip } from '@/hooks/useFirstLoginTooltip';
 
 // Helper function to safely convert various date formats to a Date object
 const toDate = (dateField: any): Date => {
@@ -73,6 +75,7 @@ export function QuestionList({
   const queryClient = useQueryClient();
   const { isAuthModalOpen, setIsAuthModalOpen, handleAuthRequired } = useAuthModal();
   const { deleteAnswer, isDeleting } = useDeleteAnswer();
+  const { shouldShowTooltip, isTooltipVisible, dismissTooltip } = useFirstLoginTooltip();
 
   // Load initial state of likes for all posts
   useEffect(() => {
@@ -326,7 +329,18 @@ export function QuestionList({
         </div>
         <div className="flex items-center justify-between mt-3">
           <div className="flex items-center space-x-2">
-            {topTotem && answerToShow && renderTotemButton(post.id, topTotem.name, answerToShow.id)}
+            {topTotem && answerToShow && (
+              <div className="relative">
+                {renderTotemButton(post.id, topTotem.name, answerToShow.id)}
+                {/* Show tooltip on the first post with a totem */}
+                {index === 0 && shouldShowTooltip && (
+                  <TotemTooltip
+                    isVisible={isTooltipVisible}
+                    onDismiss={dismissTooltip}
+                  />
+                )}
+              </div>
+            )}
           </div>
           <div className="flex items-center space-x-2">
             {/* Show delete button for user's own answers only on profile pages */}
