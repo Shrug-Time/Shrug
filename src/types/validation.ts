@@ -105,7 +105,7 @@ export const userProfileSchema = timestampedEntitySchema.extend({
   
   // Status fields
   verificationStatus: z.enum(['unverified', 'email_verified', 'identity_verified']),
-  membershipTier: z.enum(['free', 'basic', 'premium']),
+  membershipTier: z.enum(['free', 'basic', 'premium', 'admin']),
   
   // Usage limits
   refreshesRemaining: z.number().nonnegative(),

@@ -12,7 +12,7 @@ import { PostService } from '@/services/standardized';
 import { UserService } from '@/services/userService';
 import { ProfileSectionService } from '@/services/profileSectionService';
 import { SectionManager } from '@/components/profile/SectionManager';
-import { Sidebar } from '@/components/layout/Sidebar';
+import { ProfileSidebar } from '@/components/profile/ProfileSidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import Image from 'next/image';
 import { CustomSectionCreator } from '@/components/profile/CustomSectionCreator';
@@ -213,7 +213,7 @@ export default function ProfilePage() {
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar activePage="content" />
+      <ProfileSidebar />
       
       <div className="flex-1">
         {/* Show toast messages */}

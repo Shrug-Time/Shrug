@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/hooks/useUser';
-import { Sidebar } from '@/components/layout/Sidebar';
+import { ProfileSidebar } from '@/components/profile/ProfileSidebar';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Toast } from '@/components/common/Toast';
 import Image from 'next/image';
@@ -140,7 +140,7 @@ export default function ProfileCustomizationPage() {
   if (isLoading || !profile) {
     return (
       <div className="flex">
-        <Sidebar activePage="customization" />
+        <ProfileSidebar />
         <div className="flex-1 min-h-screen p-4 flex justify-center items-center">
           <LoadingSpinner size="lg" />
         </div>
@@ -151,7 +151,7 @@ export default function ProfileCustomizationPage() {
   if (error) {
     return (
       <div className="flex">
-        <Sidebar activePage="customization" />
+        <ProfileSidebar />
         <div className="flex-1 min-h-screen p-4">
           <div className="max-w-4xl mx-auto bg-red-50 p-4 rounded-lg text-red-600">
             Error: {error}
@@ -163,7 +163,7 @@ export default function ProfileCustomizationPage() {
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar activePage="customization" />
+      <ProfileSidebar />
       
       <div className="flex-1 p-4">
         {toast && (
