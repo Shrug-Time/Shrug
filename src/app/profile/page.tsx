@@ -224,7 +224,7 @@ export default function ProfilePage() {
           />
         )}
         
-        <div className="max-w-4xl mx-auto p-4">
+        <div className="max-w-4xl ml-0 p-4">
           {/* Profile Header */}
           <div className="flex items-start mb-8">
             {/* Profile Image */}

@@ -101,7 +101,7 @@ export function ProfileSidebar() {
   };
 
   return (
-    <aside className="w-full md:w-64 flex-shrink-0">
+    <aside className="w-full md:w-64 flex-shrink-0 bg-gray-50">
       <nav className="space-y-0.5">
         <Link 
           href="/profile" 

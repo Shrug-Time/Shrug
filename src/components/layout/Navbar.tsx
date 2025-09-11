@@ -26,16 +26,16 @@ export function Navbar() {
 
   return (
     <nav className="bg-white shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full pl-2 pr-4">
         <div className="flex justify-between h-16">
           <div className="flex items-center space-x-4">
-            <Link href="/" className="flex items-center">
+            <Link href="/" className="flex items-center ml-4">
               <span className="text-xl font-bold text-gray-800">Shrug</span>
             </Link>
           </div>
 
-          {/* Search Bar - Center */}
-          <div className="flex-1 max-w-2xl mx-8 flex items-center">
+          {/* Search Bar - Aligned with content */}
+          <div className="flex-1 max-w-2xl -ml-28 mr-8 flex items-center">
             <div className="w-full py-2">
               <SearchBar 
                 placeholder="Search questions, users, totems..."
