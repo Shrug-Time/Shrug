@@ -206,7 +206,7 @@ export default function Home() {
           <WelcomeHeader onDismiss={closeModal} />
         )}
         
-        <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="max-w-4xl ml-64 px-4 py-8">
           <div className="flex space-x-4 mb-6">
             <button
               onClick={() => setActiveTab('latest')}

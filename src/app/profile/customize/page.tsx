@@ -173,7 +173,7 @@ export default function ProfileCustomizationPage() {
           />
         )}
         
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-4xl ml-0">
           <div className="bg-white rounded-lg shadow">
             <div className="p-6">
               <h1 className="text-xl font-semibold mb-6">Page Customization</h1>
@@ -199,16 +199,6 @@ export default function ProfileCustomizationPage() {
                   }`}
                 >
                   Home Tab
-                </button>
-                <button
-                  onClick={() => setActiveTab('content')}
-                  className={`py-2 px-4 text-sm border-b-2 -mb-px ${
-                    activeTab === 'content' 
-                      ? 'border-blue-500 text-blue-600 font-medium' 
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Content Access
                 </button>
               </div>
               
@@ -322,21 +312,6 @@ export default function ProfileCustomizationPage() {
                     ></textarea>
                   </div>
                   
-                  {/* Page URL */}
-                  <div className="mb-6">
-                    <label htmlFor="url" className="block text-sm font-medium text-gray-700 mb-1">
-                      Page URL
-                    </label>
-                    <p className="text-xs text-gray-500 mb-1">This is the standard web address to your content.</p>
-                    <input
-                      type="text"
-                      id="url"
-                      name="url"
-                      value={`https://shrug.io/u/${profile.username}`}
-                      readOnly
-                      className="w-full bg-gray-50 border border-gray-300 rounded-md px-3 py-2 text-gray-500"
-                    />
-                  </div>
                   
                   {/* Action Buttons */}
                   <div className="flex justify-end space-x-3 border-t border-gray-200 pt-4">
@@ -363,99 +338,6 @@ export default function ProfileCustomizationPage() {
                 </form>
               )}
               
-              {/* Content Access Tab */}
-              {activeTab === 'content' && (
-                <div>
-                  <h2 className="text-lg font-medium mb-2">Content Access Control</h2>
-                  <p className="text-gray-600 mb-6">Make your content exclusive to monetize your expertise.</p>
-                  
-                  <p className="text-gray-700 mb-6">
-                    Content access control allows you to create paid content that requires separate purchase. Only paying supporters will be able to view your exclusive content.
-                  </p>
-                  
-                  {/* Default Content Access */}
-                  <div className="mb-8">
-                    <h3 className="text-md font-medium mb-2">Default Content Access</h3>
-                    <p className="text-sm text-gray-600 mb-4">New content will be set to this access level by default</p>
-                    
-                    <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                      <select
-                        name="defaultAccess"
-                        value={formData.defaultAccess}
-                        onChange={handleChange}
-                        className="border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="public">Public (Everyone)</option>
-                        <option value="exclusive">Exclusive (Paid Access)</option>
-                      </select>
-                      
-                      <div className="flex space-x-2">
-                        <button className="px-4 py-2 bg-blue-600 text-white rounded-md">
-                          All Content
-                        </button>
-                        <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md">
-                          Exclusive Only
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Content Management */}
-                  <div className="mb-6">
-                    <h3 className="text-md font-medium mb-4">Content Management</h3>
-                    
-                    {/* Example Content Items */}
-                    <div className="space-y-4">
-                      <div className="border border-gray-200 rounded-lg overflow-hidden">
-                        <div className="flex justify-between p-4 items-center">
-                          <div>
-                            <h4 className="font-medium">How to catch trout in mountain streams</h4>
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            Post
-                          </div>
-                        </div>
-                        
-                        <div className="bg-gray-50 p-4 border-t border-gray-200">
-                          <h5 className="text-sm font-medium mb-2">Content Access Settings</h5>
-                          <p className="text-sm text-gray-600">This content is shared publicly.</p>
-                        </div>
-                      </div>
-                      
-                      <div className="border border-gray-200 rounded-lg overflow-hidden">
-                        <div className="flex justify-between p-4 items-center">
-                          <div>
-                            <h4 className="font-medium">Best fly fishing techniques for beginners</h4>
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            Answer
-                          </div>
-                        </div>
-                        
-                        <div className="bg-gray-50 p-4 border-t border-gray-200">
-                          <h5 className="text-sm font-medium mb-2">Content Access Settings</h5>
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <p className="text-sm font-medium">Make this content paid/exclusive?</p>
-                              <p className="text-xs text-gray-600">Creator-exclusive content requires a separate payment to access.</p>
-                            </div>
-                            
-                            <div className="relative inline-block w-10 align-middle select-none">
-                              <input type="checkbox" name="toggle" id="toggle" className="sr-only" />
-                              <div className="block h-6 bg-gray-200 rounded-full w-12"></div>
-                              <div className="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition"></div>
-                            </div>
-                          </div>
-                          
-                          <p className="text-xs text-gray-500 mt-4">
-                            Creator-exclusive content allows you to monetize your expertise. This is separate from Shrug's platform subscription.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
               
               {/* Home Tab Content */}
               {activeTab === 'home' && (
