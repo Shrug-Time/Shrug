@@ -551,14 +551,10 @@ export class ProfileSectionService {
       
       // For totem-based sections, fetch posts with that totem
       if (section.totemId) {
-        // Get posts with the specified totem
-        const userPostsResult = await PostService.getUserPosts(userId, 100);
+        // Get only posts where user has written answers (not questions they asked)
         const userAnswersResult = await PostService.getUserAnswers(userId, 100);
-        
-        const allPosts = [
-          ...(userPostsResult.posts || []),
-          ...(userAnswersResult.posts || [])
-        ];
+
+        const allPosts = userAnswersResult.posts || [];
         
         // Filter posts by totem
         sectionPosts = allPosts.filter(post => {
@@ -577,30 +573,21 @@ export class ProfileSectionService {
       }
       // For default sections like "Recent" and "Popular", use the organization method
       else if (section.type === 'default') {
-        const userPostsResult = await PostService.getUserPosts(userId, 100);
+        // Get only posts where user has written answers (not questions they asked)
         const userAnswersResult = await PostService.getUserAnswers(userId, 100);
-        
-        const allPosts = [
-          ...(userPostsResult.posts || []),
-          ...(userAnswersResult.posts || [])
-        ];
-        
-        sectionPosts = allPosts;
+
+        sectionPosts = userAnswersResult.posts || [];
       }
       // For custom sections, get content by explicit IDs
       else if (section.contentIds.length > 0) {
-        // Get posts by IDs
-        // Note: We need to implement or use a different method since getPostById doesn't exist
+        // Get only posts where user has written answers and filter by IDs
+        const userAnswersResult = await PostService.getUserAnswers(userId, 100);
+        const userAnswers = userAnswersResult.posts || [];
+
         for (const contentId of section.contentIds) {
-          try {
-            // Fetch post by ID - alternative approach without getPostById
-            const result = await PostService.getUserPosts(userId, 100);
-            const post = result.posts?.find(p => p.id === contentId);
-            if (post) {
-              sectionPosts.push(post);
-            }
-          } catch (error) {
-            console.warn(`Failed to fetch post ${contentId}:`, error);
+          const post = userAnswers.find(p => p.id === contentId);
+          if (post) {
+            sectionPosts.push(post);
           }
         }
       }

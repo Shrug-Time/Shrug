@@ -60,25 +60,9 @@ export default function Home() {
             
           case 'for-you':
             if (user?.uid) {
-              // Get user's posts
-              const userPostsResult = await PostService.getUserPosts(user.uid, 10);
-              
-              // Get posts user has answered
+              // Get ONLY posts where user has answered (not questions they asked)
               const userAnswersResult = await PostService.getUserAnswers(user.uid, 10);
-              
-              // Combine and deduplicate posts
-              const combinedPosts = [
-                ...(userPostsResult.posts || []),
-                ...(userAnswersResult.posts || [])
-              ];
-              
-              // Remove duplicates by post ID
-              const uniquePostIds = new Set<string>();
-              fetchedPosts = combinedPosts.filter(post => {
-                if (uniquePostIds.has(post.id)) return false;
-                uniquePostIds.add(post.id);
-                return true;
-              });
+              fetchedPosts = userAnswersResult.posts || [];
             } else {
               // Fallback to latest posts if not authenticated
               const fallbackResult = await PostService.getPaginatedPosts([], 10);
@@ -128,38 +112,9 @@ export default function Home() {
                 
               case 'for-you':
                 if (user?.uid) {
-                  const userPostsResult = await PostService.getUserPosts(user.uid, 10);
+                  // Get ONLY posts where user has answered (not questions they asked)
                   const userAnswersResult = await PostService.getUserAnswers(user.uid, 10);
-                  
-                  const combinedPosts = [
-                    ...(userPostsResult.posts || []),
-                    ...(userAnswersResult.posts || [])
-                  ];
-                  
-                  const uniquePostIds = new Set<string>();
-                  fetchedPosts = combinedPosts.filter(post => {
-                    if (uniquePostIds.has(post.id)) {
-                      return false;
-                    }
-                    uniquePostIds.add(post.id);
-                    return true;
-                  });
-                  
-                  // Debug: Show like counts before sorting
-                  fetchedPosts.forEach(post => {
-                    const likes = calculateTotalLikes(post);
-                    console.log(`[MainPage] Post "${post.question.slice(0, 30)}...": ${likes} total likes`);
-                    post.answers.forEach((answer, i) => {
-                      answer.totems.forEach(totem => {
-                        const totemLikes = getTotemLikes(totem);
-                        console.log(`  Answer ${i} - ${totem.name}: ${totemLikes} likes`);
-                      });
-                    });
-                  });
-                  
-                  fetchedPosts.sort((a, b) => calculateTotalLikes(b) - calculateTotalLikes(a));
-                  console.log(`[MainPage] After sorting, top post: "${fetchedPosts[0]?.question.slice(0, 40)}..."`);
-                  fetchedPosts = fetchedPosts.slice(0, 10);
+                  fetchedPosts = userAnswersResult.posts || [];
                 }
                 break;
             }

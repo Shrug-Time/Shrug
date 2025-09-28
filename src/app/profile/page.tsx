@@ -53,7 +53,7 @@ export default function ProfilePage() {
   // Load posts where user has answered using the standardized PostService
   const loadUserAnswers = useCallback(async () => {
     if (!profile?.firebaseUid) return;
-    
+
     setIsLoadingPosts(true);
     try {
       const result = await PostService.getUserAnswers(profile.firebaseUid, 10);
@@ -495,20 +495,15 @@ export default function ProfilePage() {
                 </div>
               ) : (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <h2 className="text-2xl font-bold mb-6 text-gray-900">Posts and Answers</h2>
+                  <h2 className="text-2xl font-bold mb-6 text-gray-900">Your Answers</h2>
                   {isLoadingPosts ? (
                     <p className="text-gray-600">Loading content...</p>
-                  ) : userPosts.length > 0 || userAnswers.length > 0 ? (
+                  ) : userAnswers.length > 0 ? (
                     <div>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {(() => {
-                          // Deduplicate combined posts and answers
-                          const combinedPosts = [...userPosts, ...userAnswers];
-                          const uniquePostsMap = new Map<string, Post>();
-                          combinedPosts.forEach(post => {
-                            uniquePostsMap.set(post.id, post);
-                          });
-                          const displayPosts = Array.from(uniquePostsMap.values()).slice(fallbackStartIndex, fallbackStartIndex + 3);
+                          // For home sections, only show posts where user has written answers
+                          const displayPosts = userAnswers.slice(fallbackStartIndex, fallbackStartIndex + 3);
                           
                           return displayPosts.map(post => {
                             // Get the first answer for preview
@@ -573,13 +568,9 @@ export default function ProfilePage() {
                       
                       {/* Navigation arrows for fallback section */}
                       {(() => {
-                        const combinedPosts = [...userPosts, ...userAnswers];
-                        const uniquePostsMap = new Map<string, Post>();
-                        combinedPosts.forEach(post => {
-                          uniquePostsMap.set(post.id, post);
-                        });
-                        const totalPosts = Array.from(uniquePostsMap.values()).length;
-                        
+                        // For home sections, only count posts where user has written answers
+                        const totalPosts = userAnswers.length;
+
                         return totalPosts > 3 ? (
                           <div className="flex justify-between items-center mt-4">
                             <button 
@@ -606,7 +597,7 @@ export default function ProfilePage() {
                       })()}
                     </div>
                   ) : (
-                    <p className="text-gray-600">No posts or answers yet</p>
+                    <p className="text-gray-600">No answers yet</p>
                   )}
                 </div>
               )}

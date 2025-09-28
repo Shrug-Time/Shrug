@@ -119,58 +119,78 @@ function ProfileContent({ userID }: { userID: string }) {
     },
   });
 
-  // Fetch user posts with better error handling
+  // Fetch user's questions (posts they asked)
   const {
-    data: userPosts,
-    isLoading: postsLoading,
-    error: postsError,
-    refetch: refetchPosts
+    data: userQuestions,
+    isLoading: questionsLoading,
+    error: questionsError,
+    refetch: refetchQuestions
   } = useQuery({
-    queryKey: ['userPosts', userID, idType],
+    queryKey: ['userQuestions', userID, idType],
     queryFn: async () => {
       try {
         let userIdentifier = userID;
-        
+
         // If we have user data, prefer firebaseUid for consistency
         if (userData) {
           userIdentifier = userData.firebaseUid || userID;
         }
-        
-        // Use standardized PostService methods
+
+        // Get only posts (questions) asked by this user
         const userPostsResult = await PostService.getUserPosts(userIdentifier);
-        const userAnswersResult = await PostService.getUserAnswers(userIdentifier);
-        
-        // Combine posts and answers
-        const combinedPosts = [
-          ...(userPostsResult.posts || []),
-          ...(userAnswersResult.posts || [])
-        ];
-        
-        // Remove duplicates
-        const uniquePostIds = new Set<string>();
-        const uniquePosts = combinedPosts.filter(post => {
-          if (uniquePostIds.has(post.id)) return false;
-          uniquePostIds.add(post.id);
-          return true;
-        });
-        
-        return uniquePosts;
+        return userPostsResult.posts || [];
       } catch (error) {
-        console.error('Error fetching user posts:', error);
-        setToastMessage({ 
-          message: 'Failed to load posts. Please try again.', 
-          type: 'error' 
+        console.error('Error fetching user questions:', error);
+        setToastMessage({
+          message: 'Failed to load questions. Please try again.',
+          type: 'error'
         });
         throw error;
       }
     },
-    // Don't refetch on window focus to avoid unnecessary requests
+    enabled: !!userData,
     refetchOnWindowFocus: false,
-    // Retry failed requests
     retry: 2,
-    // Keep data fresh for 5 minutes
     staleTime: 5 * 60 * 1000,
   });
+
+  // Fetch posts where user has answered
+  const {
+    data: userAnswers,
+    isLoading: answersLoading,
+    error: answersError,
+    refetch: refetchAnswers
+  } = useQuery({
+    queryKey: ['userAnswers', userID, idType],
+    queryFn: async () => {
+      try {
+        let userIdentifier = userID;
+
+        // If we have user data, prefer firebaseUid for consistency
+        if (userData) {
+          userIdentifier = userData.firebaseUid || userID;
+        }
+
+        // Get posts where this user has provided answers
+        const userAnswersResult = await PostService.getUserAnswers(userIdentifier);
+        return userAnswersResult.posts || [];
+      } catch (error) {
+        console.error('Error fetching user answers:', error);
+        setToastMessage({
+          message: 'Failed to load answers. Please try again.',
+          type: 'error'
+        });
+        throw error;
+      }
+    },
+    enabled: !!userData,
+    refetchOnWindowFocus: false,
+    retry: 2,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Combined posts for home tab (only answers for home sections)
+  const userPosts = userAnswers;
   
   // Fetch profile sections
   const {
@@ -251,7 +271,8 @@ function ProfileContent({ userID }: { userID: string }) {
       const userId = userData.firebaseUid;
       await utilHandleTotemLike(post, answerIdx, totemName, userId);
       // Refetch posts to update the UI
-      refetchPosts();
+      refetchQuestions();
+      refetchAnswers();
     } catch (error) {
       console.error('Error liking totem:', error);
       setToastMessage({ 
@@ -267,7 +288,8 @@ function ProfileContent({ userID }: { userID: string }) {
     try {
       await utilHandleTotemRefresh(post, answerIdx, totemName, userData.refreshesRemaining || 0);
       // Refetch posts to update the UI
-      refetchPosts();
+      refetchQuestions();
+      refetchAnswers();
       // Also refetch user to update refreshes remaining
       refetchUser();
     } catch (error) {
@@ -282,7 +304,8 @@ function ProfileContent({ userID }: { userID: string }) {
   // Handle retry for both user and posts
   const handleRetry = () => {
     if (userError) refetchUser();
-    if (postsError) refetchPosts();
+    if (questionsError) refetchQuestions();
+    if (answersError) refetchAnswers();
     if (sectionsError) refetchSections();
     setToastMessage(null);
   };
@@ -312,7 +335,7 @@ function ProfileContent({ userID }: { userID: string }) {
   }
   
   // Show loading state
-  if (userLoading || (postsLoading && !userPosts)) {
+  if (userLoading || ((questionsLoading || answersLoading) && !userPosts)) {
     return (
       <div className="flex min-h-screen">
         {isCurrentUserProfile ? (
@@ -328,7 +351,7 @@ function ProfileContent({ userID }: { userID: string }) {
   }
   
   // Show error state with retry button
-  if (userError || postsError) {
+  if (userError || questionsError || answersError) {
     return (
       <div className="flex min-h-screen">
         {isCurrentUserProfile ? (
@@ -340,7 +363,7 @@ function ProfileContent({ userID }: { userID: string }) {
           <div className="max-w-4xl mx-auto bg-red-50 border border-red-200 rounded-lg p-6 text-center">
             <h2 className="text-xl font-semibold text-red-700 mb-2">Something went wrong</h2>
             <p className="text-gray-700 mb-4">
-              {(userError as Error)?.message || (postsError as Error)?.message || 'An error occurred while loading the profile.'}
+              {(userError as Error)?.message || (questionsError as Error)?.message || (answersError as Error)?.message || 'An error occurred while loading the profile.'}
             </p>
             <button
               onClick={handleRetry}
@@ -506,24 +529,24 @@ function ProfileContent({ userID }: { userID: string }) {
                 About
               </button>
               <button
-                onClick={() => setSelectedTab('comments')}
+                onClick={() => setSelectedTab('questions')}
                 className={`mr-8 py-4 px-1 border-b-2 font-medium text-sm ${
-                  selectedTab === 'comments'
+                  selectedTab === 'questions'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                Comments
+                Questions
               </button>
               <button
-                onClick={() => setSelectedTab('activity')}
+                onClick={() => setSelectedTab('answers')}
                 className={`mr-8 py-4 px-1 border-b-2 font-medium text-sm ${
-                  selectedTab === 'activity'
+                  selectedTab === 'answers'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                Activity
+                Answers
               </button>
             </div>
           </div>
@@ -684,14 +707,14 @@ function ProfileContent({ userID }: { userID: string }) {
                 </div>
               ) : (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <h2 className="text-2xl font-bold mb-6 text-gray-900">Posts and Answers</h2>
+                  <h2 className="text-2xl font-bold mb-6 text-gray-900">Your Answers</h2>
                   {sectionsLoading ? (
                     <p className="text-gray-600">Loading content...</p>
                   ) : userPosts && userPosts.length > 0 ? (
                     <div>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {(() => {
-                          // Use only userPosts since userAnswers isn't available in this component
+                          // Show only posts where user has written answers (userPosts = userAnswers from line 193)
                           const uniquePostsMap = new Map<string, Post>();
                           userPosts.forEach(post => {
                             uniquePostsMap.set(post.id, post);
@@ -813,19 +836,54 @@ function ProfileContent({ userID }: { userID: string }) {
             </div>
           )}
           
-          {/* Comments Tab Content */}
-          {selectedTab === 'comments' && (
+          {/* Questions Tab Content */}
+          {selectedTab === 'questions' && (
             <div className="bg-white rounded-xl shadow p-6">
-              <h2 className="text-xl font-semibold mb-4">Comments</h2>
-              <p className="text-gray-500">No comments yet</p>
+              <h2 className="text-xl font-semibold mb-4">Questions</h2>
+              {questionsLoading ? (
+                <div className="flex justify-center py-8">
+                  <LoadingSpinner size="md" />
+                </div>
+              ) : userQuestions && userQuestions.length > 0 ? (
+                <QuestionList
+                  posts={userQuestions}
+                  onWantToAnswer={handleSelectQuestion}
+                  hasNextPage={false}
+                  isLoading={false}
+                  onLoadMore={() => {}}
+                  showAllTotems={false}
+                  sectionId="questions-tab"
+                  showDeleteButtons={false}
+                />
+              ) : (
+                <p className="text-gray-500">No questions yet</p>
+              )}
             </div>
           )}
-          
-          {/* Activity Tab Content */}
-          {selectedTab === 'activity' && (
+
+          {/* Answers Tab Content */}
+          {selectedTab === 'answers' && (
             <div className="bg-white rounded-xl shadow p-6">
-              <h2 className="text-xl font-semibold mb-4">Activity</h2>
-              <p className="text-gray-500">No recent activity</p>
+              <h2 className="text-xl font-semibold mb-4">Answers</h2>
+              {answersLoading ? (
+                <div className="flex justify-center py-8">
+                  <LoadingSpinner size="md" />
+                </div>
+              ) : userAnswers && userAnswers.length > 0 ? (
+                <QuestionList
+                  posts={userAnswers}
+                  onWantToAnswer={handleSelectQuestion}
+                  hasNextPage={false}
+                  isLoading={false}
+                  onLoadMore={() => {}}
+                  showAllTotems={false}
+                  showUserAnswers={true}
+                  sectionId="answers-tab"
+                  showDeleteButtons={false}
+                />
+              ) : (
+                <p className="text-gray-500">No answers yet</p>
+              )}
             </div>
           )}
         </div>
