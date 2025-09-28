@@ -35,7 +35,7 @@ export function Navbar() {
           </div>
 
           {/* Search Bar - Aligned with content */}
-          <div className="flex-1 max-w-2xl -ml-28 mr-8 flex items-center">
+          <div className="flex-1 max-w-2xl -ml-32 mr-8 flex items-center">
             <div className="w-full py-2">
               <SearchBar 
                 placeholder="Search questions, users, totems..."

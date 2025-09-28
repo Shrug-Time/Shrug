@@ -11,7 +11,6 @@ import { Post } from '@/types/models';
 import { PostService } from '@/services/standardized';
 import { getTotemLikes } from '@/utils/componentHelpers';
 import { QueryConstraint } from 'firebase/firestore';
-import { AdBanner } from '@/components/ads/AdBanner';
 import { WelcomeHeader } from '@/components/common/WelcomeHeader';
 import { useIntroductionModal } from '@/hooks/useIntroductionModal';
 
@@ -207,9 +206,7 @@ export default function Home() {
           <WelcomeHeader onDismiss={closeModal} />
         )}
         
-        <div className="max-w-4xl mx-auto px-4 py-8">
-          <AdBanner />
-          
+        <div className="max-w-4xl ml-64 px-4 py-8">
           <div className="flex space-x-4 mb-6">
             <button
               onClick={() => setActiveTab('latest')}

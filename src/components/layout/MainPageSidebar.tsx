@@ -93,7 +93,7 @@ export function MainPageSidebar({ isExpanded, onToggle }: MainPageSidebarProps) 
     return (
       <button
         onClick={onToggle}
-        className="fixed left-0 top-4 p-2 bg-white hover:bg-gray-100 transition-colors rounded-r-lg shadow-md z-40"
+        className="fixed left-0 top-20 p-2 bg-white hover:bg-gray-100 transition-colors rounded-r-lg shadow-md z-40"
         title="Expand sidebar"
       >
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
