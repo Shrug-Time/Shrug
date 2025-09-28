@@ -51,7 +51,7 @@ export default function AnswerPage() {
   }
 
   return (
-    <div className="max-w-4xl ml-64 px-4 py-8">
+    <div className="max-w-4xl lg:ml-64 mx-auto px-4 py-8">
       <div className="bg-white rounded-xl shadow p-6 mb-8">
         <Link href={getPostUrl(postId)} className="text-blue-500 hover:underline mb-4 block">
           ← Back to question

@@ -422,7 +422,7 @@ function ProfileContent({ userID }: { userID: string }) {
           />
         )}
 
-        <div className="max-w-4xl ml-64 p-4">
+        <div className="max-w-4xl lg:ml-64 mx-auto p-4">
           {/* Profile Header */}
           <div className="flex items-start mb-8">
             {/* Profile Image */}

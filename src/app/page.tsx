@@ -161,8 +161,8 @@ export default function Home() {
           <WelcomeHeader onDismiss={closeModal} />
         )}
         
-        <div className="max-w-4xl ml-64 px-4 py-8">
-          <div className="flex space-x-4 mb-6">
+        <div className="max-w-4xl lg:ml-64 mx-auto px-4 py-8">
+          <div className="flex flex-wrap gap-2 sm:space-x-4 sm:gap-0 mb-6">
             <button
               onClick={() => setActiveTab('latest')}
               className={`px-4 py-2 rounded-lg transition-colors ${

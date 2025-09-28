@@ -104,7 +104,17 @@ export function MainPageSidebar({ isExpanded, onToggle }: MainPageSidebarProps) 
   }
 
   return (
-    <div className="fixed left-0 top-16 h-[calc(100vh-4rem)] bg-gray-50 border-r border-gray-200 z-40 w-64 shadow-lg transition-transform duration-300" style={{ transform: `translateX(${isExpanded ? '0' : '-100%'})` }}>
+    <>
+      {/* Mobile overlay */}
+      {isExpanded && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
+          onClick={onToggle}
+        />
+      )}
+
+      <div className="fixed left-0 top-16 h-[calc(100vh-4rem)] bg-gray-50 border-r border-gray-200 z-40 w-64 shadow-lg transition-transform duration-300 lg:translate-x-0"
+           style={{ transform: `translateX(${isExpanded ? '0' : '-100%'})` }}>
       {/* Header with close button */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
         <h2 className="font-semibold text-gray-800">Discover</h2>
@@ -241,6 +251,6 @@ export function MainPageSidebar({ isExpanded, onToggle }: MainPageSidebarProps) 
           <SidebarAd />
         </div>
       </div>
-    </div>
+    </>
   );
 } 
