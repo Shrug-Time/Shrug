@@ -178,15 +178,15 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
           const answersToShow = isExpanded ? answers.slice(0, 5) : [answers[0]];
 
           return (
-            <div key={`${totemName}-${index}-${answers[0]?.answer.id || index}`} className="relative flex items-center gap-4 mb-6">
+            <div key={`${totemName}-${index}-${answers[0]?.answer.id || index}`} className="relative flex items-start gap-4 mb-6">
               {/* Number Circle */}
-              <div className="flex flex-col items-center">
-                <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
+              <div className="flex flex-col items-center relative">
+                <div className={`w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold mt-16 relative z-10 ${index === 0 ? 'ring-4 ring-yellow-400' : ''}`}>
                   {index + 1}
                 </div>
                 {/* Connecting Line */}
                 {index < sortedTotems.length - 1 && (
-                  <div className="w-0.5 h-16 bg-blue-400 mt-2"></div>
+                  <div className="absolute top-20 left-1/2 transform -translate-x-1/2 w-0.5 bg-blue-400" style={{ height: 'calc(100% + 2rem)' }}></div>
                 )}
               </div>
 
