@@ -6,8 +6,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useUser } from '@/hooks/useUser';
 import { PostService } from '@/services/standardized';
 import { CreatePostForm } from '@/components/posts/CreatePostForm';
-import { QuestionAnswers } from '@/components/questions/QuestionAnswers';
+import { QuestionAnswers, useAnswerModal } from '@/components/questions/QuestionAnswers';
 import { ReportButton } from '@/components/reports/ReportButton';
+import { AnswerModal } from '@/components/answers/AnswerModal';
+import { AuthModal } from '@/components/auth/AuthModal';
+import { useAuthModal } from '@/hooks/useAuthModal';
 import { getProfileUrl } from '@/utils/routes';
 import Link from 'next/link';
 import type { Post } from '@/types/models';
@@ -18,6 +21,8 @@ export default function PostPage() {
   const queryClient = useQueryClient();
   const { profile: userData, isLoading: isLoadingUserData } = useUser();
   const [showCreatePost, setShowCreatePost] = useState(false);
+  const { isAuthModalOpen, setIsAuthModalOpen } = useAuthModal();
+  const { selectedQuestion, setSelectedQuestion, handleAnswerSubmitted, handleAnswerClick } = useAnswerModal();
 
   const { data: post, isLoading } = useQuery({
     queryKey: ['post', postId],
@@ -40,14 +45,23 @@ export default function PostPage() {
           <h1 className="text-2xl font-bold text-gray-900 mb-4">{post.question}</h1>
           <ReportButton contentId={post.id} contentType="post" />
         </div>
-        <div className="text-sm text-gray-600">
-          Asked by{' '}
-          <Link 
-            href={getProfileUrl(post.username || post.firebaseUid || '')}
-            className="text-blue-600 hover:text-blue-800 hover:underline"
+        <div className="flex justify-between items-end">
+          <div className="text-sm text-gray-600">
+            Asked by{' '}
+            <Link
+              href={getProfileUrl(post.username || post.firebaseUid || '')}
+              className="text-blue-600 hover:text-blue-800 hover:underline"
+            >
+              {post.username || 'Anonymous'}
+            </Link>
+          </div>
+          <button
+            onClick={() => handleAnswerClick(post)}
+            className="inline-flex items-center justify-center w-8 h-8 rounded-full text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            title="Add Answer"
           >
-            {post.username || 'Anonymous'}
-          </Link>
+            +
+          </button>
         </div>
       </div>
 
@@ -65,6 +79,20 @@ export default function PostPage() {
           onCancel={() => setShowCreatePost(false)}
         />
       )}
+
+      {selectedQuestion && (
+        <AnswerModal
+          isOpen={!!selectedQuestion}
+          onClose={() => setSelectedQuestion(null)}
+          selectedQuestion={selectedQuestion}
+          onAnswerSubmitted={handleAnswerSubmitted}
+        />
+      )}
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
     </div>
   );
 } 

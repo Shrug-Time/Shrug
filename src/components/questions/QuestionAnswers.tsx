@@ -16,6 +16,31 @@ import { ReportButton } from '@/components/reports/ReportButton';
 import { useTotem } from '@/contexts/TotemContext';
 import { FormattedText, truncateAnswerPreview } from '@/utils/textFormatting';
 
+// Custom hook for answer functionality
+export function useAnswerModal() {
+  const queryClient = useQueryClient();
+  const [selectedQuestion, setSelectedQuestion] = useState<Post | null>(null);
+  const { handleAuthRequired } = useAuthModal();
+
+  const handleAnswerSubmitted = () => {
+    setSelectedQuestion(null);
+    queryClient.invalidateQueries({ queryKey: ['posts'] });
+  };
+
+  const handleAnswerClick = (post: Post) => {
+    handleAuthRequired(() => {
+      setSelectedQuestion(post);
+    });
+  };
+
+  return {
+    selectedQuestion,
+    setSelectedQuestion,
+    handleAnswerSubmitted,
+    handleAnswerClick
+  };
+}
+
 // Helper function to safely convert various date formats to a Date object
 const toDate = (dateField: any): Date => {
   if (!dateField) return new Date();
@@ -35,25 +60,18 @@ const toDate = (dateField: any): Date => {
 
 interface QuestionAnswersProps {
   post: Post;
+  showAddButton?: boolean;
 }
 
-export function QuestionAnswers({ post }: QuestionAnswersProps) {
+export function QuestionAnswers({ post, showAddButton = false }: QuestionAnswersProps) {
   const router = useRouter();
-  const queryClient = useQueryClient();
-  const [selectedQuestion, setSelectedQuestion] = useState<Post | null>(null);
   const [expandedTotems, setExpandedTotems] = useState<Set<string>>(new Set());
-  const { isAuthModalOpen, setIsAuthModalOpen, handleAuthRequired } = useAuthModal();
+  const { isAuthModalOpen, setIsAuthModalOpen } = useAuthModal();
   const { getCrispness } = useTotem();
+  const { selectedQuestion, setSelectedQuestion, handleAnswerSubmitted, handleAnswerClick } = useAnswerModal();
 
-  const handleAnswerSubmitted = () => {
-    setSelectedQuestion(null);
-    queryClient.invalidateQueries({ queryKey: ['posts'] });
-  };
-
-  const handleAnswerClick = () => {
-    handleAuthRequired(() => {
-      setSelectedQuestion(post);
-    });
+  const handleAnswerClickLocal = () => {
+    handleAnswerClick(post);
   };
 
   const toggleExpanded = (totemName: string) => {
@@ -149,7 +167,7 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
         </div>
         <div className="flex justify-center">
           <button
-            onClick={handleAnswerClick}
+            onClick={handleAnswerClickLocal}
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             Add First Answer
@@ -161,14 +179,16 @@ export function QuestionAnswers({ post }: QuestionAnswersProps) {
 
   return (
     <>
-      <div className="flex justify-end mb-6">
-        <button
-          onClick={handleAnswerClick}
-          className="inline-flex items-center justify-center w-8 h-8 rounded-full text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        >
-          +
-        </button>
-      </div>
+      {showAddButton && (
+        <div className="flex justify-end mb-6">
+          <button
+            onClick={handleAnswerClickLocal}
+            className="inline-flex items-center justify-center w-8 h-8 rounded-full text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            +
+          </button>
+        </div>
+      )}
 
       {/* Totem Pole Layout */}
       <div className="relative">
