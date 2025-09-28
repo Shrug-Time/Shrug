@@ -34,7 +34,7 @@ export default function PostPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="max-w-4xl ml-64 px-4 py-8">
       <div className="bg-white rounded-xl shadow p-6 mb-8">
         <div className="flex justify-between items-start">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">{post.question}</h1>
