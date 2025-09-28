@@ -615,61 +615,65 @@ function ProfileContent({ userID }: { userID: string }) {
                           </div>
                           
                           {/* Grid layout with 3 cards */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr">
                             {getSectionSlice(section.id, sectionPosts).map((post, index) => {
-                              // Get the first answer for preview
-                              const firstAnswer = post.answers && post.answers.length > 0 ? post.answers[0] : null;
-                              const firstParagraph = firstAnswer?.text?.split('\n')[0] || '';
-                              
-                              // Get the top totem for this post
-                              const topTotem = firstAnswer?.totems?.reduce((top, current) => {
+                              // Get THIS USER's answer for preview (not just any answer)
+                              const userAnswer = post.answers?.find(answer =>
+                                answer.firebaseUid === userData?.firebaseUid ||
+                                answer.username === userData?.username
+                              );
+                              const firstParagraph = userAnswer?.text?.split('\n')[0] || '';
+
+
+                              // Get the top totem for this user's answer
+                              const topTotem = userAnswer?.totems?.reduce((top, current) => {
                                 const topLikes = current.likeHistory?.length || 0;
                                 const currentLikes = current.likeHistory?.length || 0;
                                 return currentLikes > topLikes ? current : top;
-                              }, firstAnswer.totems[0]);
+                              }, userAnswer.totems[0]);
 
                               return (
-                                <div key={post.id} className="bg-white rounded-lg shadow p-3 hover:bg-gray-50 transition-colors">
-                                  <div className="mb-2">
-                                    <p className="text-sm text-gray-600">
-                                      Asked by <span className="text-blue-600 font-medium">{post.username || 'Unknown'}</span>
-                                    </p>
-                                  </div>
-                                  
-                                  <div className="mb-3">
-                                    <Link 
-                                      href={`/post/${post.id}`}
-                                      className="block text-lg font-semibold text-gray-900 hover:text-blue-600 transition-colors"
-                                    >
-                                      {post.question}
-                                    </Link>
-                                  </div>
-                                  
-                                  {firstParagraph && (
-                                    <div className="mb-3">
-                                      <p className="text-gray-600 text-sm line-clamp-2">
-                                        {firstParagraph}
-                                      </p>
+                                <div
+                                  key={post.id}
+                                  className="bg-white rounded-lg shadow-md border border-gray-200 p-4 transition-colors h-full"
+                                >
+                                  <div className="flex flex-col h-full">
+                                    <div className="mb-3 pb-3 border-b border-gray-100">
+                                      <Link
+                                        href={`/post/${post.id}`}
+                                        className="block hover:bg-gray-50 hover:text-blue-600 transition-colors rounded-lg p-2 -m-2"
+                                      >
+                                        <h3 className="text-sm font-semibold text-gray-800 line-clamp-2">
+                                          {post.question}
+                                        </h3>
+                                      </Link>
                                     </div>
-                                  )}
-                                  
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center space-x-2">
+
+                                    {userAnswer && firstParagraph && (
+                                      <div className="mb-3 flex-grow">
+                                        <Link
+                                          href={`/post/${post.id}/answers/${userAnswer.id}`}
+                                          className="block hover:bg-gray-50 hover:text-blue-600 transition-colors rounded-lg p-2 -m-2"
+                                        >
+                                          <p className="text-gray-900 text-base line-clamp-3 leading-relaxed">
+                                            {firstParagraph}
+                                          </p>
+                                        </Link>
+                                      </div>
+                                    )}
+
+                                    <div className="mt-auto pt-2 border-t border-gray-100">
                                       {topTotem && (
-                                        <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded">
-                                          {topTotem.name}
-                                        </span>
+                                        <div className="flex items-center space-x-1">
+                                          <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded font-medium">
+                                            {topTotem.name}
+                                          </span>
+                                          <span className="text-xs text-gray-500">
+                                            {topTotem.likeHistory?.length || 0} likes
+                                          </span>
+                                        </div>
                                       )}
-                                      <span className="text-xs text-gray-500">
-                                        {post.answers?.length || 0} answers
-                                      </span>
                                     </div>
-                                    <Link 
-                                      href={`/post/${post.id}`}
-                                      className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                                    >
-                                      +
-                                    </Link>
                                   </div>
                                 </div>
                               );
@@ -712,7 +716,7 @@ function ProfileContent({ userID }: { userID: string }) {
                     <p className="text-gray-600">Loading content...</p>
                   ) : userPosts && userPosts.length > 0 ? (
                     <div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr">
                         {(() => {
                           // Show only posts where user has written answers (userPosts = userAnswers from line 193)
                           const uniquePostsMap = new Map<string, Post>();
@@ -722,59 +726,63 @@ function ProfileContent({ userID }: { userID: string }) {
                           const displayPosts = Array.from(uniquePostsMap.values()).slice(fallbackStartIndex, fallbackStartIndex + 3);
                           
                           return displayPosts.map(post => {
-                            // Get the first answer for preview
-                            const firstAnswer = post.answers && post.answers.length > 0 ? post.answers[0] : null;
-                            const firstParagraph = firstAnswer?.text?.split('\n')[0] || '';
-                            
-                            // Get the top totem for this post
-                            const topTotem = firstAnswer?.totems?.reduce((top, current) => {
+                            // Get THIS USER's answer for preview (not just any answer)
+                            const userAnswer = post.answers?.find(answer =>
+                              answer.firebaseUid === userData?.firebaseUid ||
+                              answer.username === userData?.username
+                            );
+                            const firstParagraph = userAnswer?.text?.split('\n')[0] || '';
+
+
+                            // Get the top totem for this user's answer
+                            const topTotem = userAnswer?.totems?.reduce((top, current) => {
                               const topLikes = current.likeHistory?.length || 0;
                               const currentLikes = current.likeHistory?.length || 0;
                               return currentLikes > topLikes ? current : top;
-                            }, firstAnswer.totems[0]);
+                            }, userAnswer.totems[0]);
 
                             return (
-                              <div key={post.id} className="bg-white rounded-lg shadow p-3 hover:bg-gray-50 transition-colors">
-                                <div className="mb-2">
-                                  <p className="text-sm text-gray-600">
-                                    Asked by <span className="text-blue-600 font-medium">{post.username || 'Unknown'}</span>
-                                  </p>
-                                </div>
-                                
-                                <div className="mb-3">
-                                  <Link 
-                                    href={`/post/${post.id}`}
-                                    className="block text-lg font-semibold text-gray-900 hover:text-blue-600 transition-colors"
-                                  >
-                                    {post.question}
-                                  </Link>
-                                </div>
-                                
-                                {firstParagraph && (
-                                  <div className="mb-3">
-                                    <p className="text-gray-600 text-sm line-clamp-2">
-                                      {firstParagraph}
-                                    </p>
+                              <div
+                                key={post.id}
+                                className="bg-white rounded-lg shadow-md border border-gray-200 p-4 transition-colors h-full"
+                              >
+                                <div className="flex flex-col h-full">
+                                  <div className="mb-3 pb-3 border-b border-gray-100">
+                                    <Link
+                                      href={`/post/${post.id}`}
+                                      className="block hover:bg-gray-50 hover:text-blue-600 transition-colors rounded-lg p-2 -m-2"
+                                    >
+                                      <h3 className="text-sm font-semibold text-gray-800 line-clamp-2">
+                                        {post.question}
+                                      </h3>
+                                    </Link>
                                   </div>
-                                )}
-                                
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center space-x-2">
+
+                                  {userAnswer && firstParagraph && (
+                                    <div className="mb-3 flex-grow">
+                                      <Link
+                                        href={`/post/${post.id}/answers/${userAnswer.id}`}
+                                        className="block hover:bg-gray-50 hover:text-blue-600 transition-colors rounded-lg p-2 -m-2"
+                                      >
+                                        <p className="text-gray-900 text-base line-clamp-3 leading-relaxed">
+                                          {firstParagraph}
+                                        </p>
+                                      </Link>
+                                    </div>
+                                  )}
+
+                                  <div className="mt-auto pt-2 border-t border-gray-100">
                                     {topTotem && (
-                                      <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded">
-                                        {topTotem.name}
-                                      </span>
+                                      <div className="flex items-center space-x-1">
+                                        <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded font-medium">
+                                          {topTotem.name}
+                                        </span>
+                                        <span className="text-xs text-gray-500">
+                                          {topTotem.likeHistory?.length || 0} likes
+                                        </span>
+                                      </div>
                                     )}
-                                    <span className="text-xs text-gray-500">
-                                      {post.answers?.length || 0} answers
-                                    </span>
                                   </div>
-                                  <Link 
-                                    href={`/post/${post.id}`}
-                                    className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                                  >
-                                    +
-                                  </Link>
                                 </div>
                               </div>
                             );
