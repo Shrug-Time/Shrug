@@ -42,6 +42,7 @@ function ProfileContent({ userID }: { userID: string }) {
   const [isCurrentUserProfile, setIsCurrentUserProfile] = useState<boolean>(false);
   const [sectionStartIndex, setSectionStartIndex] = useState<Map<string, number>>(new Map());
   const [fallbackStartIndex, setFallbackStartIndex] = useState(0);
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
 
   // Determine identifier type (username, firebaseUid, or legacy userId)
   const idType = detectUserIdentifierType(userID);
@@ -382,19 +383,23 @@ function ProfileContent({ userID }: { userID: string }) {
       {isCurrentUserProfile ? (
         <Sidebar activePage="content" />
       ) : (
-        <OtherUserProfileSidebar profileUser={userData} />
+        <OtherUserProfileSidebar
+          profileUser={userData}
+          isExpanded={isSidebarExpanded}
+          onToggle={() => setIsSidebarExpanded(!isSidebarExpanded)}
+        />
       )}
       
       <div className="flex-1">
         {/* Show toast messages */}
         {toastMessage && (
-          <Toast 
-            message={toastMessage.message} 
+          <Toast
+            message={toastMessage.message}
             type={toastMessage.type}
           />
         )}
-        
-        <div className="max-w-4xl mx-auto p-4">
+
+        <div className="max-w-4xl ml-64 p-4">
           {/* Profile Header */}
           <div className="flex items-start mb-8">
             {/* Profile Image */}
@@ -604,7 +609,7 @@ function ProfileContent({ userID }: { userID: string }) {
                                 <div key={post.id} className="bg-white rounded-lg shadow p-3 hover:bg-gray-50 transition-colors">
                                   <div className="mb-2">
                                     <p className="text-sm text-gray-600">
-                                      Posted by <span className="text-blue-600 font-medium">{post.username || 'Unknown'}</span>
+                                      Asked by <span className="text-blue-600 font-medium">{post.username || 'Unknown'}</span>
                                     </p>
                                   </div>
                                   
@@ -709,7 +714,7 @@ function ProfileContent({ userID }: { userID: string }) {
                               <div key={post.id} className="bg-white rounded-lg shadow p-3 hover:bg-gray-50 transition-colors">
                                 <div className="mb-2">
                                   <p className="text-sm text-gray-600">
-                                    Posted by <span className="text-blue-600 font-medium">{post.username || 'Unknown'}</span>
+                                    Asked by <span className="text-blue-600 font-medium">{post.username || 'Unknown'}</span>
                                   </p>
                                 </div>
                                 

@@ -72,7 +72,7 @@ export function TotemRefreshModal({
                     >
                       <div className="font-medium">Restore previous like</div>
                       <div className="mt-1 text-sm text-gray-600">
-                        {Math.round(currentCrispness)}% Crisp - Keep your original like time
+                        Keep your original like time
                       </div>
                     </button>
                     
@@ -81,7 +81,7 @@ export function TotemRefreshModal({
                       disabled={refreshesRemaining <= 0}
                       className="w-full rounded-lg bg-blue-600 px-4 py-3 text-left text-white hover:bg-blue-700 disabled:bg-gray-400"
                     >
-                      <div className="font-medium">Refresh to 100% Crisp</div>
+                      <div className="font-medium">Refresh your like</div>
                       <div className="mt-1 text-sm text-blue-100">
                         {refreshesRemaining > 0 
                           ? `Use 1 refresh (${refreshesRemaining} remaining today)`

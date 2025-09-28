@@ -420,7 +420,7 @@ export default function ProfilePage() {
                                 <div key={post.id} className="bg-white rounded-lg shadow p-3 hover:bg-gray-50 transition-colors">
                                   <div className="mb-2">
                                     <p className="text-sm text-gray-600">
-                                      Posted by <span className="text-blue-600 font-medium">{post.username || 'Unknown'}</span>
+                                      Asked by <span className="text-blue-600 font-medium">{post.username || 'Unknown'}</span>
                                     </p>
                                   </div>
                                   
@@ -526,7 +526,7 @@ export default function ProfilePage() {
                               <div key={post.id} className="bg-white rounded-lg shadow p-3 hover:bg-gray-50 transition-colors">
                                 <div className="mb-2">
                                   <p className="text-sm text-gray-600">
-                                    Posted by <span className="text-blue-600 font-medium">{post.username || 'Unknown'}</span>
+                                    Asked by <span className="text-blue-600 font-medium">{post.username || 'Unknown'}</span>
                                   </p>
                                 </div>
                                 

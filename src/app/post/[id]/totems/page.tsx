@@ -29,7 +29,7 @@ export default function QuestionTotemsPage() {
       <div className="bg-white rounded-xl shadow p-6 mb-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-4">{post.question}</h1>
         <div className="text-sm text-gray-600">
-          Posted by {post.username}
+          Asked by {post.username}
         </div>
       </div>
 

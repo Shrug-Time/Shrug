@@ -286,7 +286,7 @@ export function QuestionList({
       <div key={uniqueKey} className="bg-white rounded-lg shadow p-3 mb-3">
         <div className="flex items-center justify-between text-sm text-gray-500 mb-2">
           <span>
-            Posted by{' '}
+            Asked by{' '}
             <Link 
               href={getProfileUrl(post.username || post.firebaseUid || '')}
               className="text-blue-600 hover:text-blue-800 hover:underline"

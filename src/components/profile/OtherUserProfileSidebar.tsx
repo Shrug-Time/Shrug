@@ -13,9 +13,11 @@ import Link from 'next/link';
 
 interface OtherUserProfileSidebarProps {
   profileUser: UserProfile;
+  isExpanded?: boolean;
+  onToggle?: () => void;
 }
 
-export function OtherUserProfileSidebar({ profileUser }: OtherUserProfileSidebarProps) {
+export function OtherUserProfileSidebar({ profileUser, isExpanded = true, onToggle }: OtherUserProfileSidebarProps) {
   const { user: currentUser } = useAuth();
   const { isPremium } = useSubscription();
   const [sections, setSections] = useState<ProfileSection[]>([]);
@@ -48,58 +50,40 @@ export function OtherUserProfileSidebar({ profileUser }: OtherUserProfileSidebar
     loadUserData();
   }, [profileUser.firebaseUid, currentUser]);
 
+  if (!isExpanded && onToggle) {
+    return (
+      <button
+        onClick={onToggle}
+        className="fixed left-0 top-20 p-2 bg-white hover:bg-gray-100 transition-colors rounded-r-lg shadow-md z-40"
+        title="Expand sidebar"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+        </svg>
+      </button>
+    );
+  }
+
   return (
-    <div className="w-80 bg-white border-r border-gray-200 p-6 overflow-y-auto">
-      {/* User Summary */}
-      <div className="mb-6">
-        <div className="flex items-center mb-4">
-          <div className="w-16 h-16 rounded-full overflow-hidden mr-4">
-            {profileUser.photoURL ? (
-              <Image
-                src={profileUser.photoURL}
-                alt={`${profileUser.name}'s profile`}
-                width={64}
-                height={64}
-                className="object-cover"
-              />
-            ) : (
-              <div className="w-full h-full bg-blue-100 flex items-center justify-center text-blue-500 text-xl font-bold">
-                {profileUser.name.charAt(0).toUpperCase()}
-              </div>
-            )}
-          </div>
-          <div className="flex-1">
-            <h2 className="font-bold text-lg">{profileUser.name}</h2>
-            <p className="text-gray-600 text-sm">@{profileUser.username}</p>
-          </div>
+    <div className="fixed left-0 top-16 h-[calc(100vh-4rem)] bg-gray-50 border-r border-gray-200 z-40 w-64 shadow-lg transition-transform duration-300" style={{ transform: `translateX(${isExpanded ? '0' : '-100%'})` }}>
+      {/* Header with close button */}
+      {onToggle && (
+        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+          <h2 className="font-semibold text-gray-800">{profileUser.name}</h2>
+          <button
+            onClick={onToggle}
+            className="p-1 hover:bg-gray-100 rounded transition-colors"
+            title="Collapse sidebar"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
         </div>
+      )}
 
-        {/* Follow/Subscribe Button */}
-        {currentUser && currentUser.uid !== profileUser.firebaseUid && (
-          <div className="mb-4">
-            <FollowButton
-              currentUserId={currentUser.uid}
-              targetUserId={profileUser.firebaseUid}
-              onError={(message) => console.error(message)}
-              onFollowChange={() => {
-                // Could update follower counts here
-              }}
-            />
-          </div>
-        )}
-
-        {/* Quick Stats */}
-        <div className="grid grid-cols-2 gap-4 text-center">
-          <div>
-            <div className="text-2xl font-bold text-gray-900">{profileUser.followers?.length || 0}</div>
-            <div className="text-sm text-gray-500">Followers</div>
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-gray-900">{profileUser.following?.length || 0}</div>
-            <div className="text-sm text-gray-500">Following</div>
-          </div>
-        </div>
-      </div>
+      {/* Content */}
+      <div className="p-4 space-y-6 overflow-y-auto h-full">
 
       {/* Bio */}
       {profileUser.bio && (
@@ -109,25 +93,6 @@ export function OtherUserProfileSidebar({ profileUser }: OtherUserProfileSidebar
         </div>
       )}
 
-      {/* Subscription Info */}
-      <div className="mb-6">
-        <h3 className="font-semibold text-gray-900 mb-3">Community</h3>
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">Subscribers</span>
-            <span className="font-medium">{subscriberCount}</span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">Subscriptions</span>
-            <span className="font-medium">{subscriptionCount}</span>
-          </div>
-          {isSubscribedToUser && (
-            <div className="mt-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full text-center">
-              ✓ You're subscribed
-            </div>
-          )}
-        </div>
-      </div>
 
       {/* Content Sections */}
       {sectionsLoading ? (
@@ -183,18 +148,6 @@ export function OtherUserProfileSidebar({ profileUser }: OtherUserProfileSidebar
 
       {/* Actions */}
       <div className="space-y-3">
-        {/* Subscribe to their content */}
-        {currentUser && currentUser.uid !== profileUser.firebaseUid && (
-          <button
-            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-            onClick={() => {
-              // TODO: Implement subscription to user's content
-              console.log('Subscribe to user content');
-            }}
-          >
-            {isSubscribedToUser ? 'Manage Subscription' : 'Subscribe to Content'}
-          </button>
-        )}
 
         {/* View all posts */}
         <Link
@@ -216,6 +169,7 @@ export function OtherUserProfileSidebar({ profileUser }: OtherUserProfileSidebar
           </svg>
           <span className="text-sm">Back to Feed</span>
         </Link>
+      </div>
       </div>
     </div>
   );

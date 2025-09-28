@@ -70,11 +70,11 @@ export default function QuestionTotemPage() {
   const totalLikes = totemAnswers.reduce((sum, { likes }) => sum + likes, 0);
 
   return (
-    <div className="max-w-4xl ml-64 px-4 py-8">
+    <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="bg-white rounded-xl shadow p-6 mb-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-4">{post.question}</h1>
         <div className="text-sm text-gray-600">
-          Posted by {post.username}
+          Asked by {post.username}
         </div>
       </div>
 

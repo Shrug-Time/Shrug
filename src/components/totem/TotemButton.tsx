@@ -21,7 +21,7 @@ export function TotemButton({
   answerId,
   className = '', 
   showCount = true, 
-  showCrispnessValue = true 
+  showCrispnessValue = false 
 }: TotemButtonProps) {
   const { user } = useAuth();
   const { toggleLike, isLiked, getLikeCount, getCrispness, loadPostTotems, loadTotemState } = useTotem();
