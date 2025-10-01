@@ -27,25 +27,65 @@ export function Navbar() {
   return (
     <nav className="bg-white shadow-sm sticky top-0 z-50">
       <div className="w-full pl-2 pr-4">
-        <div className="flex justify-between h-16">
-          <div className="flex items-center space-x-4">
-            <Link href="/" className="flex items-center ml-4">
-              <span className="text-xl font-bold text-gray-800">Shrug</span>
+        {/* Mobile: Stack vertically, Desktop (lg+): Original horizontal layout */}
+        <div className="flex lg:justify-between h-14 lg:h-16">
+          {/* Top row: Logo and user controls */}
+          <div className="relative flex items-center w-full lg:w-auto lg:px-0">
+            <Link href="/" className="flex items-center ml-2 lg:ml-4 flex-shrink-0 z-10">
+              <span className="text-lg lg:text-xl font-bold text-gray-800">Shrug</span>
             </Link>
+
+            {/* Search Bar - Absolute left position at 90px, shrinks from right on mobile */}
+            <div className="absolute left-[90px] right-[120px] lg:hidden">
+              <SearchBar
+                placeholder="Search..."
+                showSuggestions={true}
+                className="w-full"
+              />
+            </div>
+
+            {/* User controls - visible on mobile */}
+            <div className="flex items-center space-x-2 lg:hidden flex-shrink-0 ml-auto z-10">
+              {profile ? (
+                <>
+                  <button
+                    onClick={() => setIsCreatePostModalOpen(true)}
+                    className="inline-flex items-center px-2 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                  >
+                    + New
+                  </button>
+                  <Link href="/profile">
+                    <img
+                      src={profile.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${profile.name}`}
+                      alt="Profile"
+                      className="h-7 w-7 rounded-full"
+                    />
+                  </Link>
+                </>
+              ) : (
+                <button
+                  onClick={() => setIsAuthModalOpen(true)}
+                  className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                >
+                  Login
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Search Bar - Aligned with content */}
-          <div className="flex-1 max-w-2xl -ml-32 mr-8 flex items-center">
-            <div className="w-full py-2">
-              <SearchBar 
+          {/* Search Bar - Hidden on mobile, visible on desktop, aligned with main content */}
+          <div className="hidden lg:flex lg:flex-1 lg:max-w-2xl lg:items-center lg:h-16 lg:-ml-32 lg:mr-8">
+            <div className="w-full lg:py-2">
+              <SearchBar
                 placeholder="Search questions, users, totems..."
                 showSuggestions={true}
                 className="w-full"
               />
             </div>
           </div>
-          
-          <div className="flex items-center space-x-4">
+
+          {/* User controls - hidden on mobile, visible on desktop */}
+          <div className="hidden lg:flex items-center space-x-4">
             {profile ? (
               <>
                 <button

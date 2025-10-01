@@ -161,7 +161,7 @@ export default function Home() {
           <WelcomeHeader onDismiss={closeModal} />
         )}
         
-        <div className="max-w-4xl lg:ml-64 mx-auto px-4 py-8">
+        <div className="max-w-4xl lg:ml-64 mx-auto px-4 py-8 transition-[margin] duration-300">
           <div className="flex flex-wrap gap-2 sm:space-x-4 sm:gap-0 mb-6">
             <button
               onClick={() => setActiveTab('latest')}
