@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useUser } from '@/hooks/useUser';
 import { AuthModal } from '@/components/auth/AuthModal';
@@ -13,7 +13,9 @@ export function Navbar() {
   const { isPremium } = useSubscription();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const router = useRouter();
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const handleLogout = async () => {
     try {
@@ -23,6 +25,23 @@ export function Navbar() {
       console.error('Error signing out:', error);
     }
   };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    if (isMobileMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMobileMenuOpen]);
 
   return (
     <nav className="bg-white shadow-sm sticky top-0 z-50">
@@ -45,7 +64,7 @@ export function Navbar() {
             </div>
 
             {/* User controls - visible on mobile */}
-            <div className="flex items-center space-x-2 lg:hidden flex-shrink-0 ml-auto z-10">
+            <div className="relative flex items-center space-x-2 lg:hidden flex-shrink-0 ml-auto z-10">
               {profile ? (
                 <>
                   <button
@@ -54,13 +73,40 @@ export function Navbar() {
                   >
                     + New
                   </button>
-                  <Link href="/profile">
-                    <img
-                      src={profile.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${profile.name}`}
-                      alt="Profile"
-                      className="h-7 w-7 rounded-full"
-                    />
-                  </Link>
+                  <div className="relative" ref={menuRef}>
+                    <button
+                      onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                      className="flex items-center"
+                    >
+                      <img
+                        src={profile.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${profile.name}`}
+                        alt="Profile"
+                        className="h-7 w-7 rounded-full"
+                      />
+                    </button>
+
+                    {/* Dropdown Menu */}
+                    {isMobileMenuOpen && (
+                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
+                        <Link
+                          href="/profile"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          Profile
+                        </Link>
+                        <button
+                          onClick={() => {
+                            setIsMobileMenuOpen(false);
+                            handleLogout();
+                          }}
+                          className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          Logout
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </>
               ) : (
                 <button

@@ -9,7 +9,12 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { TotemService } from '@/services/standardized';
 
-export function ProfileSidebar() {
+interface ProfileSidebarProps {
+  isSidebarOpen?: boolean;
+  onToggleSidebar?: () => void;
+}
+
+export function ProfileSidebar({ isSidebarOpen = false, onToggleSidebar }: ProfileSidebarProps = {}) {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
@@ -101,7 +106,23 @@ export function ProfileSidebar() {
   };
 
   return (
-    <aside className="w-full md:w-64 flex-shrink-0 bg-gray-50">
+    <aside className={`fixed lg:static top-0 left-0 h-screen lg:h-auto w-64 flex-shrink-0 bg-gray-50 z-40 transition-transform duration-300 overflow-y-auto ${
+      isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+    } lg:block`}>
+      {/* Close button for mobile */}
+      {onToggleSidebar && (
+        <div className="lg:hidden flex justify-end p-4">
+          <button
+            onClick={onToggleSidebar}
+            className="p-2 hover:bg-gray-200 rounded-lg"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
       <nav className="space-y-0.5">
         <Link 
           href="/profile" 

@@ -33,6 +33,7 @@ export default function ProfilePage() {
   const [isLoadingSections, setIsLoadingSections] = useState(false);
   const [sectionStartIndex, setSectionStartIndex] = useState<Map<string, number>>(new Map());
   const [fallbackStartIndex, setFallbackStartIndex] = useState(0);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const router = useRouter();
 
   // Load user's posts using the standardized PostService
@@ -213,18 +214,36 @@ export default function ProfilePage() {
 
   return (
     <div className="flex min-h-screen">
-      <ProfileSidebar />
-      
-      <div className="flex-1">
+      <ProfileSidebar isSidebarOpen={isSidebarOpen} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
+
+      {/* Mobile overlay when sidebar is open */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      <div className="flex-1 w-full lg:w-auto">
+        {/* Mobile sidebar toggle button */}
+        <button
+          onClick={() => setIsSidebarOpen(true)}
+          className="lg:hidden fixed left-4 top-20 z-20 p-2 bg-white rounded-lg shadow-md hover:bg-gray-100"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+
         {/* Show toast messages */}
         {toastMessage && (
-          <Toast 
-            message={toastMessage.message} 
+          <Toast
+            message={toastMessage.message}
             type={toastMessage.type}
           />
         )}
-        
-        <div className="max-w-4xl ml-0 p-4">
+
+        <div className="max-w-4xl mx-auto lg:ml-0 p-4">
           {/* Profile Header */}
           <div className="flex items-start mb-8">
             {/* Profile Image */}

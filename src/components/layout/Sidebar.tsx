@@ -31,7 +31,7 @@ export function Sidebar({ activePage }: SidebarProps) {
   }
   
   return (
-    <aside className="w-64 bg-gray-50 min-h-screen border-r border-gray-200">
+    <aside className="hidden lg:block w-64 bg-gray-50 min-h-screen border-r border-gray-200">
       {/* Profile Header */}
       <div className="p-4 border-b border-gray-200">
         <div className="flex flex-col items-center mb-2">
