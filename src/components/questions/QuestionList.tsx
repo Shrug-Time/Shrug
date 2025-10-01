@@ -50,6 +50,7 @@ interface QuestionListProps {
   onLoadMore: () => void;
   showAllTotems?: boolean;
   showUserAnswers?: boolean;
+  profileUserId?: string; // For showing a specific user's answers on their profile
   sectionId?: string;
   showDeleteButtons?: boolean;
   sortByCrispness?: boolean;
@@ -63,6 +64,7 @@ export function QuestionList({
   onLoadMore,
   showAllTotems = false,
   showUserAnswers = false,
+  profileUserId,
   sectionId = 'default',
   showDeleteButtons = false,
   sortByCrispness = false
@@ -269,13 +271,16 @@ export function QuestionList({
   };
 
   const renderQuestion = useCallback((post: Post, index: number) => {
-    const userAnswer = showUserAnswers && user 
-      ? post.answers.find(answer => answer.firebaseUid === user.uid)
+    // If showUserAnswers is true and we have a profileUserId, show that user's answer
+    // Otherwise, if showUserAnswers is true and user is logged in, show their answer
+    const targetUserId = profileUserId || user?.uid;
+    const userAnswer = showUserAnswers && targetUserId
+      ? post.answers.find(answer => answer.firebaseUid === targetUserId)
       : null;
-    
+
     const answerToShow = userAnswer || (post.answers && post.answers.length > 0 ? getBestAnswer(post)?.answer : null);
     const previewText = answerToShow?.text ? truncateAnswerPreview(answerToShow.text) : '';
-    
+
     const topTotem = answerToShow?.totems ? getBestTotem(answerToShow.totems, post.id, answerToShow.id || '') : null;
     
     
