@@ -245,67 +245,65 @@ export default function ProfilePage() {
 
         <div className="max-w-4xl mx-auto lg:ml-0 p-4">
           {/* Profile Header */}
-          <div className="flex items-start mb-8">
-            {/* Profile Image */}
-            <div className="mr-6 relative">
-              <div className="w-24 h-24 rounded-full overflow-hidden">
-                {profile.photoURL ? (
-                  <Image 
-                    src={profile.photoURL} 
-                    alt={`${profile.name}'s profile`}
-                    width={96}
-                    height={96}
-                    className="object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-blue-100 flex items-center justify-center text-blue-500 text-2xl font-bold">
-                    {profile.name.charAt(0).toUpperCase()}
-                  </div>
-                )}
+          <div className="mb-8">
+            <div className="flex items-start mb-4">
+              {/* Profile Image */}
+              <div className="mr-4 relative flex-shrink-0">
+                <div className="w-20 h-20 lg:w-24 lg:h-24 rounded-full overflow-hidden">
+                  {profile.photoURL ? (
+                    <Image
+                      src={profile.photoURL}
+                      alt={`${profile.name}'s profile`}
+                      width={96}
+                      height={96}
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-blue-100 flex items-center justify-center text-blue-500 text-2xl font-bold">
+                      {profile.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Profile Info */}
+              <div className="flex-grow min-w-0">
+                <h1 className="text-xl lg:text-2xl font-bold">{profile.name || 'User'}</h1>
+                <p className="text-gray-600 text-sm lg:text-base">@{profile.username}</p>
+                <p className="text-gray-600 mt-2 text-sm lg:text-base">{profile.bio || 'No bio provided'}</p>
+
+                {/* Follower/Following counts */}
+                <div className="flex space-x-4 mt-3 text-xs lg:text-sm text-gray-500">
+                  <Link
+                    href="/profile/followers"
+                    className="hover:text-blue-600 transition-colors cursor-pointer"
+                  >
+                    {profile.followers?.length || 0} followers
+                  </Link>
+                  <Link
+                    href="/profile/following"
+                    className="hover:text-blue-600 transition-colors cursor-pointer"
+                  >
+                    {profile.following?.length || 0} following
+                  </Link>
+                </div>
               </div>
             </div>
-            
-            {/* Profile Info */}
-            <div className="flex-grow">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h1 className="text-2xl font-bold">{profile.name || 'User'}</h1>
-                  <p className="text-gray-600">@{profile.username}</p>
-                  <p className="text-gray-600 mt-2">{profile.bio || 'No bio provided'}</p>
-                  
-                  {/* Follower/Following counts */}
-                  <div className="flex space-x-4 mt-3 text-sm text-gray-500">
-                    <Link 
-                      href="/profile/followers"
-                      className="hover:text-blue-600 transition-colors cursor-pointer"
-                    >
-                      {profile.followers?.length || 0} followers
-                    </Link>
-                    <Link 
-                      href="/profile/following"
-                      className="hover:text-blue-600 transition-colors cursor-pointer"
-                    >
-                      {profile.following?.length || 0} following
-                    </Link>
-                  </div>
-                </div>
-                
-                {/* Profile Management Buttons */}
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => router.push('/profile/customize')}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
-                  >
-                    Customize Page
-                  </button>
-                  <button
-                    onClick={() => setIsEditingSections(true)}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
-                  >
-                    Manage Sections
-                  </button>
-                </div>
-              </div>
+
+            {/* Profile Management Buttons - Full width on mobile */}
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-2">
+              <button
+                onClick={() => router.push('/profile/customize')}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors text-sm lg:text-base"
+              >
+                Customize Page
+              </button>
+              <button
+                onClick={() => setIsEditingSections(true)}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors text-sm lg:text-base"
+              >
+                Manage Sections
+              </button>
             </div>
           </div>
           
