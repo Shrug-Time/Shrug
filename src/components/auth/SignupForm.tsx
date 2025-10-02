@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { auth } from '@/firebase';
 import { UserService } from '@/services/userService';
+import * as Sentry from '@sentry/nextjs';
 
 interface SignupFormProps {
   onSuccess: () => void;
@@ -21,23 +22,38 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
     setError(null);
     setIsLoading(true);
 
+    // Network timeout detection
+    const timeoutMs = 15000; // 15 seconds
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('NETWORK_TIMEOUT')), timeoutMs);
+    });
+
     try {
       if (!auth) {
         throw new Error('Firebase auth is not initialized');
       }
-      
-      // Create user account
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+
+      // Create user account with timeout
+      const userCredential = await Promise.race([
+        createUserWithEmailAndPassword(auth, email, password),
+        timeoutPromise
+      ]) as any;
       const user = userCredential.user;
 
-      // Send verification email
-      await sendEmailVerification(user);
+      // Send verification email with timeout
+      await Promise.race([
+        sendEmailVerification(user),
+        timeoutPromise
+      ]);
 
-      // Create user profile using UserService
-      await UserService.createDefaultProfile({
-        displayName: name,
-        email: user.email
-      });
+      // Create user profile using UserService with timeout
+      await Promise.race([
+        UserService.createDefaultProfile({
+          displayName: name,
+          email: user.email
+        }),
+        timeoutPromise
+      ]);
 
       // Show verification sent screen
       setIsVerificationSent(true);
@@ -47,11 +63,34 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
       });
     } catch (err) {
       console.error('Signup error:', err);
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Failed to create account. Please try again.'
-      );
+
+      // Determine error type
+      let errorMessage = 'Failed to create account. Please try again.';
+      let isNetworkIssue = false;
+
+      if (err instanceof Error) {
+        if (err.message === 'NETWORK_TIMEOUT') {
+          errorMessage = 'Connection timeout. Please check your internet connection and try again.';
+          isNetworkIssue = true;
+        } else {
+          errorMessage = err.message;
+        }
+      }
+
+      // Log to Sentry with context
+      Sentry.captureException(err, {
+        tags: {
+          feature: 'signup',
+          error_type: isNetworkIssue ? 'network_timeout' : 'signup_error'
+        },
+        extra: {
+          email,
+          hasName: !!name,
+          isNetworkIssue
+        }
+      });
+
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
