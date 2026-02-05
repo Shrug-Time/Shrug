@@ -308,7 +308,7 @@ export default function ProfileCustomizationPage() {
                       onChange={handleChange}
                       rows={4}
                       className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Educational content for all levels of passionate fly fishermen."
+                      placeholder=""
                     ></textarea>
                   </div>
                   

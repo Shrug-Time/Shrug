@@ -60,21 +60,38 @@ export class UserService {
       const firebaseUid = auth.currentUser.uid;
       const displayName = user.displayName || user.email?.split('@')[0] || 'Anonymous';
       const emailPrefix = user.email?.split('@')[0] || 'user';
-      const usernameBase = emailPrefix.toLowerCase().replace(/[^a-z0-9_-]/g, '') || 'user';
+      let usernameBase = emailPrefix.toLowerCase().replace(/[^a-z0-9_-]/g, '') || 'user';
+
+      // Truncate username base to 10 chars to leave room for counter suffix (max 15 total)
+      if (usernameBase.length > 10) {
+        usernameBase = usernameBase.substring(0, 10);
+      }
       
       // Ensure username is unique
       let username = usernameBase;
       let counter = 1;
       let isUnique = false;
-      
-      while (!isUnique) {
+      const maxAttempts = 100; // Prevent infinite loops
+
+      console.log('Finding unique username, starting with:', username);
+
+      while (!isUnique && counter < maxAttempts) {
         const validation = await this.validateUsername(username);
+        console.log(`Username validation for "${username}":`, JSON.stringify(validation));
         if (validation.isValid) {
           isUnique = true;
+          console.log('Found unique username:', username);
         } else {
+          console.log(`Username "${username}" is invalid:`, validation.error);
           username = `${usernameBase}${counter}`;
           counter++;
         }
+      }
+
+      if (!isUnique) {
+        // Fallback to random suffix if we couldn't find a unique username
+        username = `${usernameBase}_${Math.floor(Math.random() * 10000)}`;
+        console.log('Using random suffix for username:', username);
       }
       
       const timestamp = Date.now();
@@ -85,7 +102,7 @@ export class UserService {
         name: displayName,
         email: user.email || 'anonymous@example.com',
         bio: '',
-        verificationStatus: auth.currentUser?.emailVerified ? 'email_verified' : 'unverified',
+        verificationStatus: 'email_verified',
         membershipTier: 'free',
         refreshesRemaining: 5,
         refreshResetTime: timestamp,

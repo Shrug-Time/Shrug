@@ -102,7 +102,7 @@ export const checkOrCreateUser = async (user: User | null): Promise<DocumentData
       email: user.email,
       name: "Default User",
       handle: `user${user.uid.slice(0, 8)}`,
-      verificationStatus: user.emailVerified ? 'email_verified' : 'unverified',
+      verificationStatus: 'email_verified',
       membershipTier: 'free',
       refreshesRemaining: 5,
       refreshResetTime: timestamp,
@@ -120,11 +120,6 @@ export const checkOrCreateUser = async (user: User | null): Promise<DocumentData
     });
     // Get the updated document after creation
     return (await getDoc(userRef)).data() || null;
-  } else if (!userDoc.data().verificationStatus.includes('verified') && user.emailVerified) {
-    await updateDoc(userRef, { 
-      verificationStatus: 'email_verified',
-      updatedAt: Date.now()
-    });
   }
   // Return the data with a null fallback if undefined
   return userDoc.data() || null;
@@ -181,31 +176,31 @@ export const sendVerificationEmail = async (): Promise<void> => {
   const user = auth.currentUser;
   if (!user) throw new Error("No user logged in");
   
-  // Enhanced email verification with custom settings
+  // Use simple email verification settings
   const actionCodeSettings = {
     // URL you want to redirect back to after email verification
     url: `${window.location.origin}/auth/verify-success`,
     // This must be true for email verification
-    handleCodeInApp: true,
-    iOS: {
-      bundleId: 'com.shrug.app'
-    },
-    android: {
-      packageName: 'com.shrug.app',
-      installApp: true,
-      minimumVersion: '12'
-    },
-    dynamicLinkDomain: 'shrug.page.link' // Optional: if you have Firebase Dynamic Links
+    handleCodeInApp: true
   };
 
   try {
+    console.log('📧 Sending verification email to:', user.email);
+    console.log('📧 Redirect URL:', actionCodeSettings.url);
+    console.log('📧 Action code settings:', actionCodeSettings);
     await sendEmailVerification(user, actionCodeSettings);
     console.log('✅ Verification email sent successfully to:', user.email);
   } catch (error) {
-    console.error('❌ Failed to send verification email:', error);
-    // Fallback to basic email verification
-    console.log('🔄 Retrying with basic email verification...');
-    await sendEmailVerification(user);
+    console.error('❌ Failed to send verification email with custom settings:', error);
+    // Fallback to basic email verification without any custom settings
+    console.log('🔄 Retrying with basic email verification (no custom redirect)...');
+    try {
+      await sendEmailVerification(user);
+      console.log('✅ Basic verification email sent to:', user.email);
+    } catch (fallbackError) {
+      console.error('❌ Basic verification also failed:', fallbackError);
+      throw fallbackError;
+    }
   }
 };
 

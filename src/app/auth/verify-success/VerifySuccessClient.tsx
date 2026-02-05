@@ -3,29 +3,43 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { applyActionCode } from 'firebase/auth';
+import useFirebase from '@/hooks/useFirebase';
 
 export default function VerifySuccessClient() {
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [message, setMessage] = useState('');
   const { refreshVerificationStatus } = useAuth();
+  const { auth } = useFirebase();
   const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
     const handleEmailVerification = async () => {
       try {
+        // Wait for auth to initialize
+        if (!auth) {
+          console.log('Waiting for Firebase auth to initialize...');
+          return;
+        }
+
         // Check if this is an email verification link
         const mode = searchParams.get('mode');
         const oobCode = searchParams.get('oobCode');
-        
+
         if (mode === 'verifyEmail' && oobCode) {
-          // The email verification was successful (handled by Firebase automatically)
+          console.log('Applying email verification code...');
+
+          // Actually apply the verification code to Firebase
+          await applyActionCode(auth, oobCode);
+
+          console.log('Email verification code applied successfully');
           setStatus('success');
           setMessage('Your email has been successfully verified!');
-          
+
           // Refresh the user's verification status
           await refreshVerificationStatus();
-          
+
           // Redirect to dashboard after 3 seconds
           setTimeout(() => {
             router.push('/');
@@ -38,15 +52,23 @@ export default function VerifySuccessClient() {
             router.push('/');
           }, 2000);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Email verification error:', error);
         setStatus('error');
-        setMessage('There was an error verifying your email. Please try again.');
+
+        // Provide more specific error messages
+        if (error.code === 'auth/invalid-action-code') {
+          setMessage('This verification link is invalid or has already been used.');
+        } else if (error.code === 'auth/expired-action-code') {
+          setMessage('This verification link has expired. Please request a new verification email.');
+        } else {
+          setMessage('There was an error verifying your email. Please try again or request a new verification email.');
+        }
       }
     };
 
     handleEmailVerification();
-  }, [searchParams, refreshVerificationStatus, router]);
+  }, [searchParams, refreshVerificationStatus, router, auth]);
 
   if (status === 'processing') {
     return (

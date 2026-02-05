@@ -64,29 +64,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!auth || !isInitialized) return;
 
     const unsubscribe = auth.onAuthStateChanged(async (authUser) => {
+      console.log('Auth state changed:', authUser ? authUser.email : 'logged out');
       setUser(authUser);
-      
+
       if (authUser) {
         try {
           // Get user profile
+          console.log('Fetching user profile for:', authUser.uid);
           let profile = await UserService.getUserByFirebaseUid(authUser.uid);
-          
+
           // Create profile if it doesn't exist
           if (!profile) {
+            console.log('Profile not found, creating default profile...');
             profile = await UserService.createDefaultProfile({
               displayName: authUser.displayName,
               email: authUser.email
             });
+            console.log('Default profile created successfully');
+          } else {
+            console.log('Profile found:', profile.username);
           }
           
           setUserProfile(profile);
-          
+
           // Set verification status
-          if (authUser.emailVerified) {
-            setVerificationStatus(profile.verificationStatus);
-          } else {
-            setVerificationStatus('unverified');
-          }
+          setVerificationStatus(profile.verificationStatus);
         } catch (error) {
           console.error("Error fetching user profile:", error);
         }
@@ -144,7 +146,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     userProfile,
     loading: loading || !isInitialized,
-    isVerified: user?.emailVerified || false,
+    isVerified: verificationStatus === 'email_verified' || verificationStatus === 'manual_verified',
     verificationStatus,
     sendVerificationEmail,
     refreshVerificationStatus,

@@ -33,13 +33,22 @@ export function VerificationBanner() {
   const handleSendVerification = async () => {
     setIsSending(true);
     setMessage(null);
-    
+
     try {
       await sendVerificationEmail();
       setMessage('Verification email sent! Please check your inbox.');
       setLastVerificationSent(Date.now());
-    } catch (error) {
-      setMessage('Failed to send verification email. Please try again.');
+    } catch (error: any) {
+      console.error('Verification email error:', error);
+
+      // Show specific error messages
+      if (error.code === 'auth/too-many-requests') {
+        setMessage('⚠️ Too many requests. Please wait 15-30 minutes before trying again.');
+      } else if (error.message) {
+        setMessage(`Failed to send: ${error.message}`);
+      } else {
+        setMessage('Failed to send verification email. Please try again.');
+      }
     } finally {
       setIsSending(false);
     }
