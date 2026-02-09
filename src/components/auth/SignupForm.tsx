@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth } from '@/firebase';
-import { UserService } from '@/services/userService';
 import * as Sentry from '@sentry/nextjs';
 
 interface SignupFormProps {
@@ -42,26 +41,12 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
       const user = userCredential.user;
       console.log('Firebase user created successfully:', user.uid);
 
-      // Note: User profile will be created automatically by AuthContext
-      // when it detects the new authenticated user via onAuthStateChanged
-
-      // If user provided a name, we'll update the profile after a brief delay
-      // to ensure AuthContext has created the default profile first
+      // Set displayName on Firebase user before AuthContext picks it up
+      // AuthContext's onAuthStateChanged will use this when creating the profile
       if (name) {
-        setTimeout(async () => {
-          try {
-            console.log('Updating user profile with name...');
-            await UserService.updateProfile(user.uid, {
-              name: name
-            });
-            console.log('User name updated successfully');
-          } catch (error) {
-            console.error('Error updating user name:', error);
-          }
-        }, 1000);
+        await updateProfile(user, { displayName: name });
       }
 
-      // Signup complete, redirect to main app
       console.log('Signup complete, redirecting to app');
       onSuccess();
     } catch (err) {
