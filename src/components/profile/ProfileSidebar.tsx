@@ -194,8 +194,9 @@ export function ProfileSidebar({ isSidebarOpen = false, onToggleSidebar }: Profi
           </Link>
         )}
         
-        <Link 
-          href="/profile/analytics" 
+        {/* Analytics tab hidden - not in use
+        <Link
+          href="/profile/analytics"
           className={`flex items-center px-4 py-3 text-gray-700 ${isActive('/profile/analytics')}`}
         >
           <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -203,6 +204,7 @@ export function ProfileSidebar({ isSidebarOpen = false, onToggleSidebar }: Profi
           </svg>
           Analytics
         </Link>
+        */}
         
         {isAdmin && (
           <Link 

@@ -106,9 +106,22 @@ export function AnswerForm({ selectedQuestion, onAnswerSubmitted }: AnswerFormPr
     }
   };
 
+  const MAX_TOTEMS = 5;
+  const MAX_TOTEM_LENGTH = 15;
+
   const handleAddTotem = (totemName?: string) => {
     const totemToAdd = totemName || newTotem.trim();
     if (!totemToAdd) return;
+
+    if (selectedTotems.length >= MAX_TOTEMS) {
+      setError(`You can add up to ${MAX_TOTEMS} totems.`);
+      return;
+    }
+
+    if (totemToAdd.length > MAX_TOTEM_LENGTH) {
+      setError(`Totems can be up to ${MAX_TOTEM_LENGTH} characters.`);
+      return;
+    }
 
     // Check if totem already exists (case-insensitive)
     if (selectedTotems.some(t => t.name.toLowerCase() === totemToAdd.toLowerCase())) {
@@ -219,8 +232,10 @@ export function AnswerForm({ selectedQuestion, onAnswerSubmitted }: AnswerFormPr
                   onKeyDown={handleKeyPress}
                   onFocus={handleInputFocus}
                   onBlur={handleInputBlur}
-                  placeholder={selectedTotems.length === 0 ? "Type totem names (press Enter or comma to add)" : "Add another..."}
-                  className="flex-1 min-w-[120px] outline-none text-sm py-1"
+                  maxLength={MAX_TOTEM_LENGTH}
+                  placeholder={selectedTotems.length === 0 ? "Type totem names (press Enter or comma to add)" : selectedTotems.length >= MAX_TOTEMS ? "Max totems reached" : "Add another..."}
+                  disabled={selectedTotems.length >= MAX_TOTEMS}
+                  className="flex-1 min-w-[120px] outline-none text-sm py-1 disabled:bg-transparent disabled:cursor-not-allowed"
                 />
               </div>
             </div>
@@ -267,7 +282,7 @@ export function AnswerForm({ selectedQuestion, onAnswerSubmitted }: AnswerFormPr
           
           {/* Helper text */}
           <p className="text-xs text-gray-500">
-            Totems help categorize your answer. You can add multiple totems separated by commas or pressing Enter.
+            Add up to {MAX_TOTEMS} totems ({MAX_TOTEM_LENGTH} characters max each) to categorize your answer.
           </p>
         </div>
         

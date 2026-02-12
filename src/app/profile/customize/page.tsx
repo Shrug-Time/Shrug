@@ -12,7 +12,7 @@ import { UserService } from '@/services/userService';
 export default function ProfileCustomizationPage() {
   const { profile, isLoading, error, updateProfile } = useUser();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'profile' | 'content' | 'home'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'content'>('profile');
   const [formData, setFormData] = useState({
     name: '',
     username: '',
@@ -55,14 +55,7 @@ export default function ProfileCustomizationPage() {
         bio: formData.bio,
       });
       
-      setToast({
-        message: 'Profile updated successfully',
-        type: 'success'
-      });
-      
-      setTimeout(() => {
-        setToast(null);
-      }, 3000);
+      router.push('/profile');
     } catch (error) {
       console.error('Error updating profile:', error);
       setToast({
@@ -189,16 +182,6 @@ export default function ProfileCustomizationPage() {
                   }`}
                 >
                   Profile
-                </button>
-                <button
-                  onClick={() => setActiveTab('home')}
-                  className={`py-2 px-4 text-sm border-b-2 -mb-px ${
-                    activeTab === 'home' 
-                      ? 'border-blue-500 text-blue-600 font-medium' 
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  Home Tab
                 </button>
               </div>
               
@@ -338,41 +321,6 @@ export default function ProfileCustomizationPage() {
                 </form>
               )}
               
-              
-              {/* Home Tab Content */}
-              {activeTab === 'home' && (
-                <div>
-                  <h2 className="text-lg font-medium mb-4">Home Tab Settings</h2>
-                  <p className="text-gray-600 mb-6">
-                    Customize how your profile's Home tab appears to visitors.
-                  </p>
-                  
-                  <div className="border border-gray-200 rounded-lg p-4 mb-6">
-                    <h3 className="text-md font-medium mb-2">Default View</h3>
-                    <p className="text-sm text-gray-600 mb-4">Choose which tab is shown by default when someone visits your profile</p>
-                    
-                    <select
-                      className="w-full border border-gray-300 rounded-md px-3 py-2"
-                    >
-                      <option value="home">Home</option>
-                      <option value="about">About</option>
-                      <option value="content">Content</option>
-                    </select>
-                  </div>
-                  
-                  <div className="border border-gray-200 rounded-lg p-4">
-                    <h3 className="text-md font-medium mb-2">Featured Sections</h3>
-                    <p className="text-sm text-gray-600 mb-4">Manage your profile sections from the Customize Page button on your profile</p>
-                    
-                    <button
-                      onClick={() => router.push('/profile')}
-                      className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-sm"
-                    >
-                      Go to Profile
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>
