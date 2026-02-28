@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export function VerificationBanner() {
-  const { user, verificationStatus, isVerified, sendVerificationEmail, refreshVerificationStatus } = useAuth();
+  const { user, loading, verificationStatus, isVerified, sendVerificationEmail, refreshVerificationStatus } = useAuth();
   const [isSending, setIsSending] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -25,8 +25,8 @@ export function VerificationBanner() {
     return () => clearInterval(interval);
   }, [user, isVerified, verificationStatus, refreshVerificationStatus]);
   
-  // Don't show banner if user is verified or not logged in
-  if (isVerified || !user) {
+  // Don't show banner while loading, if user is verified, or if not logged in
+  if (loading || isVerified || !user || verificationStatus === null) {
     return null;
   }
 

@@ -87,8 +87,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           
           setUserProfile(profile);
 
-          // Set verification status
-          setVerificationStatus(profile.verificationStatus);
+          // Set verification status - default to 'email_verified' for existing users without the field
+          setVerificationStatus(profile.verificationStatus || 'email_verified');
         } catch (error) {
           console.error("Error fetching user profile:", error);
         }
@@ -120,7 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const profile = await UserService.getUserByFirebaseUid(updatedUser.uid);
       if (profile) {
         // Update user profile with email verified status if needed
-        if (profile.verificationStatus === 'unverified') {
+        if (!profile.verificationStatus || profile.verificationStatus === 'unverified') {
           await UserService.updateProfile(updatedUser.uid, {
             verificationStatus: 'email_verified'
           });
