@@ -6,8 +6,26 @@ import { Inter } from 'next/font/google';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Shrug',
-  description: 'A platform for sharing knowledge and expertise',
+  title: {
+    default: 'Shrug - Share What You Know',
+    template: '%s | Shrug',
+  },
+  description: 'A Q&A platform where knowledge is shared, valued, and recognized through Totems.',
+  openGraph: {
+    title: 'Shrug - Share What You Know',
+    description: 'A Q&A platform where knowledge is shared, valued, and recognized through Totems.',
+    type: 'website',
+    siteName: 'Shrug',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Shrug - Share What You Know',
+    description: 'A Q&A platform where knowledge is shared, valued, and recognized through Totems.',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({

@@ -267,23 +267,23 @@ export function Sidebar({ activePage }: SidebarProps) {
         <h3 className="p-2 font-medium">Resources</h3>
         <ul className="space-y-1">
           <li>
-            <Link href="#" className="flex items-center p-2 text-sm rounded-lg hover:bg-gray-100">
-              Help
+            <Link href="/about" className="flex items-center p-2 text-sm rounded-lg hover:bg-gray-100">
+              About
             </Link>
           </li>
           <li>
-            <Link href="#" className="flex items-center p-2 text-sm rounded-lg hover:bg-gray-100">
-              User Agreement
+            <Link href="/terms" className="flex items-center p-2 text-sm rounded-lg hover:bg-gray-100">
+              Terms of Service
             </Link>
           </li>
           <li>
-            <Link href="#" className="flex items-center p-2 text-sm rounded-lg hover:bg-gray-100">
+            <Link href="/privacy" className="flex items-center p-2 text-sm rounded-lg hover:bg-gray-100">
               Privacy Policy
             </Link>
           </li>
           <li>
-            <Link href="#" className="flex items-center p-2 text-sm rounded-lg hover:bg-gray-100">
-              Cookie Policy
+            <Link href="/contact" className="flex items-center p-2 text-sm rounded-lg hover:bg-gray-100">
+              Contact
             </Link>
           </li>
         </ul>
@@ -291,9 +291,9 @@ export function Sidebar({ activePage }: SidebarProps) {
       
       {/* Contact Us */}
       <div className="p-4 mt-2">
-        <button className="w-full py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg">
+        <Link href="/contact" className="block w-full py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-center">
           Contact Us
-        </button>
+        </Link>
       </div>
     </aside>
   );
