@@ -205,16 +205,28 @@ export function ProfileSidebar({ isSidebarOpen = false, onToggleSidebar }: Profi
         </Link>
         
         {isAdmin && (
-          <Link 
-            href={getAdminReportsUrl()} 
-            className={`flex items-center px-4 py-3 text-gray-700 ${isActive('/admin/reports')}`}
-          >
-            <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"></path>
-            </svg>
-            Content Reports
-            <span className="ml-2 bg-red-100 text-red-800 text-xs font-medium px-2 py-0.5 rounded">Admin</span>
-          </Link>
+          <>
+            <Link
+              href="/admin"
+              className={`flex items-center px-4 py-3 text-gray-700 ${isActive('/admin')}`}
+            >
+              <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+              </svg>
+              Admin Panel
+              <span className="ml-2 bg-red-100 text-red-800 text-xs font-medium px-2 py-0.5 rounded">Admin</span>
+            </Link>
+            <Link
+              href={getAdminReportsUrl()}
+              className={`flex items-center px-4 py-3 text-gray-700 ${isActive('/admin/reports')}`}
+            >
+              <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"></path>
+              </svg>
+              Content Reports
+              <span className="ml-2 bg-red-100 text-red-800 text-xs font-medium px-2 py-0.5 rounded">Admin</span>
+            </Link>
+          </>
         )}
       </nav>
       

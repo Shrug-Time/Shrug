@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { doc, updateDoc, getDoc, arrayRemove } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { Post, Answer } from '@/types/models';
+import { auth, db } from '@/lib/firebaseAdmin';
+import { Post } from '@/types/models';
 
 export async function DELETE(
   request: NextRequest,
@@ -31,20 +30,7 @@ export async function DELETE(
     // Verify the Firebase ID token
     let decodedToken;
     try {
-      const { auth: adminAuth } = await import('firebase-admin/auth');
-      const admin = await import('firebase-admin');
-      
-      if (!admin.getApps().length) {
-        admin.initializeApp({
-          credential: admin.credential.cert({
-            projectId: process.env.FIREBASE_PROJECT_ID,
-            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-            privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-          }),
-        });
-      }
-
-      decodedToken = await adminAuth().verifyIdToken(idToken);
+      decodedToken = await auth.verifyIdToken(idToken);
     } catch (error) {
       console.error('Error verifying token:', error);
       return NextResponse.json(
@@ -55,11 +41,15 @@ export async function DELETE(
 
     const userId = decodedToken.uid;
 
-    // Get the post to find and verify the answer
-    const postRef = doc(db, 'posts', postId);
-    const postDoc = await getDoc(postRef);
+    // Check if user is admin
+    const userDoc = await db.collection('users').doc(userId).get();
+    const isAdmin = userDoc.exists && userDoc.data()?.membershipTier === 'admin';
 
-    if (!postDoc.exists()) {
+    // Get the post
+    const postRef = db.collection('posts').doc(postId);
+    const postDoc = await postRef.get();
+
+    if (!postDoc.exists) {
       return NextResponse.json(
         { error: 'Post not found' },
         { status: 404 }
@@ -78,8 +68,8 @@ export async function DELETE(
       );
     }
 
-    // Check if the user owns this answer
-    if (answerToDelete.firebaseUid !== userId) {
+    // Check if the user owns this answer OR is admin
+    if (answerToDelete.firebaseUid !== userId && !isAdmin) {
       return NextResponse.json(
         { error: 'Not authorized to delete this answer' },
         { status: 403 }
@@ -90,7 +80,7 @@ export async function DELETE(
     const updatedAnswers = postData.answers.filter(answer => answer.id !== answerId);
 
     // Update the post with the filtered answers array
-    await updateDoc(postRef, {
+    await postRef.update({
       answers: updatedAnswers,
       updatedAt: Date.now(),
       answerCount: updatedAnswers.length
