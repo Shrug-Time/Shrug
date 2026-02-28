@@ -91,15 +91,15 @@ export class PostService {
           const q = query(postsRef, ...queryConstraints);
           const snapshot = await getDocs(q);
           
-          // Process results
-          const posts = snapshot.docs.map(doc => 
-            validatePost({ id: doc.id, ...doc.data() })
-          );
-          
+          // Process results - filter out hidden posts
+          const posts = snapshot.docs
+            .map(doc => validatePost({ id: doc.id, ...doc.data() }))
+            .filter(post => !post.hidden);
+
           return {
             posts,
-            lastVisible: snapshot.docs.length > 0 
-              ? snapshot.docs[snapshot.docs.length - 1] 
+            lastVisible: snapshot.docs.length > 0
+              ? snapshot.docs[snapshot.docs.length - 1]
               : null
           };
         },
@@ -147,11 +147,11 @@ export class PostService {
           const q = query(postsRef, ...queryConstraints);
           const snapshot = await getDocs(q);
           
-          // Process results
-          const posts = snapshot.docs.map(doc => 
-            validatePost({ id: doc.id, ...doc.data() })
-          );
-          
+          // Process results - filter out hidden posts
+          const posts = snapshot.docs
+            .map(doc => validatePost({ id: doc.id, ...doc.data() }))
+            .filter(post => !post.hidden);
+
           // Additional client-side sorting by engagement score for better accuracy
           // This combines multiple factors: answer count, recent activity, and like count
           const postsWithScore = posts.map(post => {
@@ -529,10 +529,12 @@ export class PostService {
             validatePost({ id: doc.id, ...doc.data() })
           );
           
-          // Client-side filtering
-          const matchingPosts = posts.filter(post => 
-            post.question.toLowerCase().includes(searchTermLower) ||
-            post.answers.some(answer => answer.text.toLowerCase().includes(searchTermLower))
+          // Client-side filtering - also exclude hidden posts
+          const matchingPosts = posts.filter(post =>
+            !post.hidden && (
+              post.question.toLowerCase().includes(searchTermLower) ||
+              post.answers.some(answer => answer.text.toLowerCase().includes(searchTermLower))
+            )
           );
           
           return matchingPosts.slice(0, pageSize);

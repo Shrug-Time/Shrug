@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { SearchService } from '@/services/standardized/SearchService';
+import { SearchService, SearchSuggestion } from '@/services/standardized/SearchService';
 import { getSearchUrl } from '@/utils/routes';
 
 interface SearchBarProps {
@@ -12,14 +12,14 @@ interface SearchBarProps {
   onSearch?: (query: string) => void;
 }
 
-export function SearchBar({ 
-  className = '', 
+export function SearchBar({
+  className = '',
   placeholder = 'Search questions, users, totems...',
   showSuggestions = true,
   onSearch
 }: SearchBarProps) {
   const [query, setQuery] = useState('');
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [showSuggestionsDropdown, setShowSuggestionsDropdown] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -67,26 +67,40 @@ export function SearchBar({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
+      const trimmed = query.trim();
+      // Strip @/# prefix so the search query finds actual results
+      const cleanQuery = trimmed.startsWith('@') || trimmed.startsWith('#')
+        ? trimmed.slice(1)
+        : trimmed;
       if (onSearch) {
-        onSearch(query.trim());
+        onSearch(cleanQuery);
       } else {
-        const searchUrl = getSearchUrl(query.trim());
-        router.push(searchUrl);
+        router.push(getSearchUrl(cleanQuery));
       }
       setShowSuggestionsDropdown(false);
     }
   };
 
-  const handleSuggestionClick = (suggestion: string) => {
-    setQuery(suggestion);
-    if (onSearch) {
-      onSearch(suggestion);
-    } else {
-      const searchUrl = getSearchUrl(suggestion);
-      router.push(searchUrl);
-    }
+  const handleSuggestionClick = (suggestion: SearchSuggestion) => {
     setShowSuggestionsDropdown(false);
     inputRef.current?.blur();
+
+    // If the suggestion has a direct URL (e.g. user profile), navigate there
+    if (suggestion.url) {
+      router.push(suggestion.url);
+      return;
+    }
+
+    // Otherwise, search for the clean term
+    const cleanQuery = suggestion.label.startsWith('@') || suggestion.label.startsWith('#')
+      ? suggestion.label.slice(1)
+      : suggestion.label;
+    setQuery(suggestion.label);
+    if (onSearch) {
+      onSearch(cleanQuery);
+    } else {
+      router.push(getSearchUrl(cleanQuery));
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -114,7 +128,7 @@ export function SearchBar({
             placeholder={placeholder}
             className="w-full px-4 py-2 pl-10 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
           />
-          
+
           {/* Search Icon */}
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -155,16 +169,22 @@ export function SearchBar({
                     className="w-full px-4 py-2 text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none transition-colors"
                   >
                     <div className="flex items-center">
-                      <svg className="h-4 w-4 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                      </svg>
+                      {suggestion.type === 'user' ? (
+                        <svg className="h-4 w-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                      ) : (
+                        <svg className="h-4 w-4 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      )}
                       <span className="text-sm text-gray-700">
-                        {suggestion.startsWith('#') ? (
-                          <span className="text-blue-600 font-medium">{suggestion}</span>
-                        ) : suggestion.startsWith('@') ? (
-                          <span className="text-green-600 font-medium">{suggestion}</span>
+                        {suggestion.type === 'totem' ? (
+                          <span className="text-blue-600 font-medium">{suggestion.label}</span>
+                        ) : suggestion.type === 'user' ? (
+                          <span className="text-green-600 font-medium">{suggestion.label}</span>
                         ) : (
-                          suggestion
+                          suggestion.label
                         )}
                       </span>
                     </div>
@@ -181,4 +201,4 @@ export function SearchBar({
       )}
     </div>
   );
-} 
+}

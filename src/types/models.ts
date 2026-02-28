@@ -53,6 +53,7 @@ export interface Post {
   answerUsernames?: string[];
   answerUserIds?: string[];
   answerCount?: number;
+  hidden?: boolean;
 }
 
 export interface TotemSuggestion {

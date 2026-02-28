@@ -40,17 +40,27 @@ function SearchPageContent() {
   const performSearch = async (searchQuery: string) => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
-      const types = filter === 'all' 
-        ? ['post', 'user', 'totem'] 
-        : filter === 'posts' 
-          ? ['post'] 
-          : filter === 'users' 
-            ? ['user'] 
+      // Strip @/# prefixes (from suggestion clicks) and auto-filter
+      let cleanQuery = searchQuery;
+      if (searchQuery.startsWith('@')) {
+        cleanQuery = searchQuery.slice(1);
+        if (filter === 'all') setFilter('users');
+      } else if (searchQuery.startsWith('#')) {
+        cleanQuery = searchQuery.slice(1);
+        if (filter === 'all') setFilter('totems');
+      }
+
+      const types = filter === 'all'
+        ? ['post', 'user', 'totem']
+        : filter === 'posts'
+          ? ['post']
+          : filter === 'users'
+            ? ['user']
             : ['totem'];
-      
-      const searchResults = await SearchService.search(searchQuery, {
+
+      const searchResults = await SearchService.search(cleanQuery, {
         types: types as any,
         limit: 50,
         sortBy

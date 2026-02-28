@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Post } from '@/types/models';
 import { useAuth } from '@/contexts/AuthContext';
 import { PostService } from '@/services/standardized/PostService';
+import { SimilarityService } from '@/services/similarity';
 
 interface CreatePostFormProps {
   firebaseUid: string;
@@ -24,6 +25,42 @@ export function CreatePostForm({
   const [error, setError] = useState<string | null>(null);
   const [isSendingVerification, setIsSendingVerification] = useState(false);
   const [verificationMessage, setVerificationMessage] = useState<string | null>(null);
+  const [similarPosts, setSimilarPosts] = useState<Post[]>([]);
+  const [searchingPosts, setSearchingPosts] = useState(false);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  const searchSimilar = useCallback(async (text: string) => {
+    if (text.trim().length < 10) {
+      setSimilarPosts([]);
+      return;
+    }
+    setSearchingPosts(true);
+    try {
+      const results = await PostService.searchPosts(text.trim(), 100);
+      // Score by similarity and take top 3
+      const scored = results
+        .map(post => ({
+          post,
+          score: SimilarityService.calculateTextSimilarity(text, post.question)
+        }))
+        .filter(({ score }) => score > 0.15)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3);
+      setSimilarPosts(scored.map(s => s.post));
+    } catch {
+      setSimilarPosts([]);
+    } finally {
+      setSearchingPosts(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      searchSimilar(question);
+    }, 500);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [question, searchSimilar]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -163,7 +200,27 @@ export function CreatePostForm({
             required
           />
         </div>
-        
+
+        {(similarPosts.length > 0 || searchingPosts) && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm font-medium text-blue-800 mb-2">
+              {searchingPosts ? 'Checking for similar questions...' : 'Similar questions already asked:'}
+            </p>
+            {similarPosts.map(post => (
+              <a
+                key={post.id}
+                href={`/post/${post.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-sm text-blue-600 hover:text-blue-800 hover:underline py-1"
+              >
+                {post.question}
+                <span className="text-blue-400 ml-2">({post.answers?.length || 0} answers)</span>
+              </a>
+            ))}
+          </div>
+        )}
+
         {error && (
           <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">
             {error}

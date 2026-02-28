@@ -137,6 +137,111 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ users });
       }
 
+      case 'hidePost': {
+        const { postId } = data;
+        if (!postId) return NextResponse.json({ error: 'postId required' }, { status: 400 });
+
+        const postRef = db.collection('posts').doc(postId);
+        const postDoc = await postRef.get();
+        if (!postDoc.exists) return NextResponse.json({ error: 'Post not found' }, { status: 404 });
+
+        await postRef.update({ hidden: true, updatedAt: Date.now() });
+        return NextResponse.json({ message: 'Post hidden' });
+      }
+
+      case 'unhidePost': {
+        const { postId } = data;
+        if (!postId) return NextResponse.json({ error: 'postId required' }, { status: 400 });
+
+        const postRef = db.collection('posts').doc(postId);
+        const postDoc = await postRef.get();
+        if (!postDoc.exists) return NextResponse.json({ error: 'Post not found' }, { status: 404 });
+
+        await postRef.update({ hidden: false, updatedAt: Date.now() });
+        return NextResponse.json({ message: 'Post unhidden' });
+      }
+
+      case 'mergePosts': {
+        const { canonicalPostId, duplicatePostIds } = data;
+        if (!canonicalPostId || !duplicatePostIds?.length) {
+          return NextResponse.json({ error: 'canonicalPostId and duplicatePostIds required' }, { status: 400 });
+        }
+
+        const canonicalRef = db.collection('posts').doc(canonicalPostId);
+        const canonicalDoc = await canonicalRef.get();
+        if (!canonicalDoc.exists) return NextResponse.json({ error: 'Canonical post not found' }, { status: 404 });
+
+        const canonicalData = canonicalDoc.data()!;
+        let mergedAnswers = [...(canonicalData.answers || [])];
+        let mergedAnswerUids = [...(canonicalData.answerFirebaseUids || [])];
+        let mergedAnswerUsernames = [...(canonicalData.answerUsernames || [])];
+        let mergedCount = 0;
+
+        for (const dupId of duplicatePostIds) {
+          const dupRef = db.collection('posts').doc(dupId);
+          const dupDoc = await dupRef.get();
+          if (!dupDoc.exists) continue;
+
+          const dupData = dupDoc.data()!;
+          const dupAnswers = dupData.answers || [];
+
+          // Move answers that aren't already in canonical (by firebaseUid)
+          for (const answer of dupAnswers) {
+            const alreadyExists = mergedAnswers.some(
+              (a: any) => a.firebaseUid === answer.firebaseUid && a.text === answer.text
+            );
+            if (!alreadyExists) {
+              mergedAnswers.push(answer);
+              if (answer.firebaseUid && !mergedAnswerUids.includes(answer.firebaseUid)) {
+                mergedAnswerUids.push(answer.firebaseUid);
+              }
+              if (answer.username && !mergedAnswerUsernames.includes(answer.username)) {
+                mergedAnswerUsernames.push(answer.username);
+              }
+              mergedCount++;
+            }
+          }
+
+          // Hide the duplicate
+          await dupRef.update({ hidden: true, mergedInto: canonicalPostId, updatedAt: Date.now() });
+        }
+
+        // Update canonical post with merged answers
+        await canonicalRef.update({
+          answers: mergedAnswers,
+          answerFirebaseUids: mergedAnswerUids,
+          answerUsernames: mergedAnswerUsernames,
+          answerCount: mergedAnswers.length,
+          updatedAt: Date.now(),
+          lastInteraction: Date.now()
+        });
+
+        return NextResponse.json({ message: `Merged ${mergedCount} answers from ${duplicatePostIds.length} posts` });
+      }
+
+      case 'listPosts': {
+        const { limit: limitCount = 50, includeHidden = false } = data;
+        let snapshot;
+        if (includeHidden) {
+          snapshot = await db.collection('posts').orderBy('createdAt', 'desc').limit(limitCount).get();
+        } else {
+          snapshot = await db.collection('posts').orderBy('createdAt', 'desc').limit(limitCount).get();
+        }
+        const posts = snapshot.docs.map(doc => {
+          const d = doc.data();
+          return {
+            id: doc.id,
+            question: d.question,
+            answerCount: d.answers?.length || 0,
+            hidden: d.hidden || false,
+            createdAt: d.createdAt,
+            username: d.username,
+            firebaseUid: d.firebaseUid,
+          };
+        });
+        return NextResponse.json({ posts });
+      }
+
       default:
         return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });
     }

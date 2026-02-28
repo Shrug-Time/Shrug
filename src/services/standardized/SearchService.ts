@@ -35,6 +35,12 @@ export interface SearchResult {
   data: Post | UserProfile | Totem;
 }
 
+export interface SearchSuggestion {
+  label: string;
+  type: 'user' | 'totem' | 'text';
+  url?: string;
+}
+
 export interface SearchOptions {
   types?: ('post' | 'user' | 'totem')[];
   limit?: number;
@@ -484,61 +490,58 @@ export class SearchService {
    * @param suggestionLimit Maximum number of suggestions
    * @returns Search suggestions
    */
-  static async getSuggestions(partialTerm: string, suggestionLimit: number = 5): Promise<string[]> {
+  static async getSuggestions(partialTerm: string, suggestionLimit: number = 5): Promise<SearchSuggestion[]> {
     try {
       if (!partialTerm?.trim() || partialTerm.length < 2) {
         return [];
       }
 
-      console.log(`[SearchService] Getting suggestions for: "${partialTerm}"`);
-      const suggestions = new Set<string>();
+      const suggestions: SearchSuggestion[] = [];
+      const seen = new Set<string>();
       const term = partialTerm.toLowerCase().trim();
 
-      // Get popular totems as suggestions - use direct query instead of TotemService
-      console.log(`[SearchService] Fetching popular totems for suggestions`);
-      console.log(`[SearchService] Database projectId for suggestions:`, db.app.options.projectId);
+      // Get popular totems as suggestions
       const totemsRef = collection(db, this.TOTEMS_COLLECTION);
-      
+
       try {
         const totemsQuery = query(
           totemsRef,
           orderBy('usageCount', 'desc'),
           limit(20)
         );
-        console.log(`[SearchService] Executing suggestions query...`);
         const totemsSnapshot = await getDocs(totemsQuery);
-        console.log(`[SearchService] Suggestions query executed successfully`);
-        console.log(`[SearchService] Found ${totemsSnapshot.docs.length} popular totems`);
-        
+
         totemsSnapshot.docs
           .map(doc => ({ id: doc.id, ...doc.data() } as any))
-          .filter(totem => {
-            const matches = totem.name?.toLowerCase().includes(term);
-            console.log(`[SearchService] Totem "${totem.name}" matches: ${matches}`);
-            return matches;
-          })
+          .filter(totem => totem.name?.toLowerCase().includes(term))
           .slice(0, suggestionLimit)
-          .forEach(totem => suggestions.add(`#${totem.name}`));
+          .forEach(totem => {
+            const key = `#${totem.name}`;
+            if (!seen.has(key)) {
+              seen.add(key);
+              suggestions.push({ label: `#${totem.name}`, type: 'totem' });
+            }
+          });
       } catch (orderByError) {
-        console.log(`[SearchService] OrderBy query failed for suggestions, trying without ordering:`, orderByError);
-        
-        // Fallback: try without ordering
         const fallbackQuery = query(totemsRef, limit(20));
-        console.log(`[SearchService] Executing fallback suggestions query...`);
         const fallbackSnapshot = await getDocs(fallbackQuery);
-        console.log(`[SearchService] Fallback suggestions query executed successfully`);
-        console.log(`[SearchService] Fallback suggestions query found ${fallbackSnapshot.docs.length} totems`);
-        
+
         fallbackSnapshot.docs
           .map(doc => ({ id: doc.id, ...doc.data() } as any))
           .filter(totem => totem.name?.toLowerCase().includes(term))
           .slice(0, suggestionLimit)
-          .forEach(totem => suggestions.add(`#${totem.name}`));
+          .forEach(totem => {
+            const key = `#${totem.name}`;
+            if (!seen.has(key)) {
+              seen.add(key);
+              suggestions.push({ label: `#${totem.name}`, type: 'totem' });
+            }
+          });
       }
 
-      // Get popular usernames as suggestions
+      // Get popular usernames as suggestions (include firebaseUid for profile links)
       const usersRef = collection(db, this.USERS_COLLECTION);
-      
+
       try {
         const usersQuery = query(
           usersRef,
@@ -547,26 +550,33 @@ export class SearchService {
         );
         const usersSnapshot = await getDocs(usersQuery);
         usersSnapshot.docs
-          .map(doc => doc.data())
+          .map(doc => ({ firebaseUid: doc.id, ...doc.data() } as any))
           .filter(user => user.username?.toLowerCase().includes(term))
           .slice(0, suggestionLimit)
-          .forEach(user => suggestions.add(`@${user.username}`));
+          .forEach(user => {
+            const key = `@${user.username}`;
+            if (!seen.has(key)) {
+              seen.add(key);
+              suggestions.push({ label: `@${user.username}`, type: 'user', url: `/profile/${user.firebaseUid}` });
+            }
+          });
       } catch (orderByError) {
-        console.log(`[SearchService] User suggestions orderBy failed, trying without ordering:`, orderByError);
-        
-        // Fallback: try without ordering
         const fallbackQuery = query(usersRef, limit(20));
         const fallbackSnapshot = await getDocs(fallbackQuery);
         fallbackSnapshot.docs
-          .map(doc => doc.data())
+          .map(doc => ({ firebaseUid: doc.id, ...doc.data() } as any))
           .filter(user => user.username?.toLowerCase().includes(term))
           .slice(0, suggestionLimit)
-          .forEach(user => suggestions.add(`@${user.username}`));
+          .forEach(user => {
+            const key = `@${user.username}`;
+            if (!seen.has(key)) {
+              seen.add(key);
+              suggestions.push({ label: `@${user.username}`, type: 'user', url: `/profile/${user.firebaseUid}` });
+            }
+          });
       }
 
-      const result = Array.from(suggestions).slice(0, suggestionLimit);
-      console.log(`[SearchService] Returning ${result.length} suggestions:`, result);
-      return result;
+      return suggestions.slice(0, suggestionLimit);
     } catch (error) {
       console.error('Error getting search suggestions:', error);
       return [];
