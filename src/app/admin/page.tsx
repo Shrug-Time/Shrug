@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUser } from '@/hooks/useUser';
-import { auth } from '@/lib/firebase';
+import { auth } from '@/firebase';
 import { useRouter } from 'next/navigation';
 
 interface UserItem {
