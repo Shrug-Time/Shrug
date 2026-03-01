@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useUser } from '@/hooks/useUser';
 import { PostService } from '@/services/standardized';
@@ -19,6 +19,7 @@ export default function PostPage() {
   const params = useParams();
   const postId = params?.id as string;
   const queryClient = useQueryClient();
+  const router = useRouter();
   const { profile: userData, isLoading: isLoadingUserData } = useUser();
   const [showCreatePost, setShowCreatePost] = useState(false);
   const { isAuthModalOpen, setIsAuthModalOpen } = useAuthModal();
@@ -40,6 +41,15 @@ export default function PostPage() {
 
   return (
     <div className="max-w-4xl lg:ml-64 mx-auto px-4 py-8">
+      <button
+        onClick={() => router.back()}
+        className="flex items-center text-gray-500 hover:text-gray-800 mb-4 transition-colors"
+      >
+        <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        Back
+      </button>
       <div className="bg-white rounded-xl shadow p-6 mb-8">
         <div className="flex justify-between items-start">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">{post.question}</h1>

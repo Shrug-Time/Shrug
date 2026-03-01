@@ -156,15 +156,15 @@ export function Navbar() {
                 </button>
                 <Link
                   href="/profile"
-                  className="text-gray-700 hover:text-gray-900 font-medium cursor-pointer whitespace-nowrap"
+                  className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
                 >
-                  {profile.name}
+                  <span className="text-gray-700 hover:text-gray-900 font-medium whitespace-nowrap">{profile.name}</span>
+                  <img
+                    src={profile.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${profile.name}`}
+                    alt="Profile"
+                    className="h-8 w-8 rounded-full flex-shrink-0"
+                  />
                 </Link>
-                <img
-                  src={profile.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${profile.name}`}
-                  alt="Profile"
-                  className="h-8 w-8 rounded-full flex-shrink-0"
-                />
                 <button
                   onClick={handleLogout}
                   className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap"

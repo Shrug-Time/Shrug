@@ -54,6 +54,7 @@ interface QuestionListProps {
   sectionId?: string;
   showDeleteButtons?: boolean;
   sortByCrispness?: boolean;
+  preserveOrder?: boolean; // When true, skip client-side sorting to keep server-returned order
 }
 
 export function QuestionList({
@@ -67,7 +68,8 @@ export function QuestionList({
   profileUserId,
   sectionId = 'default',
   showDeleteButtons = false,
-  sortByCrispness = false
+  sortByCrispness = false,
+  preserveOrder = false
 }: QuestionListProps) {
   const router = useRouter();
   const { user } = useAuth();
@@ -383,16 +385,19 @@ export function QuestionList({
   }));
 
   // Sort posts by crispness or likes depending on sortByCrispness prop
-  const sortedPosts = [...postsWithSortingValues].sort((a, b) => {
-    if (sortByCrispness) {
-      // Wait for initial TotemContext load to complete before sorting by crispness
-      if (!isInitialLoadComplete) {
-        return 0; // Keep original order until totem states are loaded
-      }
-      return b.maxCrispness - a.maxCrispness;
-    }
-    return b.totalLikes - a.totalLikes;
-  });
+  // When preserveOrder=true, skip client-side sorting to keep server-returned order
+  const sortedPosts = preserveOrder
+    ? postsWithSortingValues
+    : [...postsWithSortingValues].sort((a, b) => {
+        if (sortByCrispness) {
+          // Wait for initial TotemContext load to complete before sorting by crispness
+          if (!isInitialLoadComplete) {
+            return 0; // Keep original order until totem states are loaded
+          }
+          return b.maxCrispness - a.maxCrispness;
+        }
+        return b.totalLikes - a.totalLikes;
+      });
 
   if (!posts.length && !isLoading) {
     return (

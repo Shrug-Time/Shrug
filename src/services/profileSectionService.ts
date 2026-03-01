@@ -149,77 +149,9 @@ export class ProfileSectionService {
         });
       }
       
-      // Create totem-based sections
-      const userPostsResult = await PostService.getUserPosts(userId, 100);
-      const userAnswersResult = await PostService.getUserAnswers(userId, 100);
-      
-      const allPosts = [
-        ...(userPostsResult.posts || []),
-        ...(userAnswersResult.posts || [])
-      ];
-      
-      // Extract totems from posts and answers
-      const totemUsage = new Map<string, number>();
-      
-      allPosts.forEach(post => {
-        // Extract totems from answers
-        post.answers?.forEach(answer => {
-          answer.totems?.forEach(totem => {
-            if (totem.name) {
-              const count = totemUsage.get(totem.name) || 0;
-              totemUsage.set(totem.name, count + 1);
-            }
-          });
-        });
-        
-        // Extract totems from post associations
-        post.totemAssociations?.forEach(association => {
-          if (association.totemName) {
-            const count = totemUsage.get(association.totemName) || 0;
-            totemUsage.set(association.totemName, count + 1);
-          }
-        });
-      });
-      
-      // Create sections for top 3 totems
-      const topTotems = Array.from(totemUsage.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 3);
-      
-      let position = 2; // Start after Recent and Popular
-      
-      for (const [totemName, count] of topTotems) {
-        const sectionId = uuidv4();
-        const sectionRef = doc(
-          db, 
-          this.USERS_COLLECTION, 
-          userId, 
-          this.SECTIONS_COLLECTION, 
-          sectionId
-        );
-        
-        const totemSection: Omit<ProfileSection, 'id'> = {
-          title: `${totemName}`,
-          type: 'default',
-          organizationMethod: 'chronological',
-          contentIds: [],
-          position: position++,
-          isVisible: true,
-          totemId: totemName,
-          createdAt: timestamp,
-          updatedAt: timestamp
-        };
-        
-        batch.set(sectionRef, totemSection);
-        
-        createdSections.push({
-          ...totemSection,
-          id: sectionId
-        });
-      }
-      
       await batch.commit();
-      
+
+      // Return only the two default sections (Recent + Popular)
       return createdSections;
     } catch (error) {
       console.error('Error creating default sections:', error);

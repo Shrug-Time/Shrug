@@ -14,7 +14,7 @@ import { QueryConstraint } from 'firebase/firestore';
 import { WelcomeHeader } from '@/components/common/WelcomeHeader';
 import { useIntroductionModal } from '@/hooks/useIntroductionModal';
 
-type FeedType = 'for-you' | 'popular' | 'latest';
+type FeedType = 'popular' | 'latest';
 
 const PAGE_SIZE = 15;
 
@@ -57,18 +57,6 @@ export default function Home() {
             PAGE_SIZE,
             append ? lastVisibleRef.current : null
           );
-          break;
-
-        case 'for-you':
-          if (user?.uid) {
-            result = await PostService.getUserAnswers(
-              user.uid,
-              PAGE_SIZE,
-              append ? lastVisibleRef.current : null
-            );
-          } else {
-            result = await PostService.getPaginatedPosts([], PAGE_SIZE, null);
-          }
           break;
 
         default:
@@ -149,14 +137,6 @@ export default function Home() {
             >
               Popular
             </button>
-            <button
-              onClick={() => setActiveTab('for-you')}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                activeTab === 'for-you' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              For You
-            </button>
           </div>
 
           <QuestionList
@@ -166,6 +146,7 @@ export default function Home() {
             isLoading={isLoading || isLoadingMore}
             onLoadMore={handleLoadMore}
             sortByCrispness={false}
+            preserveOrder={activeTab === 'latest'}
           />
         </div>
       </main>

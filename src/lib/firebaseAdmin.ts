@@ -44,10 +44,10 @@ function initializeFirebaseAdmin(): admin.app.App {
   }
 
   try {
-    // Process the private key - replace escaped newlines if present
-    const processedPrivateKey = privateKey.includes('\\n') 
-      ? privateKey.replace(/\\n/g, '\n') 
-      : privateKey;
+    // Process the private key — Vercel env vars may escape newlines as \n or wrap in quotes
+    let processedPrivateKey = privateKey
+      .replace(/\\n/g, '\n')   // handle escaped newlines
+      .replace(/^"([\s\S]*)"$/, '$1'); // strip surrounding quotes if present
 
     // Initialize with credential
     return admin.initializeApp({

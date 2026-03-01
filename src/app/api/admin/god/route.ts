@@ -19,8 +19,12 @@ async function verifyAdmin(request: NextRequest): Promise<string | NextResponse>
     }
 
     return decodedToken.uid;
-  } catch {
-    return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+  } catch (error: any) {
+    console.error('Admin token verification failed:', error?.message || error);
+    const message = error?.code === 'auth/argument-error'
+      ? 'Token verification failed — check FIREBASE_PRIVATE_KEY formatting in Vercel env vars'
+      : error?.message || 'Invalid token';
+    return NextResponse.json({ error: message }, { status: 401 });
   }
 }
 
