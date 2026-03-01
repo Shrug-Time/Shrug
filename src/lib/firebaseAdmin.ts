@@ -3,15 +3,31 @@ import * as admin from 'firebase-admin';
 function getApp(): admin.app.App {
   if (admin.apps.length > 0) return admin.apps[0]!;
 
+  // Preferred: FIREBASE_SERVICE_ACCOUNT_BASE64 — the full service account JSON,
+  // base64-encoded. This avoids all newline/OpenSSL escaping issues on Vercel.
+  const serviceAccountBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
+
+  if (serviceAccountBase64) {
+    const serviceAccount = JSON.parse(
+      Buffer.from(serviceAccountBase64, 'base64').toString('utf-8')
+    );
+    return admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+  }
+
+  // Fallback: individual env vars
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   const privateKey = process.env.FIREBASE_PRIVATE_KEY;
 
   if (!projectId || !clientEmail || !privateKey) {
-    throw new Error('Firebase Admin SDK environment variables are missing (FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY)');
+    throw new Error(
+      'Set FIREBASE_SERVICE_ACCOUNT_BASE64 (preferred) or FIREBASE_PROJECT_ID + FIREBASE_CLIENT_EMAIL + FIREBASE_PRIVATE_KEY'
+    );
   }
 
-  // Normalize private key: handle escaped newlines and surrounding quotes from Vercel
+  // Normalize private key — handle escaped newlines and surrounding quotes
   const processedPrivateKey = privateKey
     .replace(/\\n/g, '\n')
     .replace(/^"([\s\S]*)"$/, '$1');
@@ -26,7 +42,7 @@ function getApp(): admin.app.App {
 }
 
 // Lazy proxy — no Firebase initialization happens at import/build time.
-// The app is only initialized when a method is actually called at request time.
+// The SDK only initializes on the first actual request.
 function createLazyProxy<T extends object>(getInstance: () => T): T {
   return new Proxy({} as T, {
     get(_, prop: string | symbol) {
