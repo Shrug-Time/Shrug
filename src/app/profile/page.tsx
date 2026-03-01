@@ -14,7 +14,6 @@ import { ProfileSectionService } from '@/services/profileSectionService';
 import { SectionManager } from '@/components/profile/SectionManager';
 import { ProfileSidebar } from '@/components/profile/ProfileSidebar';
 import { useAuth } from '@/contexts/AuthContext';
-import Image from 'next/image';
 import { CustomSectionCreator } from '@/components/profile/CustomSectionCreator';
 import Link from 'next/link';
 
@@ -213,7 +212,7 @@ export default function ProfilePage() {
 
 
   return (
-    <div className="flex min-h-screen">
+    <div className="min-h-screen">
       <ProfileSidebar isSidebarOpen={isSidebarOpen} onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
 
       {/* Mobile overlay when sidebar is open */}
@@ -224,16 +223,7 @@ export default function ProfilePage() {
         />
       )}
 
-      <div className="flex-1 w-full lg:w-auto">
-        {/* Mobile sidebar toggle button */}
-        <button
-          onClick={() => setIsSidebarOpen(true)}
-          className="lg:hidden fixed left-4 top-20 z-20 p-2 bg-white rounded-lg shadow-md hover:bg-gray-100"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        </button>
+      <div className="transition-[padding-left] duration-500 lg:pl-64">
 
         {/* Show toast messages */}
         {toastMessage && (
@@ -251,12 +241,12 @@ export default function ProfilePage() {
               <div className="mr-4 relative flex-shrink-0">
                 <div className="w-20 h-20 lg:w-24 lg:h-24 rounded-full overflow-hidden">
                   {profile.photoURL ? (
-                    <Image
+                    <img
                       src={profile.photoURL}
                       alt={`${profile.name}'s profile`}
-                      width={96}
-                      height={96}
-                      className="object-cover"
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                     />
                   ) : (
                     <div className="w-full h-full bg-blue-100 flex items-center justify-center text-blue-500 text-2xl font-bold">

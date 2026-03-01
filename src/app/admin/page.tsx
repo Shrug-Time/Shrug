@@ -26,7 +26,17 @@ interface PostItem {
   firebaseUid: string;
 }
 
-type Tab = 'users' | 'posts';
+interface AnswerItem {
+  id: string;
+  postId: string;
+  postQuestion: string;
+  text: string;
+  username: string;
+  firebaseUid: string;
+  createdAt: number;
+}
+
+type Tab = 'users' | 'questions' | 'answers';
 
 export default function AdminPanel() {
   const { user } = useAuth();
@@ -35,6 +45,7 @@ export default function AdminPanel() {
   const [tab, setTab] = useState<Tab>('users');
   const [users, setUsers] = useState<UserItem[]>([]);
   const [posts, setPosts] = useState<PostItem[]>([]);
+  const [answers, setAnswers] = useState<AnswerItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionResult, setActionResult] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ action: string; label: string; data: any; onSuccess?: () => void } | null>(null);
@@ -53,7 +64,8 @@ export default function AdminPanel() {
   }, [isAdmin]);
 
   useEffect(() => {
-    if (isAdmin && tab === 'posts' && posts.length === 0) loadPosts();
+    if (isAdmin && tab === 'questions' && posts.length === 0) loadPosts();
+    if (isAdmin && tab === 'answers' && answers.length === 0) loadAnswers();
   }, [isAdmin, tab]);
 
   const getToken = async () => {
@@ -97,6 +109,18 @@ export default function AdminPanel() {
     try {
       const result = await adminAction('listPosts', { limit: 100, includeHidden: true });
       setPosts(result.posts || []);
+    } catch {
+      // error already shown
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadAnswers = async () => {
+    setLoading(true);
+    try {
+      const result = await adminAction('listAnswers', { limit: 100 });
+      setAnswers(result.answers || []);
     } catch {
       // error already shown
     } finally {
@@ -176,10 +200,16 @@ export default function AdminPanel() {
           Users
         </button>
         <button
-          onClick={() => setTab('posts')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'posts' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+          onClick={() => setTab('questions')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'questions' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
         >
-          Posts
+          Questions
+        </button>
+        <button
+          onClick={() => setTab('answers')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'answers' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+        >
+          Answers
         </button>
       </div>
 
@@ -268,11 +298,11 @@ export default function AdminPanel() {
         </div>
       )}
 
-      {/* Posts Tab */}
-      {tab === 'posts' && (
+      {/* Questions Tab */}
+      {tab === 'questions' && (
         <div className="bg-white rounded-xl shadow p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">Posts ({posts.length})</h2>
+            <h2 className="text-lg font-semibold">Questions ({posts.length})</h2>
             <div className="flex gap-2">
               {mergeMode ? (
                 <>
@@ -378,7 +408,53 @@ export default function AdminPanel() {
               </div>
             ))}
             {posts.length === 0 && !loading && (
-              <p className="text-gray-400 text-sm text-center py-8">No posts found</p>
+              <p className="text-gray-400 text-sm text-center py-8">No questions found</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Answers Tab */}
+      {tab === 'answers' && (
+        <div className="bg-white rounded-xl shadow p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Answers ({answers.length})</h2>
+            <button onClick={loadAnswers} disabled={loading} className="px-3 py-1.5 text-sm bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50">
+              {loading ? 'Loading...' : 'Refresh'}
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            {answers.map(a => (
+              <div key={`${a.postId}-${a.id}`} className="p-3 border rounded-lg">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs text-gray-400 mb-1">
+                      On: <span className="text-gray-600 font-medium">{a.postQuestion}</span>
+                    </div>
+                    <p className="text-sm line-clamp-2">{a.text}</p>
+                    <div className="text-xs text-gray-400 mt-1">
+                      @{a.username} &middot; {a.createdAt ? new Date(a.createdAt).toLocaleDateString() : '—'}
+                    </div>
+                  </div>
+                  <div className="flex gap-1 flex-shrink-0">
+                    <button
+                      onClick={() => setConfirmAction({
+                        action: 'deleteAnswer',
+                        label: `Permanently delete this answer by @${a.username}? This cannot be undone.`,
+                        data: { postId: a.postId, answerId: a.id },
+                        onSuccess: loadAnswers
+                      })}
+                      className="px-2 py-1 text-xs bg-red-50 text-red-700 rounded hover:bg-red-100"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {answers.length === 0 && !loading && (
+              <p className="text-gray-400 text-sm text-center py-8">No answers found</p>
             )}
           </div>
         </div>

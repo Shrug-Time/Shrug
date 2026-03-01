@@ -47,7 +47,7 @@ export function Navbar() {
     <nav className="bg-white shadow-sm sticky top-0 z-50">
       {/* Mobile Layout */}
       <div className="lg:hidden w-full pl-2 pr-4">
-        <div className="flex h-14">
+        <div className="flex h-16">
           <div className="relative flex items-center w-full">
             <Link href="/" className="flex items-center ml-2 flex-shrink-0 z-10">
               <span className="text-lg font-bold text-gray-800">Shrug</span>
@@ -124,30 +124,25 @@ export function Navbar() {
 
       {/* Desktop Layout */}
       <div className="hidden lg:block w-full">
-        <div className="h-16 flex items-center justify-between pl-4 pr-4">
-          {/* Logo - Far left */}
-          <div className="flex-shrink-0">
+        <div className="h-16 grid items-center pr-4" style={{ gridTemplateColumns: '16rem 1fr auto' }}>
+          {/* Logo - exactly 16rem wide, matching sidebar width */}
+          <div className="pl-4">
             <Link href="/" className="flex items-center">
               <span className="text-xl font-bold text-gray-800">Shrug</span>
             </Link>
           </div>
 
-          {/* Search Bar Container - Aligned with main content, grows/shrinks */}
-          <div className="flex-1 flex justify-center min-w-0">
-            <div className="w-full max-w-4xl ml-60 flex items-center">
-              {/* Search Bar - Flexible, shrinks as needed, stops before buttons */}
-              <div className="w-full max-w-2xl">
-                <SearchBar
-                  placeholder="Search questions, users, totems..."
-                  showSuggestions={true}
-                  className="w-full"
-                />
-              </div>
-            </div>
+          {/* Search Bar - middle column, px-4 makes left edge land at 272px matching cards */}
+          <div className="px-4">
+            <SearchBar
+              placeholder="Search questions, users, totems..."
+              showSuggestions={true}
+              className="w-full"
+            />
           </div>
 
-          {/* User controls - Far right */}
-          <div className="flex-shrink-0 flex items-center space-x-4 ml-4">
+          {/* User controls - right column, can never overlap search */}
+          <div className="flex items-center space-x-4">
             {profile ? (
               <>
                 <button

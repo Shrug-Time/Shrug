@@ -246,6 +246,28 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ posts });
       }
 
+      case 'listAnswers': {
+        const { limit: limitCount = 100 } = data;
+        const snapshot = await db.collection('posts').orderBy('createdAt', 'desc').limit(limitCount).get();
+        const answers: any[] = [];
+        snapshot.docs.forEach(doc => {
+          const d = doc.data();
+          (d.answers || []).forEach((a: any) => {
+            answers.push({
+              id: a.id,
+              postId: doc.id,
+              postQuestion: d.question,
+              text: a.text,
+              username: a.username,
+              firebaseUid: a.firebaseUid,
+              createdAt: a.createdAt || d.createdAt,
+            });
+          });
+        });
+        answers.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        return NextResponse.json({ answers });
+      }
+
       default:
         return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });
     }
