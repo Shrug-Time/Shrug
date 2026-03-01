@@ -399,12 +399,12 @@ export function SectionManager({ userId, onSave, onCancel }: SectionManagerProps
       <div className="border-t border-gray-200 pt-4">
         <h3 className="text-lg font-medium mb-2">Default Sections</h3>
         
-        {sections.filter(section => section.type === 'default').length === 0 ? (
+        {sections.filter(section => section.type === 'default' && !section.totemId).length === 0 ? (
           <p className="text-gray-500 py-4">No default sections available.</p>
         ) : (
           <ul className="space-y-4">
             {sections
-              .filter(section => section.type === 'default')
+              .filter(section => section.type === 'default' && !section.totemId)
               .map(section => (
                 <li key={section.id} className="border border-gray-200 rounded-md p-4">
                   <div className="flex justify-between items-center">
@@ -584,6 +584,50 @@ export function SectionManager({ userId, onSave, onCancel }: SectionManagerProps
         )}
       </div>
       
+      {/* Totem Sections */}
+      {sections.filter(s => s.totemId).length > 0 && (
+        <div className="border-t border-gray-200 pt-4">
+          <h3 className="text-lg font-medium mb-1">Totem Sections</h3>
+          <p className="text-sm text-gray-500 mb-3">
+            Totems you've used in 3+ answers automatically appear on your profile (top 2). Pin any totem to always show it.
+          </p>
+          <ul className="space-y-3">
+            {sections
+              .filter(s => s.totemId)
+              .map(section => (
+                <li key={section.id} className="border border-gray-200 rounded-md p-4 flex justify-between items-center">
+                  <div>
+                    <span className="font-medium">{section.title}</span>
+                    <span className="ml-2 text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Totem</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <span className="text-sm text-gray-500">
+                      {section.pinnedToProfile ? 'Pinned' : 'Auto'}
+                    </span>
+                    <button
+                      onClick={() => handleUpdateSection(section.id, { pinnedToProfile: !section.pinnedToProfile })}
+                      className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                        section.pinnedToProfile
+                          ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {section.pinnedToProfile ? 'Unpin' : 'Pin to profile'}
+                    </button>
+                    <button
+                      onClick={() => handleDeleteSection(section.id)}
+                      className="p-1 text-red-500 hover:bg-red-50 rounded-md"
+                      title="Delete section"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                </li>
+              ))}
+          </ul>
+        </div>
+      )}
+
       {/* Create New Section */}
       <div className="border-t border-gray-200 pt-4">
         <h3 className="text-lg font-medium mb-2">Create New Section</h3>

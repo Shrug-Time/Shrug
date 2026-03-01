@@ -318,16 +318,16 @@ export function QuestionList({
                 href={getAnswerUrl(post.id, answerToShow.id)}
                 className="block hover:bg-gray-50 rounded-lg transition-colors p-2"
               >
-                <div className="text-gray-600 text-sm line-clamp-2">
+                <div className="text-gray-600 text-sm line-clamp-5">
                   <FormattedText text={previewText} disableLinks={true} />
                 </div>
               </Link>
             ) : (
-              <Link 
+              <Link
                 href={getPostUrl(post.id)}
                 className="block hover:bg-gray-50 rounded-lg transition-colors p-2"
               >
-                <div className="text-gray-600 text-sm line-clamp-2">
+                <div className="text-gray-600 text-sm line-clamp-5">
                   <FormattedText text={previewText} disableLinks={true} />
                 </div>
               </Link>

@@ -81,6 +81,8 @@ export function Navbar() {
                         src={profile.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${profile.name}`}
                         alt="Profile"
                         className="h-7 w-7 rounded-full"
+                        referrerPolicy="no-referrer"
+                        onError={(e) => { (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${profile.name}`; }}
                       />
                     </button>
 
@@ -163,6 +165,8 @@ export function Navbar() {
                     src={profile.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${profile.name}`}
                     alt="Profile"
                     className="h-8 w-8 rounded-full flex-shrink-0"
+                    referrerPolicy="no-referrer"
+                    onError={(e) => { (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${profile.name}`; }}
                   />
                 </Link>
                 <button

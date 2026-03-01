@@ -95,7 +95,7 @@ export function MainPageSidebar({ isExpanded, onToggle }: MainPageSidebarProps) 
     return (
       <button
         onClick={onToggle}
-        className="fixed left-0 top-20 p-2 bg-white hover:bg-gray-100 transition-colors rounded-r-lg shadow-md z-40"
+        className="hidden lg:flex fixed left-0 top-20 p-2 bg-white hover:bg-gray-100 transition-colors rounded-r-lg shadow-md z-40"
         title="Expand sidebar"
       >
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -106,7 +106,7 @@ export function MainPageSidebar({ isExpanded, onToggle }: MainPageSidebarProps) 
   }
 
   return (
-    <div className="fixed left-0 top-16 h-[calc(100vh-4rem)] bg-gray-50 border-r border-gray-200 z-40 w-64 shadow-lg transition-transform duration-300"
+    <div className="hidden lg:block fixed left-0 top-16 h-[calc(100vh-4rem)] bg-gray-50 border-r border-gray-200 z-40 w-64 shadow-lg transition-transform duration-300"
          style={{ transform: isExpanded ? 'translateX(0)' : 'translateX(-100%)' }}>
       {/* Header with close button */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200">

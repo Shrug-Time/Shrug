@@ -151,6 +151,7 @@ export interface ProfileSection {
   position: number;
   isVisible: boolean;
   totemId?: string;
+  pinnedToProfile?: boolean;
   createdAt: number;
   updatedAt: number;
 }

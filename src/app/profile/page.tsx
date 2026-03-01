@@ -362,8 +362,25 @@ export default function ProfilePage() {
                 </div>
               ) : sections && sections.length > 0 ? (
                 <div className="space-y-8">
-                  {sections
-                    .filter(section => section.isVisible)
+                  {(() => {
+                    // Non-totem sections (Recent, Popular, custom curated): respect isVisible
+                    const nonTotemSections = sections.filter(s => !s.totemId && s.isVisible);
+
+                    // Totem sections: auto-show top 2 with 3+ posts, OR pinned explicitly by user
+                    const totemSections = sections.filter(s => s.totemId);
+                    const autoQualifiedIds = new Set(
+                      totemSections
+                        .filter(s => (sectionContent.get(s.id)?.length || 0) >= 3)
+                        .sort((a, b) => (sectionContent.get(b.id)?.length || 0) - (sectionContent.get(a.id)?.length || 0))
+                        .slice(0, 2)
+                        .map(s => s.id)
+                    );
+                    const visibleTotemSections = totemSections.filter(s =>
+                      s.pinnedToProfile || autoQualifiedIds.has(s.id)
+                    );
+
+                    return [...nonTotemSections, ...visibleTotemSections];
+                  })()
                     .map(section => {
                       const sectionPosts = sectionContent.get(section.id) || [];
                       
@@ -507,8 +524,7 @@ export default function ProfilePage() {
                           )}
                         </div>
                       );
-                    }).filter(Boolean)
-                }
+                    }).filter(Boolean)}
                 </div>
               ) : (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">

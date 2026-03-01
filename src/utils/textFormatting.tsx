@@ -137,7 +137,7 @@ export function truncateText(text: string, maxLength: number): string {
  * @param firstParagraphMaxWords Maximum words for first paragraph to show in full (default: 30)
  * @returns Truncated text with ellipsis if needed
  */
-export function truncateAnswerPreview(text: string, maxWords: number = 25, firstParagraphMaxWords: number = 30): string {
+export function truncateAnswerPreview(text: string, maxWords: number = 60, firstParagraphMaxWords: number = 70): string {
   if (!text) return '';
   
   // Get first paragraph
