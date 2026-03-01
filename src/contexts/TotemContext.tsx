@@ -50,7 +50,7 @@ export function TotemProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [likeState, setLikeState] = useState<Record<string, TotemState>>({});
-  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
+  // loadingStates removed — loadingRef handles duplicate prevention without causing re-renders
   const [refreshesRemaining, setRefreshesRemaining] = useState(0);
   const [refreshData, setRefreshData] = useState<RefreshModalData | null>(null);
   const [isInitialLoadComplete, setIsInitialLoadComplete] = useState(false);
@@ -144,12 +144,6 @@ export function TotemProvider({ children }: { children: ReactNode }) {
     
     // Create unique key that includes answerId if provided
     const key = answerId ? `${postId}-${answerId}-${totemName}` : `${postId}-${totemName}`;
-    
-    // Check if we already have this state and avoid reloading unnecessarily
-    if (loadingStates[key]) return; // Already loading this totem
-    
-    // Track loading state to prevent duplicate loads
-    setLoadingStates(prev => ({ ...prev, [key]: true }));
 
     try {
       // Fetch the post data using the PostService
@@ -219,8 +213,6 @@ export function TotemProvider({ children }: { children: ReactNode }) {
       console.error('[TotemContext] Error loading state:', error);
       setError(error as Error);
     } finally {
-      setLoadingStates(prev => ({ ...prev, [key]: false }));
-      // Clean up the loading lock
       loadingRef.current.delete(loadKey);
     }
   }, [user]);
@@ -472,34 +464,13 @@ export function TotemProvider({ children }: { children: ReactNode }) {
     const lastCalculated = state.lastCalculated || now;
     const minutesSinceCalculation = (now - lastCalculated) / (60 * 1000);
     
-    // Recalculate crispness if it's been more than 5 minutes
+    // Apply real-time decay approximation — computed on the fly, no setState during render
     if (minutesSinceCalculation >= 5) {
-      // We'll use a simple approximation for real-time decay 
-      // rather than fetching from the database again
-      const weekInMs = 7 * 24 * 60 * 60 * 1000;
-      const decayPercent = minutesSinceCalculation / (7 * 24 * 60); // Minutes in a week
-      
-      // Apply time decay (maximum 1% decay per 5 minutes)
+      const decayPercent = minutesSinceCalculation / (7 * 24 * 60); // fraction of a week
       const decayAmount = Math.min(1, decayPercent) * state.crispness;
-      const newCrispness = Math.max(0, state.crispness - decayAmount);
-      
-      
-      // Instead of updating state immediately, schedule an update
-      // This prevents the setState during render error
-      setTimeout(() => {
-        setLikeState(prev => ({
-          ...prev,
-          [key]: {
-            ...prev[key],
-            crispness: newCrispness,
-            lastCalculated: now
-          }
-        }));
-      }, 0);
-      
-      return newCrispness;
+      return Math.max(0, state.crispness - decayAmount);
     }
-    
+
     return state.crispness;
   }, [likeState]);
 

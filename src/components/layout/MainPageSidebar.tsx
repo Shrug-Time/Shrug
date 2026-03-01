@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useUser } from '@/hooks/useUser';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -18,24 +18,25 @@ export function MainPageSidebar({ isExpanded, onToggle }: MainPageSidebarProps) 
   const [popularTotems, setPopularTotems] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Stable key representing the user's recent totems — only re-run the effect when the list actually changes
+  const recentTotemsKey = useMemo(
+    () => (profile?.totems?.recent || []).slice(0, 5).join(','),
+    [profile?.totems?.recent]
+  );
+
   // Load recent totems from user's recent activity
   useEffect(() => {
+    if (!profile) return;
+
     const loadRecentTotems = async () => {
-      if (!profile) {
-        return;
-      }
-      
       try {
-        // Get user's recent totems from their profile
         const userTotems = profile.totems?.recent || [];
-        setRecentTotems(userTotems.slice(0, 5)); // Show last 5
-        
-        // Load real popular totems instead of placeholder data
+        setRecentTotems(userTotems.slice(0, 5));
+
         const popularTotemsData = await TotemService.getPopularTotems(5);
         setPopularTotems(popularTotemsData.map(totem => totem.name));
       } catch (error) {
         console.error('❌ Error loading totems:', error);
-        // Fallback to placeholder data if there's an error (limited to 5)
         setPopularTotems(['Fishing', 'Flies', 'Streams', 'Gear', 'Techniques'].slice(0, 5));
       } finally {
         setIsLoading(false);
@@ -43,22 +44,22 @@ export function MainPageSidebar({ isExpanded, onToggle }: MainPageSidebarProps) 
     };
 
     loadRecentTotems();
-  }, [profile]);
+  }, [recentTotemsKey]); // only re-runs when the actual totem list changes, not on every profile refresh
 
   // Refresh user profile data periodically to catch totem interaction updates
   useEffect(() => {
     if (!profile) return;
-    
+
     const refreshInterval = setInterval(async () => {
       try {
         await refetch();
       } catch (error) {
         console.error('Error refreshing user profile:', error);
       }
-    }, 10000); // Refresh every 10 seconds
-    
+    }, 120000); // Refresh every 2 minutes
+
     return () => clearInterval(refreshInterval);
-  }, [profile, refetch]);
+  }, [refetch]); // removed profile from deps — no need to restart interval on every profile update
 
   // Listen for totem interaction events to refresh immediately
   useEffect(() => {
