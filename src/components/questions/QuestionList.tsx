@@ -410,7 +410,7 @@ export function QuestionList({
         isLoading={isLoading}
       >
         <div className="space-y-4">
-          {sortedPosts.slice(0, 10).map((post, index) => renderQuestion(post, index))}
+          {sortedPosts.map((post, index) => renderQuestion(post, index))}
         </div>
       </InfiniteScroll>
 

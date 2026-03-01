@@ -1,7 +1,7 @@
 // src/app/page.tsx
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTotem } from '@/contexts/TotemContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { QuestionList } from '@/components/questions/QuestionList';
@@ -16,151 +16,121 @@ import { useIntroductionModal } from '@/hooks/useIntroductionModal';
 
 type FeedType = 'for-you' | 'popular' | 'latest';
 
-// Calculate total likes for a post
-const calculateTotalLikes = (post: Post) => {
-  return post.answers.reduce((sum, answer) => 
-    sum + answer.totems.reduce((totemSum, totem) => 
-      totemSum + getTotemLikes(totem), 0
-    ), 0
-  );
-};
+const PAGE_SIZE = 15;
 
 export default function Home() {
   const { user } = useAuth();
   const { toggleLike } = useTotem();
-  
+
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [activeTab, setActiveTab] = useState<FeedType>('latest');
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const lastVisibleRef = useRef<any>(null);
   const router = useRouter();
   const { shouldShowModal, isModalOpen, closeModal } = useIntroductionModal();
 
-  useEffect(() => {
-    const fetchPosts = async () => {
+  const fetchPosts = useCallback(async (tab: FeedType, append = false) => {
+    if (append) {
+      setIsLoadingMore(true);
+    } else {
       setIsLoading(true);
-      try {
-        let fetchedPosts: Post[] = [];
-        
-        switch (activeTab) {
-          case 'latest':
-            // Get more posts and let QuestionList handle crispness-based sorting
-            const latestResult = await PostService.getPaginatedPosts(
-              [], // No additional constraints
-              50  // Get more posts for better sorting selection
+      lastVisibleRef.current = null;
+    }
+
+    try {
+      let result: { posts: Post[]; lastVisible: any };
+
+      switch (tab) {
+        case 'latest':
+          result = await PostService.getPaginatedPosts(
+            [],
+            PAGE_SIZE,
+            append ? lastVisibleRef.current : null
+          );
+          break;
+
+        case 'popular':
+          result = await PostService.getPopularPosts(
+            PAGE_SIZE,
+            append ? lastVisibleRef.current : null
+          );
+          break;
+
+        case 'for-you':
+          if (user?.uid) {
+            result = await PostService.getUserAnswers(
+              user.uid,
+              PAGE_SIZE,
+              append ? lastVisibleRef.current : null
             );
-            fetchedPosts = latestResult.posts || [];
-            break;
-            
-          case 'popular':
-            // Use the new scalable popular posts method
-            const popularResult = await PostService.getPopularPosts(10);
-            fetchedPosts = popularResult.posts || [];
-            break;
-            
-          case 'for-you':
-            if (user?.uid) {
-              // Get ONLY posts where user has answered (not questions they asked)
-              const userAnswersResult = await PostService.getUserAnswers(user.uid, 10);
-              fetchedPosts = userAnswersResult.posts || [];
-            } else {
-              // Fallback to latest posts if not authenticated
-              const fallbackResult = await PostService.getPaginatedPosts([], 10);
-              fetchedPosts = fallbackResult.posts || [];
-            }
-            break;
-            
-          default:
-            const defaultResult = await PostService.getPaginatedPosts([], 10);
-            fetchedPosts = defaultResult.posts || [];
-        }
+          } else {
+            result = await PostService.getPaginatedPosts([], PAGE_SIZE, null);
+          }
+          break;
 
-        setPosts(fetchedPosts);
-      } catch (error) {
-        console.error('Error fetching posts:', error);
-        // Set empty posts array on error
-        setPosts([]);
-      } finally {
-        setIsLoading(false);
+        default:
+          result = await PostService.getPaginatedPosts([], PAGE_SIZE, null);
       }
-    };
 
-    fetchPosts();
-  }, [user?.uid, activeTab]);
+      const fetched = result.posts || [];
+      lastVisibleRef.current = result.lastVisible;
+      setHasNextPage(fetched.length >= PAGE_SIZE && result.lastVisible != null);
 
-  // Force refresh when navigating back to main page
+      if (append) {
+        setPosts(prev => [...prev, ...fetched]);
+      } else {
+        setPosts(fetched);
+      }
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+      if (!append) setPosts([]);
+    } finally {
+      setIsLoading(false);
+      setIsLoadingMore(false);
+    }
+  }, [user?.uid]);
+
+  // Initial load & tab change
+  useEffect(() => {
+    fetchPosts(activeTab);
+  }, [activeTab, fetchPosts]);
+
+  // Refresh when tab becomes visible
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden && posts.length > 0) {
-        console.log('[MainPage] Tab became visible - refreshing posts');
-        // Trigger a re-fetch by updating the dependency
-        const fetchPosts = async () => {
-          setIsLoading(true);
-          try {
-            let fetchedPosts: Post[] = [];
-            
-            switch (activeTab) {
-              case 'latest':
-                const latestResult = await PostService.getPaginatedPosts([], 50);
-                fetchedPosts = latestResult.posts || [];
-                break;
-                
-              case 'popular':
-                const popularResult = await PostService.getPopularPosts(10);
-                fetchedPosts = popularResult.posts || [];
-                break;
-                
-              case 'for-you':
-                if (user?.uid) {
-                  // Get ONLY posts where user has answered (not questions they asked)
-                  const userAnswersResult = await PostService.getUserAnswers(user.uid, 10);
-                  fetchedPosts = userAnswersResult.posts || [];
-                }
-                break;
-            }
-            
-            setPosts(fetchedPosts);
-          } catch (error) {
-            console.error('Error refreshing posts:', error);
-          } finally {
-            setIsLoading(false);
-          }
-        };
-        
-        fetchPosts();
+        fetchPosts(activeTab);
       }
     };
-
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [posts.length, activeTab, user?.uid]);
+  }, [posts.length, activeTab, fetchPosts]);
 
+  const handleLoadMore = useCallback(() => {
+    if (!isLoadingMore && hasNextPage) {
+      fetchPosts(activeTab, true);
+    }
+  }, [isLoadingMore, hasNextPage, activeTab, fetchPosts]);
 
   const handleWantToAnswer = (post: Post) => {
     router.push(`/post/${post.id}`);
   };
 
-  const handleTotemLikeClick = async (post: Post, answerIdx: number, totemName: string) => {
-    await toggleLike(post.id, totemName);
-  };
-
-  const handleTotemUnlikeClick = async (post: Post, answerIdx: number, totemName: string) => {
-    await toggleLike(post.id, totemName);
-  };
-
   return (
     <div className="min-h-screen bg-gray-50">
-      <MainPageSidebar 
+      <MainPageSidebar
         isExpanded={isSidebarExpanded}
         onToggle={() => setIsSidebarExpanded(!isSidebarExpanded)}
       />
-      
+
       <main>
-        {/* Welcome Header - shows above everything for first-time users */}
         {shouldShowModal && (
           <WelcomeHeader onDismiss={closeModal} />
         )}
-        
+
         <div className="max-w-4xl lg:ml-64 mx-auto px-4 py-8 transition-[margin] duration-300">
           <div className="flex flex-wrap gap-2 sm:space-x-4 sm:gap-0 mb-6">
             <button
@@ -192,14 +162,13 @@ export default function Home() {
           <QuestionList
             posts={posts}
             onWantToAnswer={handleWantToAnswer}
-            hasNextPage={false}
-            isLoading={isLoading}
-            onLoadMore={() => {}}
+            hasNextPage={hasNextPage}
+            isLoading={isLoading || isLoadingMore}
+            onLoadMore={handleLoadMore}
             sortByCrispness={false}
           />
         </div>
       </main>
-
     </div>
   );
 }

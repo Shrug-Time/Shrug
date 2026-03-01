@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '@/hooks/useUser';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { TotemService } from '@/services/standardized';
 import { SidebarAd } from '@/components/ads/CommunityAdDisplay';
 
@@ -240,6 +241,17 @@ export function MainPageSidebar({ isExpanded, onToggle }: MainPageSidebarProps) 
         {/* Community Ad */}
         <div className="pt-4 border-t border-gray-200">
           <SidebarAd />
+        </div>
+
+        {/* Footer Links */}
+        <div className="pt-4 border-t border-gray-200">
+          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-400">
+            <Link href="/about" className="hover:text-gray-600">About</Link>
+            <Link href="/terms" className="hover:text-gray-600">Terms</Link>
+            <Link href="/privacy" className="hover:text-gray-600">Privacy</Link>
+            <Link href="/contact" className="hover:text-gray-600">Contact</Link>
+          </div>
+          <p className="text-xs text-gray-300 mt-2">&copy; {new Date().getFullYear()} Shrug</p>
         </div>
       </div>
     </div>
