@@ -16,6 +16,7 @@ import { ProfileSidebar } from '@/components/profile/ProfileSidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import { CustomSectionCreator } from '@/components/profile/CustomSectionCreator';
 import Link from 'next/link';
+import { TotemButton } from '@/components/totem/TotemButton';
 
 export default function ProfilePage() {
   const { profile, isLoading: isLoadingProfile, error: profileError, updateProfile } = useUser();
@@ -472,14 +473,11 @@ export default function ProfilePage() {
 
                                     <div className="mt-auto pt-2 border-t border-gray-100">
                                       {topTotem && (
-                                        <div className="flex items-center space-x-1">
-                                          <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded font-medium">
-                                            {topTotem.name}
-                                          </span>
-                                          <span className="text-xs text-gray-500">
-                                            {topTotem.likeHistory?.length || 0} likes
-                                          </span>
-                                        </div>
+                                        <TotemButton
+                                          postId={post.id}
+                                          totemName={topTotem.name}
+                                          answerId={userAnswer?.id}
+                                        />
                                       )}
                                     </div>
                                   </div>
@@ -487,7 +485,7 @@ export default function ProfilePage() {
                               );
                             })}
                           </div>
-                          
+
                           {/* Navigation arrows */}
                           {sectionPosts.length > 3 && (
                             <div className="flex justify-between items-center mt-4">
@@ -572,14 +570,11 @@ export default function ProfilePage() {
 
                                   <div className="mt-auto pt-2 border-t border-gray-100">
                                     {topTotem && (
-                                      <div className="flex items-center space-x-1">
-                                        <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded font-medium">
-                                          {topTotem.name}
-                                        </span>
-                                        <span className="text-xs text-gray-500">
-                                          {topTotem.likeHistory?.length || 0} likes
-                                        </span>
-                                      </div>
+                                      <TotemButton
+                                        postId={post.id}
+                                        totemName={topTotem.name}
+                                        answerId={userAnswer?.id}
+                                      />
                                     )}
                                   </div>
                                 </div>

@@ -10,6 +10,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { getProfileUrl } from '@/utils/routes';
 import Link from 'next/link';
 import { FormattedText } from '@/utils/textFormatting';
+import { ReportButton } from '@/components/reports/ReportButton';
 
 // Helper function to safely convert various date formats to a Date object
 const getDate = (timestamp: any): Date => {
@@ -141,22 +142,30 @@ export function TotemPageClient({ posts, totemName }: TotemPageClientProps) {
                         <div className="text-gray-600 mb-4">
                           <FormattedText text={answerData.answer.text} />
                         </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-2">
-                            <TotemButton
-                              totemName={totemName}
-                              postId={answerData.post.id}
-                              answerId={answerData.answer.id}
+                        <div className="flex flex-col gap-2 mt-1">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <TotemButton
+                                totemName={totemName}
+                                postId={answerData.post.id}
+                                answerId={answerData.answer.id}
+                              />
+                              {answerData.answer.totems.length > 1 && (
+                                <span className="text-sm text-gray-500">
+                                  +{answerData.answer.totems.length - 1} more totems
+                                </span>
+                              )}
+                            </div>
+                            <ReportButton
+                              contentId={answerData.answer.id}
+                              contentType="answer"
+                              iconOnly={true}
+                              className="text-gray-400 hover:text-red-500 flex-shrink-0"
                             />
-                            {answerData.answer.totems.length > 1 && (
-                              <span className="text-sm text-gray-500">
-                                +{answerData.answer.totems.length - 1} more totems
-                              </span>
-                            )}
                           </div>
                           <div className="text-sm text-gray-500">
                             {formatDistanceToNow(getDate(answerData.post.createdAt), { addSuffix: true })} by{' '}
-                            <Link 
+                            <Link
                               href={getProfileUrl(answerData.answer.username || answerData.answer.firebaseUid || '')}
                               className="text-blue-600 hover:text-blue-800 hover:underline"
                             >
