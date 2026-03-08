@@ -894,6 +894,7 @@ function ProfileContent({ userID }: { userID: string }) {
                   showAllTotems={false}
                   showUserAnswers={true}
                   profileUserId={userData.firebaseUid}
+                  profileUsername={userData.username}
                   sectionId="answers-tab"
                   showDeleteButtons={false}
                 />
