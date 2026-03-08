@@ -80,6 +80,34 @@ export function QuestionList({
   const { isAuthModalOpen, setIsAuthModalOpen, handleAuthRequired } = useAuthModal();
   const { deleteAnswer, isDeleting } = useDeleteAnswer();
   const { shouldShowTooltip, isTooltipVisible, dismissTooltip } = useFirstLoginTooltip();
+  const [expandedPosts, setExpandedPosts] = useState<Set<string>>(new Set());
+
+  const togglePostExpanded = useCallback((postId: string) => {
+    setExpandedPosts(prev => {
+      const next = new Set(prev);
+      next.has(postId) ? next.delete(postId) : next.add(postId);
+      return next;
+    });
+  }, []);
+
+  // Returns the top 3 answer-totem pairs for a post, deduped by totem name
+  const getTopTotemPreviews = useCallback((post: Post) => {
+    const pairs: Array<{ totemName: string; answer: Answer; likes: number }> = [];
+    post.answers.forEach(answer => {
+      answer.totems.forEach(totem => {
+        pairs.push({ totemName: totem.name, answer, likes: getTotemLikes(totem) });
+      });
+    });
+    pairs.sort((a, b) => b.likes - a.likes);
+    const seen = new Set<string>();
+    const deduped: typeof pairs = [];
+    for (const p of pairs) {
+      const key = p.totemName.toLowerCase();
+      if (!seen.has(key)) { seen.add(key); deduped.push(p); }
+      if (deduped.length === 3) break;
+    }
+    return deduped;
+  }, [getTotemLikes]);
 
   // Load initial state of likes for all posts
   useEffect(() => {
@@ -288,7 +316,9 @@ export function QuestionList({
     
     // Use index in the key to ensure uniqueness even when the same post appears in different sections
     const uniqueKey = `${sectionId}-${post.id}-${index}`;
-    
+    const isExpanded = expandedPosts.has(post.id);
+    const topPreviews = isExpanded ? getTopTotemPreviews(post) : [];
+
     return (
       <div key={uniqueKey} className="bg-white rounded-lg shadow p-3 mb-3">
         <div className="flex items-center justify-between text-sm text-gray-500 mb-2">
@@ -369,9 +399,52 @@ export function QuestionList({
             </button>
           </div>
         </div>
+
+        {/* Expanded #2 and #3 previews — identical layout to the #1 answer section */}
+        {isExpanded && topPreviews.length > 1 && topPreviews.slice(1).map((preview) => {
+          const previewText = truncateAnswerPreview(preview.answer.text);
+          const answerId = preview.answer.id;
+          return (
+            <div key={preview.totemName}>
+              <div className="border-t border-gray-100 mt-3 pt-3 space-y-2">
+                {previewText && answerId ? (
+                  <Link
+                    href={getAnswerUrl(post.id, answerId)}
+                    className="block hover:bg-gray-50 rounded-lg transition-colors p-2"
+                  >
+                    <div className="text-gray-600 text-sm line-clamp-5">
+                      <FormattedText text={previewText} disableLinks={true} />
+                    </div>
+                  </Link>
+                ) : null}
+              </div>
+              <div className="flex items-center mt-3">
+                {renderTotemButton(post.id, preview.totemName, answerId)}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Down/up arrow toggle */}
+        {post.answers.length > 0 && (
+          <div className="flex justify-center mt-2">
+            <button
+              onClick={(e) => { e.preventDefault(); togglePostExpanded(post.id); }}
+              className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+              title={isExpanded ? 'Show less' : 'Preview top answers'}
+            >
+              <svg
+                className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                fill="none" stroke="currentColor" viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          </div>
+        )}
       </div>
     );
-  }, [getTotemLikes, renderTotemButton, showUserAnswers, user, handleAuthRequired, sectionId, handleDeleteAnswer, isDeleting]);
+  }, [getTotemLikes, renderTotemButton, showUserAnswers, user, handleAuthRequired, sectionId, handleDeleteAnswer, isDeleting, expandedPosts, togglePostExpanded, getTopTotemPreviews]);
 
   // Calculate sorting values for each post
   const postsWithSortingValues = posts.map(post => ({

@@ -63,25 +63,24 @@ export default function AnswerPage() {
         <div className="text-gray-600 mb-4">
           <FormattedText text={answer.text} />
         </div>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {answer.totems.map(totem => (
-              <TotemButton
-                key={totem.name}
-                totemName={totem.name}
-                postId={post.id}
-              />
-            ))}
-          </div>
-          <div className="text-sm text-gray-500">
-            {formatDistanceToNow(toDate(answer.createdAt), { addSuffix: true })} by{' '}
-            <Link 
-              href={getProfileUrl(answer.username || answer.firebaseUid || '')}
-              className="text-blue-600 hover:text-blue-800 hover:underline"
-            >
-              {getUserDisplayName(answer)}
-            </Link>
-          </div>
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          {answer.totems.map(totem => (
+            <TotemButton
+              key={totem.name}
+              totemName={totem.name}
+              postId={post.id}
+              answerId={answerId}
+            />
+          ))}
+        </div>
+        <div className="text-sm text-gray-500">
+          {formatDistanceToNow(toDate(answer.createdAt), { addSuffix: true })} by{' '}
+          <Link
+            href={getProfileUrl(answer.username || answer.firebaseUid || '')}
+            className="text-blue-600 hover:text-blue-800 hover:underline"
+          >
+            {getUserDisplayName(answer)}
+          </Link>
         </div>
       </div>
     </div>

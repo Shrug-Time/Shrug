@@ -301,6 +301,13 @@ function ProfileContent({ userID }: { userID: string }) {
     }
   };
 
+  // Redirect to /profile if viewing own profile
+  useEffect(() => {
+    if (isCurrentUserProfile) {
+      router.replace('/profile');
+    }
+  }, [isCurrentUserProfile, router]);
+
   // Handle retry for both user and posts
   const handleRetry = () => {
     if (userError) refetchUser();

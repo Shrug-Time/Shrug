@@ -11,7 +11,7 @@ import { AnswerModal } from '@/components/answers/AnswerModal';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthModal } from '@/hooks/useAuthModal';
 import { AuthModal } from '@/components/auth/AuthModal';
-import { getAnswerUrl, getPostUrl, getProfileUrl } from '@/utils/routes';
+import { getAnswerUrl, getPostUrl, getProfileUrl, getTotemUrl } from '@/utils/routes';
 import { ReportButton } from '@/components/reports/ReportButton';
 import { useTotem } from '@/contexts/TotemContext';
 import { FormattedText, truncateAnswerPreview } from '@/utils/textFormatting';
@@ -65,25 +65,12 @@ interface QuestionAnswersProps {
 
 export function QuestionAnswers({ post, showAddButton = false }: QuestionAnswersProps) {
   const router = useRouter();
-  const [expandedTotems, setExpandedTotems] = useState<Set<string>>(new Set());
   const { isAuthModalOpen, setIsAuthModalOpen } = useAuthModal();
   const { getCrispness } = useTotem();
   const { selectedQuestion, setSelectedQuestion, handleAnswerSubmitted, handleAnswerClick } = useAnswerModal();
 
   const handleAnswerClickLocal = () => {
     handleAnswerClick(post);
-  };
-
-  const toggleExpanded = (totemName: string) => {
-    setExpandedTotems(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(totemName)) {
-        newSet.delete(totemName);
-      } else {
-        newSet.add(totemName);
-      }
-      return newSet;
-    });
   };
 
   // Create a stable dependency array for totem names
@@ -207,9 +194,7 @@ export function QuestionAnswers({ post, showAddButton = false }: QuestionAnswers
       {/* Totem Pole Layout */}
       <div className="relative">
         {sortedTotems.map(({ totemName, answers, children }, index) => {
-          const isExpanded = expandedTotems.has(totemName);
-          const hasMultipleAnswers = answers.length > 1;
-          const answersToShow = isExpanded ? answers.slice(0, 5) : [answers[0]];
+          const answersToShow = [answers[0]];
 
           return (
             <div key={`${totemName}-${index}-${answers[0]?.answer.id || index}`} className="relative flex items-start gap-2 sm:gap-4 mb-6">
@@ -226,9 +211,14 @@ export function QuestionAnswers({ post, showAddButton = false }: QuestionAnswers
 
               {/* Totem Card */}
               <div className="flex-1 min-w-0 bg-white rounded-xl shadow p-3 sm:p-4">
-                {/* Totem Name Header */}
+                {/* Totem Name Header — click name to see all answers for this totem */}
                 <div className="flex flex-wrap items-center justify-between gap-1 mb-4">
-                  <h3 className="text-base sm:text-lg font-semibold text-gray-900">{totemName}</h3>
+                  <Link
+                    href={getTotemUrl(post.id, totemName)}
+                    className="text-base sm:text-lg font-semibold text-gray-900 hover:text-blue-600 transition-colors"
+                  >
+                    {totemName}
+                  </Link>
                   <div className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-gray-500 flex-shrink-0">
                     <span>{answers.length} {answers.length === 1 ? 'answer' : 'answers'}</span>
                     <span>•</span>
@@ -291,20 +281,6 @@ export function QuestionAnswers({ post, showAddButton = false }: QuestionAnswers
                   ))}
                 </div>
 
-                {/* Show More/Less Button */}
-                {hasMultipleAnswers && (
-                  <div className="mt-4 pt-3 border-t border-gray-100">
-                    <button
-                      onClick={() => toggleExpanded(totemName)}
-                      className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-                    >
-                      {isExpanded 
-                        ? 'Show less' 
-                        : `Show more (${Math.min(answers.length - 1, 4)} more answers)`
-                      }
-                    </button>
-                  </div>
-                )}
 
                 {/* Nested Totems */}
                 {children.length > 0 && (
