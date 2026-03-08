@@ -8,15 +8,12 @@ interface WelcomeHeaderProps {
 
 export function WelcomeHeader({ onDismiss }: WelcomeHeaderProps) {
   return (
-    <div className="flex justify-center py-8 bg-gray-50">
-      {/* Exact Figma card: 817x330px, white background, 12px corner radius */}
-      <div 
-        className="bg-white shadow-lg relative"
-        style={{ 
-          width: '817px',
-          height: '330px',
+    <div className="flex justify-center py-4 sm:py-8 bg-gray-50 px-4">
+      <div
+        className="bg-white shadow-lg relative w-full"
+        style={{
+          maxWidth: '817px',
           borderRadius: '12px',
-          maxWidth: '90vw'
         }}
       >
         {/* Close button */}
@@ -28,8 +25,8 @@ export function WelcomeHeader({ onDismiss }: WelcomeHeaderProps) {
           ×
         </button>
 
-        {/* Content positioned exactly as in Figma */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center px-16 py-12">
+        {/* Content */}
+        <div className="flex flex-col items-center justify-center px-6 py-8 sm:px-16 sm:py-12">
           
           {/* Header: "Welcome to" + logo */}
           <div className="flex items-center mb-8">
@@ -59,7 +56,7 @@ export function WelcomeHeader({ onDismiss }: WelcomeHeaderProps) {
           </div>
 
           {/* Body Text - exact Figma specs: 643px width, centered */}
-          <div className="mb-8 text-center" style={{ width: '643px', maxWidth: '90%' }}>
+          <div className="mb-8 text-center" style={{ maxWidth: '643px' }}>
             <p 
               style={{ 
                 fontFamily: 'Inter',

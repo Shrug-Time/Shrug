@@ -130,27 +130,41 @@ export function QuestionAnswers({ post, showAddButton = false }: QuestionAnswers
       return b.crispness - a.crispness;
     });
 
-    // Convert to simplified result structure - each totem gets its own ranking position
-    const result: Array<{
-      totemName: string;
-      answers: typeof sortedPairs;
-      totalLikes: number;
-      averageCrispness: number;
-      children: Array<any>;
-    }> = [];
+    // Group pairs by totem name (case-insensitive) and rank groups by their best pair
+    const totemGroups = new Map<string, {
+      displayName: string;
+      pairs: typeof sortedPairs;
+      bestLikes: number;
+      bestCrispness: number;
+    }>();
 
-    // Each sorted pair becomes its own ranking item
+    // Since sortedPairs is already sorted desc, first encounter of each name is the best
     sortedPairs.forEach(pair => {
-      result.push({
-        totemName: pair.totem.name,
-        answers: [pair], // Single answer-totem pair
-        totalLikes: pair.likes,
-        averageCrispness: pair.crispness,
-        children: []
-      });
+      const key = pair.totem.name.toLowerCase();
+      if (!totemGroups.has(key)) {
+        totemGroups.set(key, {
+          displayName: pair.totem.name,
+          pairs: [],
+          bestLikes: pair.likes,
+          bestCrispness: pair.crispness,
+        });
+      }
+      totemGroups.get(key)!.pairs.push(pair);
     });
 
-    return result;
+    // Sort groups by their best pair's stats
+    const sortedGroups = Array.from(totemGroups.values()).sort((a, b) => {
+      if (a.bestLikes !== b.bestLikes) return b.bestLikes - a.bestLikes;
+      return b.bestCrispness - a.bestCrispness;
+    });
+
+    return sortedGroups.map(group => ({
+      totemName: group.displayName,
+      answers: group.pairs,
+      totalLikes: group.pairs.reduce((sum, p) => sum + p.likes, 0),
+      averageCrispness: group.pairs.reduce((sum, p) => sum + p.crispness, 0) / group.pairs.length,
+      children: [] as Array<{ totemName: string; answers: unknown[] }>
+    }));
   }, [
     post.answers, 
     post.id, 
@@ -198,10 +212,10 @@ export function QuestionAnswers({ post, showAddButton = false }: QuestionAnswers
           const answersToShow = isExpanded ? answers.slice(0, 5) : [answers[0]];
 
           return (
-            <div key={`${totemName}-${index}-${answers[0]?.answer.id || index}`} className="relative flex items-start gap-4 mb-6">
+            <div key={`${totemName}-${index}-${answers[0]?.answer.id || index}`} className="relative flex items-start gap-2 sm:gap-4 mb-6">
               {/* Number Circle */}
-              <div className="flex flex-col items-center relative">
-                <div className={`w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-semibold mt-16 relative z-10 ${index === 0 ? 'ring-4 ring-yellow-400' : ''}`}>
+              <div className="flex flex-col items-center relative flex-shrink-0">
+                <div className={`w-7 h-7 sm:w-8 sm:h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold mt-16 relative z-10 ${index === 0 ? 'ring-4 ring-yellow-400' : ''}`}>
                   {index + 1}
                 </div>
                 {/* Connecting Line */}
@@ -211,12 +225,12 @@ export function QuestionAnswers({ post, showAddButton = false }: QuestionAnswers
               </div>
 
               {/* Totem Card */}
-              <div className="flex-1 bg-white rounded-xl shadow p-4">
+              <div className="flex-1 min-w-0 bg-white rounded-xl shadow p-3 sm:p-4">
                 {/* Totem Name Header */}
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">{totemName}</h3>
-                  <div className="flex items-center space-x-2 text-sm text-gray-500">
-                    <span>{answers.length} answers</span>
+                <div className="flex flex-wrap items-center justify-between gap-1 mb-4">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900">{totemName}</h3>
+                  <div className="flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm text-gray-500 flex-shrink-0">
+                    <span>{answers.length} {answers.length === 1 ? 'answer' : 'answers'}</span>
                     <span>•</span>
                     <span>{formatDistanceToNow(toDate(answers[0]?.answer.createdAt || Date.now()), { addSuffix: true })}</span>
                   </div>
@@ -236,10 +250,10 @@ export function QuestionAnswers({ post, showAddButton = false }: QuestionAnswers
                         </div>
                       </Link>
                       
-                      <div className="flex items-center justify-between text-sm">
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                         <div className="flex items-center space-x-2">
                           {/* Only show the specific totem for this bin */}
-                          <TotemButton 
+                          <TotemButton
                             key={`${answerData.answer.id}-${totemName}`}
                             totemName={totemName}
                             postId={post.id}
@@ -255,19 +269,20 @@ export function QuestionAnswers({ post, showAddButton = false }: QuestionAnswers
                             </Link>
                           )}
                         </div>
-                        <div className="flex items-center space-x-3">
-                          <div className="text-sm text-gray-500">
+                        <div className="flex items-center space-x-2 text-xs sm:text-sm text-gray-500">
+                          <span>
                             {formatDistanceToNow(toDate(answerData.answer.createdAt), { addSuffix: true })} by{' '}
-                            <Link 
+                            <Link
                               href={getProfileUrl(answerData.answer.username || answerData.answer.firebaseUid || '')}
                               className="text-blue-600 hover:text-blue-800 hover:underline"
                             >
                               {getUserDisplayName(answerData.answer)}
                             </Link>
-                          </div>
-                          <ReportButton 
-                            contentId={answerData.answer.id} 
-                            contentType="answer" 
+                          </span>
+                          <ReportButton
+                            contentId={answerData.answer.id}
+                            contentType="answer"
+                            parentId={post.id}
                             iconOnly={true}
                           />
                         </div>

@@ -42,7 +42,7 @@ export default function PostPage() {
   return (
     <div className="max-w-4xl lg:ml-64 mx-auto px-4 py-8">
       <button
-        onClick={() => router.back()}
+        onClick={() => router.push('/')}
         className="flex items-center text-gray-500 hover:text-gray-800 mb-4 transition-colors"
       >
         <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">

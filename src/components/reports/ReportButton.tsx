@@ -25,6 +25,10 @@ export function ReportButton({
   if (!user) {
     return null; // Don't show report button for non-logged in users
   }
+
+  if (!contentId) {
+    return null; // Don't show report button if there's no content ID
+  }
   
   const handleReportClick = () => {
     setShowReportDialog(true);

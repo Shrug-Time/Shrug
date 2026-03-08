@@ -92,10 +92,10 @@ export class ReportService {
         id: reportDoc.id,
         contentType,
         contentId,
-        parentId,
+        ...(parentId !== undefined && { parentId }),
         reporterId,
         reason,
-        description,
+        ...(description !== undefined && { description }),
         status: 'pending',
         createdAt: now,
         updatedAt: now
@@ -307,8 +307,19 @@ export class ReportService {
         
         return true;
       } else if (contentType === 'answer') {
-        // Without parent ID, we need to search for the post containing this answer
-        console.error('Cannot remove answer without parent post ID');
+        // No parentId stored — search posts for the one containing this answer
+        const postsRef = collection(db, 'posts');
+        const postsSnapshot = await getDocs(query(postsRef, limit(500)));
+        for (const postDoc of postsSnapshot.docs) {
+          const postData = postDoc.data();
+          const answers: any[] = postData.answers || [];
+          if (answers.some((a: any) => a.id === contentId)) {
+            const updatedAnswers = answers.filter((a: any) => a.id !== contentId);
+            await updateDoc(postDoc.ref, { answers: updatedAnswers, updatedAt: Date.now() });
+            return true;
+          }
+        }
+        console.error('Could not find post containing answer:', contentId);
         return false;
       }
       

@@ -110,6 +110,11 @@ export function AnswerForm({ selectedQuestion, onAnswerSubmitted }: AnswerFormPr
     const totemToAdd = totemName || newTotem.trim();
     if (!totemToAdd) return;
 
+    if (selectedTotems.length >= 5) {
+      setError('You can only add up to 5 totems per answer.');
+      return;
+    }
+
     // Check if totem already exists (case-insensitive)
     if (selectedTotems.some(t => t.name.toLowerCase() === totemToAdd.toLowerCase())) {
       setError('This totem has already been added.');
@@ -211,17 +216,19 @@ export function AnswerForm({ selectedQuestion, onAnswerSubmitted }: AnswerFormPr
                 ))}
                 
                 {/* Input field */}
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={newTotem}
-                  onChange={(e) => setNewTotem(e.target.value)}
-                  onKeyDown={handleKeyPress}
-                  onFocus={handleInputFocus}
-                  onBlur={handleInputBlur}
-                  placeholder={selectedTotems.length === 0 ? "Type totem names (press Enter or comma to add)" : "Add another..."}
-                  className="flex-1 min-w-[120px] outline-none text-sm py-1"
-                />
+                {selectedTotems.length < 5 && (
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={newTotem}
+                    onChange={(e) => setNewTotem(e.target.value)}
+                    onKeyDown={handleKeyPress}
+                    onFocus={handleInputFocus}
+                    onBlur={handleInputBlur}
+                    placeholder={selectedTotems.length === 0 ? "Type totem names (press Enter or comma to add)" : "Add another..."}
+                    className="flex-1 min-w-[120px] outline-none text-sm py-1"
+                  />
+                )}
               </div>
             </div>
 
@@ -244,7 +251,7 @@ export function AnswerForm({ selectedQuestion, onAnswerSubmitted }: AnswerFormPr
           </div>
 
           {/* Popular totems quick-add */}
-          {popularTotems.length > 0 && selectedTotems.length === 0 && (
+          {popularTotems.length > 0 && selectedTotems.length < 5 && (
             <div className="space-y-2">
               <p className="text-xs text-gray-500">Popular totems:</p>
               <div className="flex flex-wrap gap-2">
@@ -267,7 +274,7 @@ export function AnswerForm({ selectedQuestion, onAnswerSubmitted }: AnswerFormPr
           
           {/* Helper text */}
           <p className="text-xs text-gray-500">
-            Totems help categorize your answer. You can add multiple totems separated by commas or pressing Enter.
+            Totems help categorize your answer. You can add up to 5 totems ({selectedTotems.length}/5 used).
           </p>
         </div>
         
