@@ -70,6 +70,11 @@ export function CreatePostForm({
       return;
     }
 
+    if (!question.trim().endsWith('?')) {
+      setError('Questions must end with a question mark (?)');
+      return;
+    }
+
     // Check verification status
     if (!isVerified) {
       setError('Your account needs to be verified before you can create a post.');

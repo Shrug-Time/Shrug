@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { TotemButton } from '@/components/totem/TotemButton';
 import type { Post, Answer, Totem } from '@/types/models';
 import { FormattedText } from '@/utils/textFormatting';
+import { ReportButton } from '@/components/reports/ReportButton';
 
 // Helper function to safely convert various date formats to a Date object
 const toDate = (dateField: any): Date => {
@@ -105,18 +106,26 @@ export default function QuestionTotemPage() {
               <div className="text-gray-600 mb-4">
                 <FormattedText text={answer.text} />
               </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <TotemButton
-                    totemName={totemName}
-                    postId={post.id}
-                    answerId={answer.id}
+              <div className="flex flex-col gap-2 mt-1">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <TotemButton
+                      totemName={totemName}
+                      postId={post.id}
+                      answerId={answer.id}
+                    />
+                    {answer.totems.length > 1 && (
+                      <span className="text-sm text-gray-500">
+                        +{answer.totems.length - 1} more totems
+                      </span>
+                    )}
+                  </div>
+                  <ReportButton
+                    contentId={answer.id}
+                    contentType="answer"
+                    iconOnly={true}
+                    className="text-gray-400 hover:text-red-500 flex-shrink-0"
                   />
-                  {answer.totems.length > 1 && (
-                    <span className="text-sm text-gray-500">
-                      +{answer.totems.length - 1} more totems
-                    </span>
-                  )}
                 </div>
                 <div className="text-sm text-gray-500">
                   {formatDistanceToNow(toDate(answer.createdAt), { addSuffix: true })} by {getUserDisplayName(answer)}
