@@ -67,7 +67,27 @@ export function AnswerForm({ selectedQuestion, onAnswerSubmitted }: AnswerFormPr
       return;
     }
 
-    if (selectedTotems.length === 0) {
+    // Auto-add any pending totem text the user typed but didn't confirm
+    let totems = selectedTotems;
+    if (newTotem.trim() && selectedTotems.length < 5) {
+      const pending = newTotem.trim();
+      if (!selectedTotems.some(t => t.name.toLowerCase() === pending.toLowerCase())) {
+        const newTotemObj: Totem = {
+          id: pending,
+          name: pending,
+          likeHistory: [],
+          crispness: 100,
+          category: { id: 'general', name: 'General', description: '', children: [], usageCount: 0 },
+          decayModel: 'MEDIUM',
+          usageCount: 0
+        };
+        totems = [...selectedTotems, newTotemObj];
+        setSelectedTotems(totems);
+        setNewTotem('');
+      }
+    }
+
+    if (totems.length === 0) {
       setError('Please add at least one totem for your answer.');
       return;
     }
@@ -91,7 +111,7 @@ export function AnswerForm({ selectedQuestion, onAnswerSubmitted }: AnswerFormPr
         name: profile.name || profile.username,
         isVerified: profile.verificationStatus === 'email_verified',
         isPremium: profile.membershipTier === 'premium',
-        totems: selectedTotems || [],
+        totems: totems || [],
         createdAt: now,
         updatedAt: now,
         lastInteraction: now
@@ -292,7 +312,7 @@ export function AnswerForm({ selectedQuestion, onAnswerSubmitted }: AnswerFormPr
           </button>
           <button
             type="submit"
-            disabled={isSubmitting || !answer.trim() || selectedTotems.length === 0}
+            disabled={isSubmitting || !answer.trim() || (selectedTotems.length === 0 && !newTotem.trim())}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
           >
             {isSubmitting ? 'Submitting...' : 'Submit Answer'}
