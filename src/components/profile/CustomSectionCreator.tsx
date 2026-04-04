@@ -1,689 +1,567 @@
 import { useState, useEffect } from 'react';
-import { ProfileSection, Post, Totem } from '@/types/models';
+import { useRouter } from 'next/navigation';
+import { ProfileSection, Post } from '@/types/models';
 import { ProfileSectionService } from '@/services/profileSectionService';
-import { getUserAnswers } from '@/services/answerService';
+import { PostService } from '@/services/standardized';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
-import { Toast } from '@/components/common/Toast';
 
-// Define sort options type
 type SortOption = 'newest' | 'oldest' | 'popular';
+type OrgMethod = 'chronological' | 'popularity' | 'series' | 'custom';
 
 interface CustomSectionCreatorProps {
   userId: string;
-  section?: ProfileSection; // Provide for editing, omit for creation
-  defaultOrganizationMethod?: 'chronological' | 'popularity' | 'series' | 'custom';
+  section?: ProfileSection;
+  defaultOrganizationMethod?: OrgMethod;
   onSave: (section: ProfileSection) => void;
   onCancel: () => void;
 }
 
-export function CustomSectionCreator({ 
-  userId, 
-  section, 
+// Stable color palette for totems — cycles through hues
+const TOTEM_COLORS = [
+  'bg-violet-100 text-violet-700 border border-violet-200',
+  'bg-emerald-100 text-emerald-700 border border-emerald-200',
+  'bg-amber-100 text-amber-700 border border-amber-200',
+  'bg-rose-100 text-rose-700 border border-rose-200',
+  'bg-sky-100 text-sky-700 border border-sky-200',
+  'bg-orange-100 text-orange-700 border border-orange-200',
+  'bg-teal-100 text-teal-700 border border-teal-200',
+  'bg-pink-100 text-pink-700 border border-pink-200',
+];
+
+function getTotemColor(totemName: string, allTotems: string[]): string {
+  const idx = allTotems.indexOf(totemName);
+  return TOTEM_COLORS[idx % TOTEM_COLORS.length];
+}
+
+const ORG_OPTIONS: { value: OrgMethod; label: string; icon: string; description: string }[] = [
+  {
+    value: 'chronological',
+    label: 'Chronological',
+    icon: '🕒',
+    description: 'Newest content first. Great for updates, news, or recent discoveries.',
+  },
+  {
+    value: 'popularity',
+    label: 'By Popularity',
+    icon: '⭐',
+    description: 'Most liked content first. Highlights your best and most engaging answers.',
+  },
+  {
+    value: 'series',
+    label: 'Curriculum / Series',
+    icon: '📚',
+    description: 'A structured path where each item is numbered — perfect for tutorials or step-by-step guides.',
+  },
+  {
+    value: 'custom',
+    label: 'Custom Order',
+    icon: '🎯',
+    description: 'Arrange items in any order you like using drag-and-drop or arrows.',
+  },
+];
+
+export function CustomSectionCreator({
+  userId,
+  section,
   defaultOrganizationMethod = 'chronological',
-  onSave, 
-  onCancel 
+  onSave,
+  onCancel,
 }: CustomSectionCreatorProps) {
+  const router = useRouter();
+
+  // --- form state ---
   const [title, setTitle] = useState(section?.title || '');
-  const [organizationMethod, setOrganizationMethod] = useState<'chronological' | 'popularity' | 'series' | 'custom'>(
+  const [titleError, setTitleError] = useState(false);
+  const [organizationMethod, setOrganizationMethod] = useState<OrgMethod>(
     section?.organizationMethod || defaultOrganizationMethod
   );
+
+  // --- data state ---
   const [answers, setAnswers] = useState<Post[]>([]);
   const [filteredAnswers, setFilteredAnswers] = useState<Post[]>([]);
   const [selectedAnswerIds, setSelectedAnswerIds] = useState<string[]>(section?.contentIds || []);
-  const [isLoading, setIsLoading] = useState(true);
+  const [orderedSelectedAnswers, setOrderedSelectedAnswers] = useState<string[]>(
+    section?.contentIds || []
+  );
   const [totems, setTotems] = useState<string[]>([]);
   const [selectedTotem, setSelectedTotem] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
-  const [draggedItem, setDraggedItem] = useState<string | null>(null);
-  const [orderedSelectedAnswers, setOrderedSelectedAnswers] = useState<string[]>([]);
-  const [step, setStep] = useState<'info' | 'content' | 'order'>('info');
   const [sortOption, setSortOption] = useState<SortOption>('newest');
+  const [draggedItem, setDraggedItem] = useState<string | null>(null);
 
-  // Load user answers and extract totems
+  // --- ui state ---
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [step, setStep] = useState<'info' | 'content' | 'order'>('info');
+
+  const needsOrderStep = organizationMethod === 'series' || organizationMethod === 'custom';
+  const totalSteps = needsOrderStep ? 3 : 2;
+  const stepNumber = step === 'info' ? 1 : step === 'content' ? 2 : 3;
+
+  // Load answers — fetch posts the user has answered, then filter down to only
+  // those where the user's answer object actually exists in the answers array.
+  // This prevents questions-without-answers showing up due to data inconsistencies,
+  // and handles the case where a user has multiple answers to the same question
+  // by creating a separate selectable entry per answer.
   useEffect(() => {
-    const loadAnswers = async () => {
+    const load = async () => {
       try {
         setIsLoading(true);
-        const userAnswers = await getUserAnswers(userId);
-        
-        // If no answers were found, check if there's a problem
-        if (userAnswers.length === 0) {
-          // Try to get posts as a fallback to see if query is working
-          try {
-            // Using PostService if available
-            const { PostService } = await import('@/services/standardized');
-            const postResult = await PostService.getUserPosts(userId, 10);
-            
-            if (postResult.posts && postResult.posts.length > 0) {
-              setToast({
-                message: 'No answers found for your profile. Create some answers first!',
-                type: 'info'
-              });
-            } else {
-              setToast({
-                message: 'Unable to retrieve your content. This might be a permissions issue.',
-                type: 'error'
-              });
+        const result = await PostService.getUserAnswers(userId, 100);
+        const posts = result.posts || [];
+
+        // Expand: one entry per answer the user has written, not one per post.
+        // Eliminates posts where the user's answer is missing from the answers array,
+        // and correctly surfaces multiple answers to the same question as separate items.
+        const expanded: Post[] = [];
+        const seenAnswerIds = new Set<string>();
+        posts.forEach(post => {
+          const myAnswers = post.answers?.filter(a => a.firebaseUid === userId) || [];
+          myAnswers.forEach(answer => {
+            if (!seenAnswerIds.has(answer.id)) {
+              seenAnswerIds.add(answer.id);
+              expanded.push({ ...post, answers: [answer] });
             }
-          } catch (fallbackError) {
-            console.error('Error in fallback check:', fallbackError);
-          }
-        }
-        
-        // Sort initially by newest first (default)
-        const sortedAnswers = [...userAnswers].sort((a, b) => b.createdAt - a.createdAt);
-        
-        setAnswers(sortedAnswers);
-        setFilteredAnswers(sortedAnswers);
-        
-        // Extract unique totems from all answers
+          });
+        });
+
+        const deduped = expanded.sort((a, b) => b.createdAt - a.createdAt);
+
+        setAnswers(deduped);
+        setFilteredAnswers(deduped);
+
+        // Collect totems only from the user's own answers
         const totemSet = new Set<string>();
-        userAnswers.forEach(post => {
-          post.answers?.forEach(answer => {
-            answer.totems?.forEach(totem => {
-              if (totem.name) {
-                totemSet.add(totem.name);
-              }
-            });
-          });
-          post.totemAssociations?.forEach(association => {
-            if (association.totemName) {
-              totemSet.add(association.totemName);
-            }
-          });
+        deduped.forEach(post => {
+          post.answers[0]?.totems?.forEach(t => { if (t.name) totemSet.add(t.name); });
         });
-        
-        const totemArray = Array.from(totemSet).sort();
-        setTotems(totemArray);
-        
-        // Initialize ordered list if in edit mode
-        if (section && (section.organizationMethod === 'series' || section.organizationMethod === 'custom')) {
-          setOrderedSelectedAnswers(section.contentIds);
-        }
-      } catch (error) {
-        console.error('Error loading answers:', error);
-        setToast({
-          message: 'Failed to load your answers',
-          type: 'error'
-        });
+        setTotems(Array.from(totemSet).sort());
+      } catch (err) {
+        console.error('Error loading answers:', err);
       } finally {
         setIsLoading(false);
       }
     };
-    
-    loadAnswers();
-  }, [userId, section]);
-  
-  // Update ordered list when selection changes
+    load();
+  }, [userId]);
+
+  // Keep ordered list in sync with selection
   useEffect(() => {
-    // Only if not in edit mode or if adding new items
-    if (!section || selectedAnswerIds.length > orderedSelectedAnswers.length) {
-      // Add new items to the end of the ordered list
-      const newItems = selectedAnswerIds.filter(id => !orderedSelectedAnswers.includes(id));
-      setOrderedSelectedAnswers([...orderedSelectedAnswers, ...newItems]);
-    }
-    
-    // Remove items that are no longer selected
-    setOrderedSelectedAnswers(prev => prev.filter(id => selectedAnswerIds.includes(id)));
+    setOrderedSelectedAnswers(prev => {
+      const kept = prev.filter(id => selectedAnswerIds.includes(id));
+      const added = selectedAnswerIds.filter(id => !kept.includes(id));
+      return [...kept, ...added];
+    });
   }, [selectedAnswerIds]);
-  
-  // Filter answers by selected totem
+
+  // Filter + sort — each item has exactly answers[0] as the user's own answer
   useEffect(() => {
     let filtered = [...answers];
-    
-    // Apply totem filter if selected
     if (selectedTotem) {
-      filtered = filtered.filter(post => {
-        // Check post's totem associations
-        const hasTotemInPost = post.totemAssociations?.some(
-          association => association.totemName === selectedTotem
-        );
-        
-        // Check answers for totems
-        const hasTotemInAnswers = post.answers?.some(answer => 
-          answer.totems?.some(totem => totem.name === selectedTotem)
-        );
-        
-        return hasTotemInPost || hasTotemInAnswers;
-      });
+      filtered = filtered.filter(post =>
+        post.answers[0]?.totems?.some(t => t.name === selectedTotem)
+      );
     }
-    
-    // Apply sort
-    filtered = sortAnswers(filtered, sortOption);
-    
-    setFilteredAnswers(filtered);
-  }, [selectedTotem, answers, sortOption]);
-  
-  // Sort answers based on the selected sort option
-  const sortAnswers = (postsToSort: Post[], option: SortOption): Post[] => {
-    const sorted = [...postsToSort];
-    
-    switch (option) {
-      case 'newest':
-        return sorted.sort((a, b) => b.createdAt - a.createdAt);
-      case 'oldest':
-        return sorted.sort((a, b) => a.createdAt - b.createdAt);
-      case 'popular':
-        return sorted.sort((a, b) => (b.score || 0) - (a.score || 0));
-      default:
-        return sorted;
-    }
-  };
-  
-  const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSortOption(e.target.value as SortOption);
-  };
-  
-  const handleTotemFilter = (totem: string | null) => {
-    setSelectedTotem(totem);
-  };
-  
-  const handleSelectAllFiltered = () => {
-    const filteredIds = filteredAnswers.map(post => post.id);
-    const newSelection = Array.from(new Set([...selectedAnswerIds, ...filteredIds]));
-    setSelectedAnswerIds(newSelection);
-  };
-  
-  const handleToggleAnswer = (answerId: string) => {
-    if (selectedAnswerIds.includes(answerId)) {
-      setSelectedAnswerIds(selectedAnswerIds.filter(id => id !== answerId));
+    const sorted = [...filtered];
+    if (sortOption === 'newest') sorted.sort((a, b) => b.createdAt - a.createdAt);
+    else if (sortOption === 'oldest') sorted.sort((a, b) => a.createdAt - b.createdAt);
+    else sorted.sort((a, b) => (b.score || 0) - (a.score || 0));
+    setFilteredAnswers(sorted);
+  }, [selectedTotem, answers, sortOption, userId]);
+
+  // --- handlers ---
+  const handleNextStep = () => {
+    if (step === 'info') {
+      if (!title.trim()) { setTitleError(true); return; }
+      setStep('content');
+    } else if (step === 'content') {
+      if (selectedAnswerIds.length === 0) return; // button is disabled
+      if (needsOrderStep) { setStep('order'); } else { handleSave(); }
     } else {
-      setSelectedAnswerIds([...selectedAnswerIds, answerId]);
+      handleSave();
     }
   };
-  
-  const handleDragStart = (answerId: string) => {
-    setDraggedItem(answerId);
+
+  const handleBack = () => {
+    if (step === 'content') setStep('info');
+    else if (step === 'order') setStep('content');
   };
-  
-  const handleDragOver = (e: React.DragEvent, targetId: string) => {
-    e.preventDefault();
-    if (draggedItem === null || draggedItem === targetId) return;
-    
-    const draggedIndex = orderedSelectedAnswers.indexOf(draggedItem);
-    const targetIndex = orderedSelectedAnswers.indexOf(targetId);
-    
-    if (draggedIndex < 0 || targetIndex < 0) return;
-    
-    // Reorder the list
-    const newOrder = [...orderedSelectedAnswers];
-    newOrder.splice(draggedIndex, 1);
-    newOrder.splice(targetIndex, 0, draggedItem);
-    
-    setOrderedSelectedAnswers(newOrder);
-  };
-  
-  const handleDragEnd = () => {
-    setDraggedItem(null);
-  };
-  
-  const moveItem = (answerId: string, direction: 'up' | 'down') => {
-    const index = orderedSelectedAnswers.indexOf(answerId);
-    if (index < 0) return;
-    
-    const newOrder = [...orderedSelectedAnswers];
-    
-    if (direction === 'up' && index > 0) {
-      // Swap with the item above
-      [newOrder[index], newOrder[index - 1]] = [newOrder[index - 1], newOrder[index]];
-    } else if (direction === 'down' && index < newOrder.length - 1) {
-      // Swap with the item below
-      [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
-    }
-    
-    setOrderedSelectedAnswers(newOrder);
-  };
-  
+
   const handleSave = async () => {
-    if (!title.trim()) {
-      setToast({
-        message: 'Please enter a section title',
-        type: 'error'
-      });
-      return;
-    }
-    
+    if (!title.trim()) { setTitleError(true); setStep('info'); return; }
+    setIsSaving(true);
     try {
       const sectionData: Omit<ProfileSection, 'id' | 'createdAt' | 'updatedAt'> = {
         title: title.trim(),
         type: 'custom',
         organizationMethod,
-        // Use the ordered list for series/custom, otherwise just use the selection
-        contentIds: (organizationMethod === 'series' || organizationMethod === 'custom') 
-          ? orderedSelectedAnswers 
-          : selectedAnswerIds,
-        position: section?.position ?? 0, // Default to 0 for new sections
-        isVisible: section?.isVisible ?? true
+        contentIds: needsOrderStep ? orderedSelectedAnswers : selectedAnswerIds,
+        position: section?.position ?? 0,
+        isVisible: section?.isVisible ?? true,
       };
-      
-      // Update existing section or create new one
-      const savedSection = section?.id 
+      const saved = section?.id
         ? await ProfileSectionService.updateSection(userId, section.id, sectionData)
         : await ProfileSectionService.createSection(userId, sectionData);
-      
-      onSave(savedSection);
-      
-      setToast({
-        message: `Section ${section ? 'updated' : 'created'} successfully`,
-        type: 'success'
-      });
-    } catch (error) {
-      console.error('Error saving section:', error);
-      setToast({
-        message: `Failed to ${section ? 'update' : 'create'} section`,
-        type: 'error'
-      });
+      onSave(saved);
+    } catch (err) {
+      console.error('Error saving section:', err);
+    } finally {
+      setIsSaving(false);
     }
   };
-  
-  const handleNextStep = () => {
-    if (step === 'info') {
-      if (!title.trim()) {
-        setToast({
-          message: 'Please enter a section title',
-          type: 'error'
-        });
-        return;
-      }
-      setStep('content');
-    } else if (step === 'content') {
-      if (selectedAnswerIds.length === 0) {
-        setToast({
-          message: 'Please select at least one answer',
-          type: 'error'
-        });
-        return;
-      }
-      
-      if (organizationMethod === 'series' || organizationMethod === 'custom') {
-        setStep('order');
-      } else {
-        handleSave();
-      }
-    } else {
-      handleSave();
-    }
+
+  const toggleAnswer = (id: string) => {
+    setSelectedAnswerIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
   };
-  
+
+  const moveItem = (id: string, dir: 'up' | 'down') => {
+    setOrderedSelectedAnswers(prev => {
+      const idx = prev.indexOf(id);
+      if (idx < 0) return prev;
+      const next = [...prev];
+      if (dir === 'up' && idx > 0) [next[idx], next[idx - 1]] = [next[idx - 1], next[idx]];
+      else if (dir === 'down' && idx < next.length - 1) [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+      return next;
+    });
+  };
+
+  const handleDragStart = (id: string) => setDraggedItem(id);
+  const handleDragEnd = () => setDraggedItem(null);
+  const handleDragOver = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    if (!draggedItem || draggedItem === targetId) return;
+    setOrderedSelectedAnswers(prev => {
+      const from = prev.indexOf(draggedItem);
+      const to = prev.indexOf(targetId);
+      if (from < 0 || to < 0) return prev;
+      const next = [...prev];
+      next.splice(from, 1);
+      next.splice(to, 0, draggedItem);
+      return next;
+    });
+  };
+
+  // --- render ---
   if (isLoading) {
     return (
-      <div className="flex justify-center py-8">
+      <div className="flex justify-center py-16">
         <LoadingSpinner size="md" />
       </div>
     );
   }
-  
+
   return (
-    <div className="space-y-6 bg-white rounded-xl shadow p-6">
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-        />
-      )}
-      
-      <div className="flex justify-between items-center">
+    <div className="bg-white rounded-xl shadow p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold">
-          {section ? 'Edit' : 'Create'} Custom Section
+          {section ? 'Edit' : 'Create'} Section
         </h2>
-        <div className="flex space-x-2">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleNextStep}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-          >
-            {step === 'order' ? 'Save' : 'Next'}
-          </button>
-        </div>
+        <button
+          onClick={onCancel}
+          className="text-sm text-gray-500 hover:text-gray-700"
+        >
+          Cancel
+        </button>
       </div>
-      
-      {/* Step 1: Basic Information */}
+
+      {/* Step progress */}
+      <div className="flex items-center gap-2">
+        {Array.from({ length: totalSteps }, (_, i) => {
+          const n = i + 1;
+          const label = n === 1 ? 'Name & Type' : n === 2 ? 'Pick Answers' : 'Set Order';
+          const active = n === stepNumber;
+          const done = n < stepNumber;
+          return (
+            <div key={n} className="flex items-center gap-2">
+              <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                active ? 'bg-blue-600 text-white' :
+                done ? 'bg-blue-100 text-blue-700' :
+                'bg-gray-100 text-gray-400'
+              }`}>
+                {done ? '✓ ' : `${n}. `}{label}
+              </div>
+              {i < totalSteps - 1 && <div className="w-4 h-px bg-gray-300" />}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── Step 1: Name & Type ── */}
       {step === 'info' && (
-        <div className="space-y-6 pt-4">
+        <div className="space-y-6">
           <div>
-            <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-              Section Title
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Section name <span className="text-red-500">*</span>
             </label>
             <input
-              id="title"
               type="text"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g., 'Fly Fishing Basics' or 'Advanced Techniques'"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              onChange={e => { setTitle(e.target.value); if (e.target.value.trim()) setTitleError(false); }}
+              placeholder="e.g. Fly Fishing Basics or My Top Picks"
+              className={`w-full px-3 py-2 rounded-lg border shadow-sm focus:outline-none focus:ring-2 transition-colors ${
+                titleError
+                  ? 'border-red-400 focus:ring-red-300 bg-red-50'
+                  : 'border-gray-300 focus:ring-blue-300'
+              }`}
             />
+            {titleError && (
+              <p className="mt-1.5 text-xs text-red-600 font-medium">
+                Give your section a name before continuing.
+              </p>
+            )}
           </div>
-          
+
           <div>
-            <label htmlFor="organizationMethod" className="block text-sm font-medium text-gray-700 mb-1">
-              Section Type
-            </label>
-            <p className="text-sm text-gray-500 mb-3">Choose how you want to organize content in this section</p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Series/Curriculum Option */}
-              <div 
-                className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
-                  organizationMethod === 'series' 
-                    ? 'border-blue-500 bg-blue-50' 
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-                onClick={() => setOrganizationMethod('series')}
-              >
-                <div className="flex items-center mb-2">
-                  <input
-                    type="radio"
-                    name="organizationMethod"
-                    value="series"
-                    checked={organizationMethod === 'series'}
-                    onChange={() => setOrganizationMethod('series')}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                  />
-                  <label className="ml-3 text-sm font-medium text-gray-900">
-                    📚 Curriculum/Series
-                  </label>
-                </div>
-                <p className="text-sm text-gray-600 ml-7">
-                  Create a structured learning path where content is presented in a specific order. 
-                  Perfect for tutorials, courses, or step-by-step guides.
-                </p>
-              </div>
-              
-              {/* Other options */}
-              <div 
-                className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
-                  organizationMethod === 'chronological' 
-                    ? 'border-blue-500 bg-blue-50' 
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-                onClick={() => setOrganizationMethod('chronological')}
-              >
-                <div className="flex items-center mb-2">
-                  <input
-                    type="radio"
-                    name="organizationMethod"
-                    value="chronological"
-                    checked={organizationMethod === 'chronological'}
-                    onChange={() => setOrganizationMethod('chronological')}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                  />
-                  <label className="ml-3 text-sm font-medium text-gray-900">
-                    🕒 Chronological
-                  </label>
-                </div>
-                <p className="text-sm text-gray-600 ml-7">
-                  Show newest content first. Great for updates, news, or recent discoveries.
-                </p>
-              </div>
-              
-              <div 
-                className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
-                  organizationMethod === 'popularity' 
-                    ? 'border-blue-500 bg-blue-50' 
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-                onClick={() => setOrganizationMethod('popularity')}
-              >
-                <div className="flex items-center mb-2">
-                  <input
-                    type="radio"
-                    name="organizationMethod"
-                    value="popularity"
-                    checked={organizationMethod === 'popularity'}
-                    onChange={() => setOrganizationMethod('popularity')}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                  />
-                  <label className="ml-3 text-sm font-medium text-gray-900">
-                    ⭐ By Popularity
-                  </label>
-                </div>
-                <p className="text-sm text-gray-600 ml-7">
-                  Show most liked content first. Highlights your best and most engaging answers.
-                </p>
-              </div>
-              
-              <div 
-                className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
-                  organizationMethod === 'custom' 
-                    ? 'border-blue-500 bg-blue-50' 
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-                onClick={() => setOrganizationMethod('custom')}
-              >
-                <div className="flex items-center mb-2">
-                  <input
-                    type="radio"
-                    name="organizationMethod"
-                    value="custom"
-                    checked={organizationMethod === 'custom'}
-                    onChange={() => setOrganizationMethod('custom')}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                  />
-                  <label className="ml-3 text-sm font-medium text-gray-900">
-                    🎯 Custom Order
-                  </label>
-                </div>
-                <p className="text-sm text-gray-600 ml-7">
-                  Arrange content in any order you prefer. Full control over organization.
-                </p>
-              </div>
-            </div>
-            
-            {(organizationMethod === 'series' || organizationMethod === 'custom') && (
-              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex items-start">
-                  <svg className="w-5 h-5 text-blue-600 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <div>
-                    <h4 className="text-sm font-medium text-blue-900 mb-1">
-                      {organizationMethod === 'series' ? 'Creating a Curriculum' : 'Custom Arrangement'}
-                    </h4>
-                    <p className="text-sm text-blue-700">
-                      {organizationMethod === 'series' 
-                        ? 'You\'ll be able to arrange your content in a logical learning sequence. Each item will be numbered and presented as steps in a progression.'
-                        : 'You\'ll be able to arrange your content in any order you prefer using drag-and-drop or arrow controls.'
-                      }
-                    </p>
+            <p className="text-sm font-medium text-gray-700 mb-1">How should items be displayed?</p>
+            <p className="text-xs text-gray-500 mb-3">You can change this later.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {ORG_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setOrganizationMethod(opt.value)}
+                  className={`text-left border-2 rounded-xl p-4 transition-all ${
+                    organizationMethod === opt.value
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">{opt.icon}</span>
+                    <span className="text-sm font-semibold text-gray-900">{opt.label}</span>
+                    {organizationMethod === opt.value && (
+                      <span className="ml-auto text-blue-500 text-xs font-bold">✓</span>
+                    )}
                   </div>
-                </div>
+                  <p className="text-xs text-gray-500 leading-relaxed">{opt.description}</p>
+                </button>
+              ))}
+            </div>
+
+            {(organizationMethod === 'series' || organizationMethod === 'custom') && (
+              <div className="mt-3 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
+                {organizationMethod === 'series'
+                  ? 'On the next step you\'ll pick your answers, then arrange them into a numbered sequence.'
+                  : 'On the next step you\'ll pick your answers, then drag them into whatever order you like.'
+                }
               </div>
             )}
           </div>
         </div>
       )}
-      
-      {/* Step 2: Content Selection */}
+
+      {/* ── Step 2: Pick Answers ── */}
       {step === 'content' && (
-        <div className="space-y-4 pt-4">
+        <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-medium">Select Answers to Include</h3>
-            <div className="flex space-x-2">
+            <p className="text-sm text-gray-600">
+              {selectedAnswerIds.length > 0
+                ? <><span className="font-semibold text-blue-700">{selectedAnswerIds.length}</span> selected</>
+                : 'Select at least one answer to continue'}
+            </p>
+            {filteredAnswers.length > 0 && (
               <button
-                onClick={handleSelectAllFiltered}
-                className="px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100"
+                onClick={() => {
+                  const ids = filteredAnswers.map(p => p.id);
+                  setSelectedAnswerIds(prev => Array.from(new Set([...prev, ...ids])));
+                }}
+                className="text-xs text-blue-600 hover:underline"
               >
-                Add All Shown
+                Select all shown
               </button>
-            </div>
+            )}
           </div>
-          
-          {/* Filter and Sort Controls */}
-          <div className="flex flex-wrap items-center gap-4 mb-4">
-            <div className="flex-1">
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => handleTotemFilter(null)}
-                  className={`px-3 py-1 rounded-full text-sm ${
-                    selectedTotem === null 
-                      ? 'bg-blue-600 text-white' 
-                      : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                  }`}
-                >
-                  All
-                </button>
-                
-                {totems.map(totem => (
+
+          {/* Totem filters */}
+          {totems.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setSelectedTotem(null)}
+                className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                  selectedTotem === null
+                    ? 'bg-gray-800 text-white border-gray-800'
+                    : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
+                }`}
+              >
+                All
+              </button>
+              {totems.map(totem => {
+                const color = getTotemColor(totem, totems);
+                const active = selectedTotem === totem;
+                return (
                   <button
                     key={totem}
-                    onClick={() => handleTotemFilter(totem)}
-                    className={`px-3 py-1 rounded-full text-sm ${
-                      selectedTotem === totem 
-                        ? 'bg-blue-600 text-white' 
-                        : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                    onClick={() => setSelectedTotem(active ? null : totem)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                      active
+                        ? color + ' ring-2 ring-offset-1 ring-current'
+                        : color + ' opacity-70 hover:opacity-100'
                     }`}
                   >
                     {totem}
                   </button>
-                ))}
-              </div>
+                );
+              })}
             </div>
-            
-            <div className="w-48">
-              <select
-                value={sortOption}
-                onChange={handleSortChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm"
-                aria-label="Sort answers"
-              >
-                <option value="newest">Sort: Newest First</option>
-                <option value="oldest">Sort: Oldest First</option>
-                <option value="popular">Sort: Most Popular</option>
-              </select>
-            </div>
+          )}
+
+          {/* Sort */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-gray-500 whitespace-nowrap">Sort:</label>
+            <select
+              value={sortOption}
+              onChange={e => setSortOption(e.target.value as SortOption)}
+              className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white"
+            >
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="popular">Most popular</option>
+            </select>
           </div>
-          
-          {filteredAnswers.length === 0 ? (
-            <div className="text-center py-10 space-y-3">
-              <p className="text-gray-500">No answers found</p>
-              <div className="bg-blue-50 p-4 rounded-md mx-auto max-w-md">
-                <h4 className="font-medium text-blue-700 mb-2">Why might this happen?</h4>
-                <ul className="text-sm text-blue-600 text-left list-disc pl-5 space-y-1">
-                  <li>You haven't created any answers yet</li>
-                  <li>The selected totem filter is too restrictive</li>
-                  <li>Your posts might not be stored as "answers" in the database</li>
-                </ul>
-                <p className="text-sm text-blue-600 mt-3">
-                  Try creating some answers first, or ask your administrator about how content is stored.
-                </p>
+
+          {/* Answer list or empty state */}
+          {answers.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
+              <div className="text-4xl">✍️</div>
+              <div>
+                <p className="font-medium text-gray-800 mb-1">No answers to add yet</p>
+                <p className="text-sm text-gray-500">Sections are built from your answers to questions. Go answer some first, then come back.</p>
               </div>
+              <button
+                onClick={() => router.push('/')}
+                className="px-5 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Answer some questions
+              </button>
+            </div>
+          ) : filteredAnswers.length === 0 ? (
+            <div className="text-center py-8 text-sm text-gray-500">
+              No answers match this totem filter.{' '}
+              <button onClick={() => setSelectedTotem(null)} className="text-blue-600 hover:underline">
+                Clear filter
+              </button>
             </div>
           ) : (
-            <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
-              {filteredAnswers.map(post => (
-                <div
-                  key={post.id}
-                  className={`border p-3 rounded-md ${
-                    selectedAnswerIds.includes(post.id) 
-                      ? 'border-blue-400 bg-blue-50' 
-                      : 'border-gray-200 hover:bg-gray-50'
-                  }`}
-                  onClick={() => handleToggleAnswer(post.id)}
-                >
-                  <div className="flex items-start">
-                    <input
-                      type="checkbox"
-                      checked={selectedAnswerIds.includes(post.id)}
-                      onChange={() => handleToggleAnswer(post.id)}
-                      className="mr-3 mt-1"
-                      onClick={e => e.stopPropagation()}
-                    />
-                    <div>
-                      <h4 className="font-medium">{post.question}</h4>
-                      {post.answers && post.answers[0] && (
-                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">
-                          {post.answers[0].text}
-                        </p>
-                      )}
-                      <div className="text-xs text-gray-500 mt-2 flex flex-wrap gap-1">
-                        {post.totemAssociations?.map(assoc => (
-                          <span key={assoc.totemId} className="px-2 py-0.5 bg-gray-100 rounded-full">
-                            {assoc.totemName}
-                          </span>
-                        ))}
-                        <span className="px-2 py-0.5 bg-gray-100 rounded-full">
-                          {new Date(post.createdAt).toLocaleDateString()}
-                        </span>
-                        {post.score !== undefined && (
-                          <span className="px-2 py-0.5 bg-gray-100 rounded-full">
-                            Score: {post.score}
-                          </span>
+            <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+              {filteredAnswers.map(post => {
+                // Use answer id as key — post.id is not unique when the user
+                // has multiple answers to the same question.
+                const itemKey = `${post.id}_${post.answers[0]?.id}`;
+                const selected = selectedAnswerIds.includes(post.id);
+                // answers[0] is guaranteed to be the user's own answer (set at load time)
+                const myAnswer = post.answers[0];
+                const myTotems = (myAnswer?.totems?.map(t => t.name).filter(Boolean) || []) as string[];
+
+                return (
+                  <div
+                    key={itemKey}
+                    onClick={() => toggleAnswer(post.id)}
+                    className={`border-2 rounded-xl p-3 cursor-pointer transition-all ${
+                      selected
+                        ? 'border-blue-400 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`mt-0.5 w-4 h-4 flex-shrink-0 rounded border-2 flex items-center justify-center transition-colors ${
+                        selected ? 'bg-blue-600 border-blue-600' : 'border-gray-400'
+                      }`}>
+                        {selected && <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 10 10" fill="none"><path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 leading-snug">{post.question}</p>
+                        {myAnswer?.text && (
+                          <p className="text-xs text-gray-500 mt-1 line-clamp-2 leading-relaxed">
+                            {myAnswer.text}
+                          </p>
+                        )}
+                        {myTotems.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {myTotems.map(t => (
+                              <span key={t} className={`px-2 py-0.5 rounded-full text-xs font-medium ${getTotemColor(t, totems)}`}>
+                                {t}
+                              </span>
+                            ))}
+                          </div>
                         )}
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
-          
-          <div className="border-t pt-3 mt-4">
-            <p className="text-sm text-gray-500">
-              Selected {selectedAnswerIds.length} answer{selectedAnswerIds.length === 1 ? '' : 's'}
+
+          {/* No answers selected nudge */}
+          {answers.length > 0 && selectedAnswerIds.length === 0 && (
+            <p className="text-xs text-center text-amber-600 font-medium">
+              Select at least one answer to continue to the next step.
             </p>
-          </div>
+          )}
         </div>
       )}
-      
-      {/* Step 3: Order Selection (only for series/custom) */}
-      {step === 'order' && (organizationMethod === 'series' || organizationMethod === 'custom') && (
-        <div className="space-y-4 pt-4">
-          <h3 className="font-medium">Arrange Items in Order</h3>
-          <p className="text-sm text-gray-500">
-            Drag and drop to reorder or use the arrows to move items up and down.
-          </p>
-          
+
+      {/* ── Step 3: Order ── */}
+      {step === 'order' && (
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm font-medium text-gray-800 mb-1">
+              {organizationMethod === 'series' ? 'Set the learning sequence' : 'Arrange your order'}
+            </p>
+            <p className="text-xs text-gray-500">Drag items or use the arrows to reorder.</p>
+          </div>
+
           {orderedSelectedAnswers.length === 0 ? (
-            <p className="text-gray-500 text-center py-4">No items selected</p>
+            <p className="text-gray-400 text-sm text-center py-6">No items selected.</p>
           ) : (
-            <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
-              {orderedSelectedAnswers.map((answerId, index) => {
-                const post = answers.find(a => a.id === answerId);
+            <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+              {orderedSelectedAnswers.map((id, index) => {
+                const post = answers.find(a => a.id === id);
                 if (!post) return null;
-                
+                const isDragging = draggedItem === id;
+                const orderKey = `${id}_${post.answers[0]?.id}`;
                 return (
                   <div
-                    key={post.id}
+                    key={orderKey}
                     draggable
-                    onDragStart={() => handleDragStart(post.id)}
-                    onDragOver={e => handleDragOver(e, post.id)}
+                    onDragStart={() => handleDragStart(id)}
+                    onDragOver={e => handleDragOver(e, id)}
                     onDragEnd={handleDragEnd}
-                    className={`border p-3 rounded-md flex items-center ${
-                      draggedItem === post.id ? 'border-blue-500 bg-blue-50 opacity-50' : 'border-gray-200'
+                    className={`border-2 rounded-xl p-3 flex items-center gap-3 transition-all ${
+                      isDragging
+                        ? 'border-blue-400 bg-blue-50 opacity-60'
+                        : 'border-gray-200 bg-white hover:border-gray-300'
                     }`}
                   >
-                    <div className="mr-2 text-gray-400 cursor-move">☰</div>
-                    <div className="flex-1">
-                      <h4 className="font-medium">{post.question}</h4>
-                      {post.answers && post.answers[0] && (
-                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">
-                          {post.answers[0].text}
-                        </p>
+                    {/* Step number for series */}
+                    {organizationMethod === 'series' && (
+                      <div className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center flex-shrink-0 font-bold">
+                        {index + 1}
+                      </div>
+                    )}
+                    <div className="text-gray-400 cursor-grab active:cursor-grabbing select-none text-lg">⠿</div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-gray-400 line-clamp-1">{post.question}</p>
+                      {post.answers[0]?.text && (
+                        <p className="text-sm font-medium text-gray-900 line-clamp-2 mt-0.5">{post.answers[0].text}</p>
                       )}
                     </div>
-                    <div className="flex flex-col">
+                    <div className="flex flex-col gap-0.5 flex-shrink-0">
                       <button
-                        onClick={() => moveItem(post.id, 'up')}
+                        onClick={() => moveItem(id, 'up')}
                         disabled={index === 0}
-                        className={`p-1 ${index === 0 ? 'text-gray-300' : 'text-gray-600 hover:bg-gray-100'}`}
+                        className={`p-1 rounded text-xs leading-none ${index === 0 ? 'text-gray-200' : 'text-gray-500 hover:bg-gray-100'}`}
                       >
-                        ↑
+                        ▲
                       </button>
                       <button
-                        onClick={() => moveItem(post.id, 'down')}
+                        onClick={() => moveItem(id, 'down')}
                         disabled={index === orderedSelectedAnswers.length - 1}
-                        className={`p-1 ${
-                          index === orderedSelectedAnswers.length - 1 
-                            ? 'text-gray-300' 
-                            : 'text-gray-600 hover:bg-gray-100'
-                        }`}
+                        className={`p-1 rounded text-xs leading-none ${index === orderedSelectedAnswers.length - 1 ? 'text-gray-200' : 'text-gray-500 hover:bg-gray-100'}`}
                       >
-                        ↓
+                        ▼
                       </button>
                     </div>
                   </div>
@@ -693,118 +571,40 @@ export function CustomSectionCreator({
           )}
         </div>
       )}
-      
-      {/* Debug panel - only visible during development */}
-      {process.env.NODE_ENV !== 'production' && (
-        <div className="mt-8 border-t pt-4 border-gray-300">
-          <details>
-            <summary className="font-medium text-gray-700 cursor-pointer">Debug Information</summary>
-            <div className="mt-2 p-4 bg-gray-100 rounded-md text-xs font-mono whitespace-pre-wrap">
-              <div className="mb-2">
-                <div><strong>User ID:</strong> {userId}</div>
-                <div><strong>Total Answers:</strong> {answers.length}</div>
-                <div><strong>Filtered Answers:</strong> {filteredAnswers.length}</div>
-                <div><strong>Selected Answers:</strong> {selectedAnswerIds.length}</div>
-                <div><strong>Available Totems:</strong> {totems.join(', ')}</div>
-                <div><strong>Selected Totem:</strong> {selectedTotem || 'None'}</div>
-                <div><strong>Sort Option:</strong> {sortOption}</div>
-              </div>
-              <div>
-                <button 
-                  onClick={async () => {
-                    try {
-                      // Import Firestore directly for diagnosis
-                      const { collection, getDocs } = await import('firebase/firestore');
-                      const { db } = await import('@/lib/firebase');
-                      
-                      // Check posts collection structure
-                      const postsSnapshot = await getDocs(collection(db, 'posts'));
-                      console.log('Posts collection sample:', 
-                        postsSnapshot.empty ? 'Empty collection' : 
-                        postsSnapshot.docs.slice(0, 3).map(d => ({id: d.id, data: d.data()}))
-                      );
-                      
-                      // Check if there are any documents with type=answer
-                      const answerSamples = postsSnapshot.docs
-                        .filter(doc => doc.data().type === 'answer')
-                        .slice(0, 3);
-                        
-                      console.log('Answer samples:', 
-                        answerSamples.length ? answerSamples.map(d => ({id: d.id, data: d.data()})) : 
-                        'No answers found in collection'  
-                      );
-                      
-                      alert(`Collection check completed. Found ${postsSnapshot.docs.length} posts, ${answerSamples.length} answers. See console for details.`);
-                    } catch (error) {
-                      console.error('Debug check failed:', error);
-                      alert('Failed to check collections: ' + (error as Error).message);
-                    }
-                  }}
-                  className="px-2 py-1 bg-blue-500 text-white text-xs rounded"
-                >
-                  Check Collection Structure
-                </button>
-              </div>
-              <div>
-                <button 
-                  onClick={() => {
-                    // Safely try to access Firebase
-                    try {
-                      console.log('Debug info - checking for sample post fields');
-                      
-                      // Check what fields are present on a sample post
-                      if (answers.length > 0) {
-                        console.log('Sample post fields:', Object.keys(answers[0]));
-                        
-                        // Check specific relevant fields using safer type checking
-                        const samplePost = answers[0] as any; // Use any for debugging to check fields
-                        console.log('User identifier field:', 
-                          samplePost.firebaseUid ? 'firebaseUid' : 
-                          samplePost.authorId ? 'authorId' : 
-                          samplePost.userId ? 'userId' : 
-                          'unknown'
-                        );
-                        
-                        alert('Check the console for post field names');
-                      } else {
-                        // Try to get a sample post directly to check fields
-                        try {
-                          // Import Firestore directly for diagnosis
-                          import('firebase/firestore').then(({ collection, getDocs, limit, query }) => {
-                            import('@/lib/firebase').then(({ db }) => {
-                              // Get any single post to check its field structure
-                              const sampleQuery = query(collection(db, 'posts'), limit(1));
-                              getDocs(sampleQuery).then(snapshot => {
-                                if (!snapshot.empty) {
-                                  const sampleData = snapshot.docs[0].data();
-                                  console.log('Sample post fields from direct query:', Object.keys(sampleData));
-                                  console.log('Sample post data:', sampleData);
-                                  
-                                  alert('Check the console for a sample post structure');
-                                } else {
-                                  alert('No posts found in the database');
-                                }
-                              });
-                            });
-                          });
-                        } catch (importError) {
-                          console.error('Failed to check post fields:', importError);
-                          alert('Failed to check post fields: ' + (importError as Error).message);
-                        }
-                      }
-                    } catch (debugError) {
-                      console.error('Debug error:', debugError);
-                    }
-                  }}
-                  className="px-2 py-1 bg-green-500 text-white text-xs rounded ml-2"
-                >
-                  Check Post Fields
-                </button>
-              </div>
-            </div>
-          </details>
-        </div>
-      )}
+
+      {/* Bottom navigation */}
+      <div className="flex items-center justify-between border-t border-gray-100 pt-4">
+        <button
+          onClick={step === 'info' ? onCancel : handleBack}
+          className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+        >
+          {step === 'info' ? 'Cancel' : '← Back'}
+        </button>
+
+        <button
+          onClick={handleNextStep}
+          disabled={
+            isSaving ||
+            (step === 'content' && answers.length > 0 && selectedAnswerIds.length === 0)
+          }
+          title={
+            step === 'content' && selectedAnswerIds.length === 0
+              ? 'Select at least one answer to continue'
+              : undefined
+          }
+          className={`px-5 py-2 text-sm font-medium rounded-lg transition-colors ${
+            step === 'content' && answers.length > 0 && selectedAnswerIds.length === 0
+              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              : 'bg-blue-600 text-white hover:bg-blue-700'
+          }`}
+        >
+          {isSaving
+            ? 'Saving...'
+            : step === 'order' || (step === 'content' && !needsOrderStep)
+            ? 'Save Section'
+            : 'Next →'}
+        </button>
+      </div>
     </div>
   );
-} 
+}

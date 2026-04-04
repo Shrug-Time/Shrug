@@ -85,6 +85,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.log('Profile found:', profile.username);
           }
           
+          // If Firebase Auth says email is verified but Firestore still has an old unverified status, fix it
+          if (
+            authUser.emailVerified &&
+            profile.verificationStatus !== 'email_verified' &&
+            profile.verificationStatus !== 'manual_verified'
+          ) {
+            try {
+              await UserService.updateProfile(authUser.uid, { verificationStatus: 'email_verified' });
+              profile = { ...profile, verificationStatus: 'email_verified' };
+            } catch (e) {
+              console.error('Failed to auto-update verification status:', e);
+            }
+          }
+
           setUserProfile(profile);
 
           // Set verification status - default to 'email_verified' for existing users without the field

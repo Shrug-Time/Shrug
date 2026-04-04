@@ -615,13 +615,21 @@ export default function ProfilePage() {
                       })()}
                     </div>
                   ) : (
-                    <p className="text-gray-600">No answers yet</p>
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <p className="text-gray-500 mb-4">You haven&apos;t answered any questions yet.</p>
+                      <button
+                        onClick={() => router.push('/')}
+                        className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                      >
+                        Answer some questions
+                      </button>
+                    </div>
                   )}
                 </div>
               )}
             </div>
           )}
-          
+
           {/* About Tab Content */}
           {selectedTab === 'about' && (
             <div className="bg-white rounded-xl shadow p-6">

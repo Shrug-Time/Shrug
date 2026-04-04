@@ -126,6 +126,21 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ message: 'User updated' });
       }
 
+      case 'sendPasswordReset': {
+        const { userId } = data;
+        if (!userId) return NextResponse.json({ error: 'userId required' }, { status: 400 });
+
+        const userDoc = await db.collection('users').doc(userId).get();
+        if (!userDoc.exists) return NextResponse.json({ error: 'User not found in Firestore' }, { status: 404 });
+
+        const email = userDoc.data()?.email;
+        if (!email) return NextResponse.json({ error: 'No email on file for this user' }, { status: 400 });
+
+        const link = await auth.generatePasswordResetLink(email);
+        // Return the link so the admin can share it, or just confirm the email was generated
+        return NextResponse.json({ message: `Password reset link generated for ${email}`, link });
+      }
+
       case 'listUsers': {
         const { limit: limitCount = 50 } = data;
         const snapshot = await db.collection('users').limit(limitCount).get();

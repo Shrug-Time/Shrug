@@ -140,9 +140,9 @@ export default function ProfileCustomizationPage() {
 
   if (isLoading || !profile) {
     return (
-      <div className="flex">
+      <div className="min-h-screen">
         <ProfileSidebar />
-        <div className="flex-1 min-h-screen p-4 flex justify-center items-center">
+        <div className="lg:pl-64 min-h-screen p-4 flex justify-center items-center">
           <LoadingSpinner size="lg" />
         </div>
       </div>
@@ -151,9 +151,9 @@ export default function ProfileCustomizationPage() {
 
   if (error) {
     return (
-      <div className="flex">
+      <div className="min-h-screen">
         <ProfileSidebar />
-        <div className="flex-1 min-h-screen p-4">
+        <div className="lg:pl-64 min-h-screen p-4">
           <div className="max-w-4xl mx-auto bg-red-50 p-4 rounded-lg text-red-600">
             Error: {error}
           </div>
@@ -163,17 +163,17 @@ export default function ProfileCustomizationPage() {
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="min-h-screen">
       <ProfileSidebar />
-      
-      <div className="flex-1 p-4">
+
+      <div className="lg:pl-64 p-4">
         {toast && (
           <Toast
             message={toast.message}
             type={toast.type}
           />
         )}
-        
+
         <div className="max-w-4xl ml-0">
           <div className="bg-white rounded-lg shadow">
             <div className="p-6">

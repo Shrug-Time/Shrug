@@ -510,18 +510,14 @@ export class ProfileSectionService {
 
         sectionPosts = userAnswersResult.posts || [];
       }
-      // For custom sections, get content by explicit IDs
+      // For custom sections, fetch posts directly by their saved IDs so we never
+      // miss a post because answerFirebaseUids wasn't populated on older entries.
       else if (section.contentIds.length > 0) {
-        // Get only posts where user has written answers and filter by IDs
-        const userAnswersResult = await PostService.getUserAnswers(userId, 100);
-        const userAnswers = userAnswersResult.posts || [];
-
-        for (const contentId of section.contentIds) {
-          const post = userAnswers.find(p => p.id === contentId);
-          if (post) {
-            sectionPosts.push(post);
-          }
-        }
+        const fetched = await Promise.all(
+          section.contentIds.map(id => PostService.getPost(id).catch(() => null))
+        );
+        // Preserve the saved order and drop any deleted/missing posts
+        sectionPosts = fetched.filter((p): p is Post => p !== null);
       }
 
       // Deduplicate posts by ID before sorting and returning
@@ -531,44 +527,44 @@ export class ProfileSectionService {
       });
       const uniquePosts = Array.from(uniquePostsMap.values());
       
-      return this.sortSectionContent(uniquePosts, section.organizationMethod);
+      return this.sortSectionContent(uniquePosts, section.organizationMethod, userId);
     } catch (error) {
       console.error('Error getting section content:', error);
       throw error;
     }
   }
-  
+
+  /**
+   * Count total active totem likes on a user's answer within a post
+   */
+  private static getAnswerLikes(post: Post, userId: string): number {
+    const myAnswer = post.answers?.find(a => a.firebaseUid === userId);
+    if (!myAnswer) return 0;
+    return myAnswer.totems?.reduce((sum, totem) => {
+      const active = totem.likeHistory?.filter(l => l.isActive).length || 0;
+      return sum + active;
+    }, 0) || 0;
+  }
+
   /**
    * Sort section content based on organization method
-   * @param posts Array of posts to sort
-   * @param method Organization method
-   * @returns Sorted posts
    */
-  private static sortSectionContent(posts: Post[], method: string): Post[] {
+  private static sortSectionContent(posts: Post[], method: string, userId: string): Post[] {
     switch (method) {
       case 'chronological':
-        // Sort by creation date, newest first
         return [...posts].sort((a, b) => b.createdAt - a.createdAt);
-        
+
       case 'popularity':
-        // Sort by answer count or score if available
-        return [...posts].sort((a, b) => {
-          const aPopularity = a.answers?.length || 0;
-          const bPopularity = b.answers?.length || 0;
-          return bPopularity - aPopularity;
-        });
-        
-      case 'series':
-        // For series, we maintain the contentIds order for manual progression
-        // This returns the posts in the exact order they were added to the section
-        return posts;
-        
-      case 'custom':
-        // For custom organization, sort alphabetically by question
-        return [...posts].sort((a, b) => 
-          a.question.localeCompare(b.question)
+        // Sort by total active likes on the user's own answer's totems
+        return [...posts].sort((a, b) =>
+          this.getAnswerLikes(b, userId) - this.getAnswerLikes(a, userId)
         );
-        
+
+      case 'series':
+      case 'custom':
+        // Preserve the saved contentIds order — already in correct order from fetch
+        return posts;
+
       default:
         return posts;
     }

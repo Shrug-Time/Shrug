@@ -48,6 +48,7 @@ export default function AdminPanel() {
   const [answers, setAnswers] = useState<AnswerItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionResult, setActionResult] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [resetLink, setResetLink] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ action: string; label: string; data: any; onSuccess?: () => void } | null>(null);
   const [mergeMode, setMergeMode] = useState<{ canonicalId: string; selectedIds: string[] } | null>(null);
 
@@ -85,6 +86,7 @@ export default function AdminPanel() {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
       setActionResult({ message: result.message, type: 'success' });
+      if (result.link) setResetLink(result.link);
       return result;
     } catch (error: any) {
       setActionResult({ message: error.message, type: 'error' });
@@ -174,7 +176,26 @@ export default function AdminPanel() {
       {actionResult && (
         <div className={`mb-4 p-3 rounded-lg text-sm ${actionResult.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
           {actionResult.message}
-          <button onClick={() => setActionResult(null)} className="ml-2 font-medium underline">dismiss</button>
+          <button onClick={() => { setActionResult(null); setResetLink(null); }} className="ml-2 font-medium underline">dismiss</button>
+        </div>
+      )}
+
+      {resetLink && (
+        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm font-medium text-blue-800 mb-2">Password reset link (send this to the user):</p>
+          <div className="flex gap-2 items-center">
+            <input
+              readOnly
+              value={resetLink}
+              className="flex-1 text-xs p-2 bg-white border border-blue-200 rounded font-mono break-all"
+            />
+            <button
+              onClick={() => navigator.clipboard.writeText(resetLink)}
+              className="px-3 py-2 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 whitespace-nowrap"
+            >
+              Copy Link
+            </button>
+          </div>
         </div>
       )}
 
@@ -276,6 +297,12 @@ export default function AdminPanel() {
                             Remove Photo
                           </button>
                         )}
+                        <button
+                          onClick={() => adminAction('sendPasswordReset', { userId: u.id })}
+                          className="px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded hover:bg-blue-100"
+                        >
+                          Reset Password
+                        </button>
                         <button
                           onClick={() => setConfirmAction({
                             action: 'deleteUser',
