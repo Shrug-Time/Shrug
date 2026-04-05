@@ -123,16 +123,16 @@ export default function Home() {
           <div className="flex flex-wrap gap-2 sm:space-x-4 sm:gap-0 mb-6">
             <button
               onClick={() => setActiveTab('latest')}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                activeTab === 'latest' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              className={`px-4 py-2 rounded-lg border transition-colors ${
+                activeTab === 'latest' ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-white border-gray-300 text-gray-900 hover:bg-gray-50'
               }`}
             >
               Latest
             </button>
             <button
               onClick={() => setActiveTab('popular')}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                activeTab === 'popular' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              className={`px-4 py-2 rounded-lg border transition-colors ${
+                activeTab === 'popular' ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-white border-gray-300 text-gray-900 hover:bg-gray-50'
               }`}
             >
               Popular

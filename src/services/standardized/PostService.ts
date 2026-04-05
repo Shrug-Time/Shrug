@@ -131,49 +131,41 @@ export class PostService {
         async () => {
           const firestore = getFirestore();
           const postsRef = collection(firestore, this.POSTS_COLLECTION);
-          let queryConstraints: QueryConstraint[] = [];
-          
-          // Order by lastInteraction (proxy for engagement) and then by answer count
-          // This ensures posts with recent activity and more answers appear first
-          queryConstraints.push(orderBy(COMMON_FIELDS.LAST_INTERACTION, 'desc'));
-          
-          // Add pagination constraints
+          // Fetch by answer count so posts with more engagement make the candidate pool,
+          // regardless of how old they are. Client-side re-sort by likes refines the order.
+          const queryConstraints: QueryConstraint[] = [
+            orderBy(POST_FIELDS.ANSWER_COUNT, 'desc'),
+          ];
+
           if (lastVisible) {
             queryConstraints.push(startAfter(lastVisible));
           }
           queryConstraints.push(limit(pageSize));
-          
-          // Execute query
+
           const q = query(postsRef, ...queryConstraints);
           const snapshot = await getDocs(q);
-          
-          // Process results - filter out hidden posts
+
           const posts = snapshot.docs
             .map(doc => validatePost({ id: doc.id, ...doc.data() }))
             .filter(post => !post.hidden);
 
-          // Additional client-side sorting by engagement score for better accuracy
-          // This combines multiple factors: answer count, recent activity, and like count
+          // Score purely by engagement: likes are the primary signal, answer count is secondary.
+          // No time decay — a well-liked old post should still rank high.
           const postsWithScore = posts.map(post => {
-            const answerCount = post.answers?.length || 0;
-            const totalLikes = post.answers?.reduce((sum, answer) => 
-              sum + (answer.totems?.reduce((totemSum, totem) => 
-                totemSum + (totem.likeHistory?.filter(like => like.isActive).length || 0), 0
-              ) || 0), 0
-            ) || 0;
-            
-            // Calculate engagement score: (answer count * 10) + (total likes * 5) + (days since last interaction)
-            const lastInteraction = post.lastInteraction || post.createdAt || Date.now();
-            const daysSinceLastInteraction = (Date.now() - lastInteraction) / (1000 * 60 * 60 * 24);
-            const engagementScore = (answerCount * 10) + (totalLikes * 5) - daysSinceLastInteraction;
-            
-            return { ...post, engagementScore };
+            const answerCount = post.answerCount ?? post.answers?.length ?? 0;
+            const totalLikes = post.answers?.reduce((sum, answer) =>
+              sum + (answer.totems?.reduce((totemSum, totem) =>
+                totemSum + (totem.likeHistory?.filter(like => like.isActive).length ?? 0), 0
+              ) ?? 0), 0
+            ) ?? 0;
+
+            const popularityScore = (totalLikes * 10) + (answerCount * 2);
+            return { ...post, popularityScore };
           });
-          
-          // Sort by engagement score (highest first)
+
           const sortedPosts = postsWithScore
-            .sort((a, b) => b.engagementScore - a.engagementScore)
-            .map(({ engagementScore, ...post }) => post); // Remove score from final result
+            .sort((a, b) => b.popularityScore - a.popularityScore)
+            .map(({ popularityScore, ...post }) => post);
           
           return {
             posts: sortedPosts,
